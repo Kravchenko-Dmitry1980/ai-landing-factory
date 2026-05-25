@@ -41,3 +41,4 @@ class EvidenceVisibilityResponse(BaseModel):
     strong_fields: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     improvement_hints: list[str] = Field(default_factory=list)
+    field_decisions: dict[str, str] = Field(default_factory=dict)

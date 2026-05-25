@@ -163,8 +163,18 @@ def run_smoke(
             errors.append(f"source_count={source_count} < uploaded={len(upload_files)}")
 
         parser_mode = fidelity.get("parser_mode") or ""
-        if parser_mode not in ("multi_source_assembly", "structured", "project_presentation"):
+        allowed_modes = (
+            "field_level_fusion",
+            "multi_source_assembly",
+            "structured",
+            "project_presentation",
+        )
+        if parser_mode not in allowed_modes:
             errors.append(f"unexpected parser_mode={parser_mode}")
+        if len(upload_files) >= 2 and parser_mode != "field_level_fusion":
+            errors.append(
+                f"multi-file project expected field_level_fusion, got {parser_mode}"
+            )
 
         title = contract.get("title") or ""
         if not _title_ok(title):
@@ -187,6 +197,12 @@ def run_smoke(
                 errors.append(
                     f"evidence source_count={ev_sources} < uploaded={len(upload_files)}"
                 )
+            if len(upload_files) >= 2:
+                field_decisions = evidence.get("field_decisions") or {}
+                if "team" not in field_decisions:
+                    errors.append("evidence missing field_decisions.team")
+                if "modules" not in field_decisions:
+                    errors.append("evidence missing field_decisions.modules")
 
         export_resp = client.get(
             f"{api}/projects/{project_id}/export/html",

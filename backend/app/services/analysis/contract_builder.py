@@ -55,6 +55,7 @@ from app.services.evidence.source_inventory import (
     SourceInventoryBuilder,
     has_single_high_confidence_ready_doc,
 )
+from app.services.fusion.field_fusion_engine import FieldFusionEngine
 
 
 
@@ -114,6 +115,8 @@ class ContractBuilderService:
 
         self._multi_source_assembler = MultiSourceEvidenceAssembler()
 
+        self._field_fusion_engine = FieldFusionEngine()
+
 
 
     def _ensure_fidelity_deps(self) -> None:
@@ -145,6 +148,10 @@ class ContractBuilderService:
         if not hasattr(self, "_multi_source_assembler"):
 
             self._multi_source_assembler = MultiSourceEvidenceAssembler()
+
+        if not hasattr(self, "_field_fusion_engine"):
+
+            self._field_fusion_engine = FieldFusionEngine()
 
 
 
@@ -206,66 +213,89 @@ class ContractBuilderService:
                 )
                 pres_completeness = self._completeness_gate.evaluate(pres_contract)
 
-            ms_score = ms_completeness.score
-            pres_score = pres_completeness.score if pres_completeness else 0
-
-            if pres_contract and pres_score > ms_score:
-                ms_contract = contract
-                contract = pres_contract
-                if contract.fidelity:
-                    contract.fidelity.evidence_report = report
-                    contract.fidelity.completeness = pres_completeness
-                contract = self._merge_team_from_ms_contract(contract, ms_contract)
-                logger.info(
-                    "Presentation synthesizer chosen for %s (pres=%d > ms=%d)",
-                    extraction.project_id,
-                    pres_score,
-                    ms_score,
+            if len(inventory) >= 2:
+                fusion_candidates: dict[str, LandingContract] = {
+                    "multi_source": contract,
+                }
+                if pres_contract:
+                    fusion_candidates["presentation"] = pres_contract
+                fusion_result = self._field_fusion_engine.fuse(
+                    extraction=extraction,
+                    inventory=inventory,
+                    candidates=fusion_candidates,
+                    evidence_report=report,
+                    detection=detection,
+                    base_contract=contract,
                 )
-            elif ms_score >= 70 or (
-                ms_score >= 55 and ms_score >= pres_score
-            ):
+                contract = fusion_result.contract
                 logger.info(
-                    "Multi-source evidence assembly for %s "
-                    "(completeness=%d, pres=%d, sources=%d)",
+                    "Field-level fusion for %s (sources=%d, candidates=%d, score=%d)",
                     extraction.project_id,
-                    ms_score,
-                    pres_score,
                     len(inventory),
-                )
-            elif pres_contract:
-                ms_contract = contract
-                contract = pres_contract
-                if contract.fidelity:
-                    contract.fidelity.evidence_report = report
-                    contract.fidelity.completeness = pres_completeness
-                contract = self._merge_team_from_ms_contract(contract, ms_contract)
-                logger.info(
-                    "Presentation fallback for %s (ms=%d)",
-                    extraction.project_id,
-                    ms_score,
+                    len(fusion_candidates),
+                    fusion_result.trace.final_completeness,
                 )
             else:
-                contract = self._build_heuristic(extraction)
-                contract.fidelity = FidelityMetadata(
-                    parser_mode="heuristic",
-                    detection=detection,
-                    evidence_report=report,
-                    source_count=len(inventory),
-                    evidence_count=report.total_evidence_items,
-                    source_types=[s.detected_source_type for s in inventory],
-                    missing_fields=report.missing_fields,
-                    weak_fields=report.weak_fields,
-                    assembly_confidence=report.confidence,
-                    field_sources=report.field_traces,
-                    completeness=ms_completeness,
-                )
-                logger.info(
-                    "Heuristic fallback for %s (ms=%d, pres=%d)",
-                    extraction.project_id,
-                    ms_score,
-                    pres_score,
-                )
+                ms_score = ms_completeness.score
+                pres_score = pres_completeness.score if pres_completeness else 0
+
+                if pres_contract and pres_score > ms_score:
+                    ms_contract = contract
+                    contract = pres_contract
+                    if contract.fidelity:
+                        contract.fidelity.evidence_report = report
+                        contract.fidelity.completeness = pres_completeness
+                    contract = self._merge_team_from_ms_contract(contract, ms_contract)
+                    logger.info(
+                        "Presentation synthesizer chosen for %s (pres=%d > ms=%d)",
+                        extraction.project_id,
+                        pres_score,
+                        ms_score,
+                    )
+                elif ms_score >= 70 or (
+                    ms_score >= 55 and ms_score >= pres_score
+                ):
+                    logger.info(
+                        "Multi-source evidence assembly for %s "
+                        "(completeness=%d, pres=%d, sources=%d)",
+                        extraction.project_id,
+                        ms_score,
+                        pres_score,
+                        len(inventory),
+                    )
+                elif pres_contract:
+                    ms_contract = contract
+                    contract = pres_contract
+                    if contract.fidelity:
+                        contract.fidelity.evidence_report = report
+                        contract.fidelity.completeness = pres_completeness
+                    contract = self._merge_team_from_ms_contract(contract, ms_contract)
+                    logger.info(
+                        "Presentation fallback for %s (ms=%d)",
+                        extraction.project_id,
+                        ms_score,
+                    )
+                else:
+                    contract = self._build_heuristic(extraction)
+                    contract.fidelity = FidelityMetadata(
+                        parser_mode="heuristic",
+                        detection=detection,
+                        evidence_report=report,
+                        source_count=len(inventory),
+                        evidence_count=report.total_evidence_items,
+                        source_types=[s.detected_source_type for s in inventory],
+                        missing_fields=report.missing_fields,
+                        weak_fields=report.weak_fields,
+                        assembly_confidence=report.confidence,
+                        field_sources=report.field_traces,
+                        completeness=ms_completeness,
+                    )
+                    logger.info(
+                        "Heuristic fallback for %s (ms=%d, pres=%d)",
+                        extraction.project_id,
+                        ms_score,
+                        pres_score,
+                    )
 
 
 

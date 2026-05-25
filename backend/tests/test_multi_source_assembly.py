@@ -118,5 +118,5 @@ def test_telegram_with_aux_txt_still_multi_source() -> None:
         ],
     )
     contract = _make_builder().build(extraction)
-    assert contract.fidelity.parser_mode == "multi_source_assembly"
+    assert contract.fidelity.parser_mode == "field_level_fusion"
     assert contract.title and "Интеллектуальный" in contract.title

@@ -709,7 +709,7 @@ class FieldAssembler:
                         modules, seen, f"Компонент: {tech}", "architecture", item, traces
                     )
 
-        return modules[:15], traces
+        return modules[:12], traces
 
 
 def _add_module(
@@ -721,6 +721,10 @@ def _add_module(
     traces: list[FieldSourceTrace],
     description: str = "",
 ) -> None:
+    from app.services.fusion.source_value_normalizer import is_garbage_module
+
+    if is_garbage_module(name):
+        return
     key = name.lower()[:80]
     if key in seen or len(name) < 2:
         return

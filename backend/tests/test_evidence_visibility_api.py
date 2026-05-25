@@ -21,6 +21,7 @@ from app.services.contract_fidelity.structured_landing_parser import StructuredL
 from app.services.evidence.evidence_visibility import EvidenceVisibilityBuilder
 from app.services.evidence.multi_source_assembler import MultiSourceEvidenceAssembler
 from app.services.evidence.source_inventory import SourceInventoryBuilder
+from app.services.fusion.field_fusion_engine import FieldFusionEngine
 
 ENDO_LANDING = Path(__file__).parent / "fixtures" / "endocrinology_landing.txt"
 GLAUCO_PPTX = Path(__file__).parent / "fixtures" / "glauco_module_presentation.txt"
@@ -35,6 +36,7 @@ def _make_builder() -> ContractBuilderService:
     builder._completeness_gate = ContractCompletenessGate()
     builder._inventory_builder = SourceInventoryBuilder()
     builder._multi_source_assembler = MultiSourceEvidenceAssembler()
+    builder._field_fusion_engine = FieldFusionEngine()
     return builder
 
 
@@ -87,9 +89,11 @@ def test_evidence_report_returns_200(monkeypatch, multi_source_contract) -> None
     response = client.get(f"/api/v1/projects/{pid}/evidence-report")
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["parser_mode"] == "multi_source_assembly"
+    assert body["parser_mode"] == "field_level_fusion"
     assert body["source_count"] == 3
     assert body["evidence_count"] > 0
+    assert body.get("field_decisions")
+    assert "team" in body["field_decisions"]
     assert body["field_sources"]["title"]["coverage"] in ("strong", "weak", "missing")
 
 

@@ -17,9 +17,13 @@ def test_parser_accepts_latest_and_current_flags() -> None:
     args = parser.parse_args(["--latest"])
     assert args.latest is True
     assert args.current is False
+    assert args.latest_any is False
 
     args2 = parser.parse_args(["--current"])
     assert args2.current is True
+
+    args3 = parser.parse_args(["--latest-any"])
+    assert args3.latest_any is True
 
 
 def test_resolve_target_json_file_skips_project() -> None:
@@ -58,7 +62,7 @@ def test_main_resolved_project(monkeypatch) -> None:
         lambda _args: ResolvedProject(
             project_id=pid,
             backend_url="http://127.0.0.1:8010",
-            source="latest",
+            discovery_mode="latest",
             project_name="Demo",
         ),
     )

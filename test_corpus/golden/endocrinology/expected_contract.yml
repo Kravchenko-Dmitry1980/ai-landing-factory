@@ -8,6 +8,6 @@ must_have_modules:
   - "VitaCalc"
 min_modules: 3
 must_have_team: []
-expected_parser_mode: multi_source_assembly
+expected_parser_mode: field_level_fusion
 reject_essence_slide1_only: true
 reject_generic_title: true

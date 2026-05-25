@@ -5,6 +5,20 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from app.services.diagnostics.project_discovery import is_technical_project_name
+
+
+STALE_LANDING_WARNING = (
+    "Generated landing устарел относительно contract. "
+    "После добавления источников выполните regenerate."
+)
+
+SINGLE_FILE_NO_TEAM_ACTION = (
+    "Загрузите DOCX/TXT со списком команды или PPTX со слайдом "
+    "'Команда проекта' в текстовом слое. "
+    "Затем выполните Перепарсить / Сформировать ленд."
+)
+
 
 @dataclass
 class DiagnosticVerdict:
@@ -14,6 +28,7 @@ class DiagnosticVerdict:
     reason: str
     action: str
     checks: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -53,7 +68,38 @@ def normalize_diagnostic_payload(raw: dict[str, Any]) -> dict[str, Any]:
     payload["source_count"] = int(payload.get("source_count") or 0)
     payload["filenames"] = list(payload.get("filenames") or [])
     payload["verdict"] = str(payload.get("verdict") or "")
+    payload["team_coverage"] = str(payload.get("team_coverage") or "missing")
+    payload["project_name"] = str(payload.get("project_name") or "")
+    payload["evidence_count"] = int(payload.get("evidence_count") or 0)
     return payload
+
+
+def _is_technical_or_empty_project(data: dict[str, Any]) -> bool:
+    if data["source_count"] > 0 or data["filenames"]:
+        return False
+    if int(data.get("evidence_count") or 0) > 0:
+        return False
+    name = str(data.get("project_name") or "")
+    if is_technical_project_name(name):
+        return True
+    verdict = str(data.get("verdict") or "")
+    if verdict in ("OK", "stale_export_or_wrong_project") and data["source_count"] == 0:
+        return True
+    return False
+
+
+def _is_single_file_no_team_source(data: dict[str, Any]) -> bool:
+    """True when one source file and no team signal anywhere."""
+    if data["source_count"] != 1:
+        return False
+    if data["team_structured_count"] > 0:
+        return False
+    if data["export_has_team"]:
+        return False
+    if _contract_has_team(data):
+        return False
+    team_coverage = str(data.get("team_coverage") or "missing")
+    return team_coverage in ("missing", "")
 
 
 def _has_team_source_file(filenames: list[str]) -> bool:
@@ -81,7 +127,6 @@ def classify_live_project_diagnostic(payload: dict[str, Any]) -> DiagnosticVerdi
 
     source_count = data["source_count"]
     filenames = data["filenames"]
-    verdict = data["verdict"]
     team_structured_count = data["team_structured_count"]
     export_has_team = data["export_has_team"]
     landing_stale = data["landing_stale"]
@@ -93,18 +138,19 @@ def classify_live_project_diagnostic(payload: dict[str, Any]) -> DiagnosticVerdi
     checks.append(f"export_has_team={export_has_team}")
     checks.append(f"landing_stale={landing_stale}")
 
-    # Rule 1 — single file, no team source
-    if source_count == 1 and verdict == "single_file_no_team_source":
+    # Rule 1 — single file, no team source (priority over stale landing)
+    if _is_single_file_no_team_source(data):
+        warnings: list[str] = []
+        if landing_stale:
+            warnings.append(STALE_LANDING_WARNING)
         return DiagnosticVerdict(
             status="USER_ACTION_REQUIRED",
             classification="single_file_no_team_source",
             layer="user_input",
             reason="Загружен один файл. Команда не найдена в источниках.",
-            action=(
-                "Загрузите DOCX/TXT со списком команды или PPTX со слайдом "
-                "'Команда проекта' в текстовом слое."
-            ),
+            action=SINGLE_FILE_NO_TEAM_ACTION,
             checks=checks,
+            warnings=warnings,
         )
 
     # Rule 2 — DOCX/TXT present, but team missing
@@ -120,7 +166,7 @@ def classify_live_project_diagnostic(payload: dict[str, Any]) -> DiagnosticVerdi
             reason="В проекте есть DOCX/TXT, но team_structured пуст.",
             action=(
                 "Проверить extraction, team_parser, field_assembler, "
-                "_merge_team_from_ms_contract."
+                "FieldFusionEngine union_validated_people."
             ),
             checks=checks,
         )
@@ -169,7 +215,21 @@ def classify_live_project_diagnostic(payload: dict[str, Any]) -> DiagnosticVerdi
             checks=checks,
         )
 
-    # Rule 6 — ambiguous
+    # Rule 6 — technical or empty project (not a product bug)
+    if _is_technical_or_empty_project(data):
+        return DiagnosticVerdict(
+            status="USER_ACTION_REQUIRED",
+            classification="technical_or_empty_project",
+            layer="project_discovery",
+            reason="Проект без загруженных источников или служебный test/smoke/CORS проект.",
+            action=(
+                "Use --latest to select a project with uploaded sources, "
+                "or create/upload a real project."
+            ),
+            checks=checks,
+        )
+
+    # Rule 7 — ambiguous
     return DiagnosticVerdict(
         status="BUG",
         classification="ambiguous_inconsistent_state",
@@ -202,9 +262,16 @@ def format_verdict_report(
         f"- generated_landing_has_team: {data['generated_landing_has_team']}",
         f"- landing_stale: {data['landing_stale']}",
         f"- parser_mode: {data.get('parser_mode', '')}",
+        f"- field_decisions_team: {data.get('field_decisions_team', '')}",
         f"- evidence_count: {data.get('evidence_count', '')}",
         f"- team_coverage: {data.get('team_coverage', '')}",
         f"- debug_verdict: {data.get('verdict', '')}",
+    ]
+    if gate.warnings:
+        lines.extend(["", "Warnings:"])
+        lines.extend(f"- {warning}" for warning in gate.warnings)
+    lines.extend(
+        [
         "",
         "Reason:",
         gate.reason,
@@ -213,5 +280,6 @@ def format_verdict_report(
         gate.action,
         "",
         f"Exit code: {verdict_exit_code(gate.status)}",
-    ]
+        ]
+    )
     return "\n".join(lines)

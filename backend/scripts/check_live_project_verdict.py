@@ -23,6 +23,7 @@ from app.services.diagnostics.live_project_verdict import (  # noqa: E402
 from app.services.diagnostics.project_discovery import (  # noqa: E402
     ProjectDiscoveryError,
     ResolvedProject,
+    format_discovery_banner,
     get_backend_url_from_runtime,
     resolve_project_id,
 )
@@ -36,6 +37,7 @@ DEFAULT_BACKEND_URL = "http://127.0.0.1:8001"
 EPILOG = """
 Examples:
   python scripts/check_live_project_verdict.py --latest
+  python scripts/check_live_project_verdict.py --latest-any
   python scripts/check_live_project_verdict.py --current
   python scripts/check_live_project_verdict.py --project-id 55a98f90-73fc-4d26-a477-3c974a0cbeed
 
@@ -57,7 +59,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--latest",
         action="store_true",
-        help="Use newest project from GET /api/v1/projects",
+        help="Newest user project with uploaded sources (skips CORS/smoke/empty)",
+    )
+    parser.add_argument(
+        "--latest-any",
+        action="store_true",
+        help="Raw newest project from GET /api/v1/projects (includes technical)",
     )
     parser.add_argument(
         "--current",
@@ -94,20 +101,27 @@ def resolve_target(args: argparse.Namespace) -> ResolvedProject | None:
     if args.json_file:
         return None
     if args.latest and args.current:
-        raise ProjectDiscoveryError("Use only one of --latest or --current.")
-    if args.project_id and (args.latest or args.current):
-        raise ProjectDiscoveryError("Use --project-id alone or --latest/--current.")
+        raise ProjectDiscoveryError("Use only one of --latest, --latest-any, or --current.")
+    if args.latest_any and args.current:
+        raise ProjectDiscoveryError("Use only one of --latest, --latest-any, or --current.")
+    if args.latest and args.latest_any:
+        raise ProjectDiscoveryError("Use only one of --latest or --latest-any.")
+    if args.project_id and (args.latest or args.latest_any or args.current):
+        raise ProjectDiscoveryError(
+            "Use --project-id alone or --latest/--latest-any/--current."
+        )
 
     backend = resolve_backend_url(args)
-    if not args.project_id and not args.latest and not args.current:
+    if not args.project_id and not args.latest and not args.latest_any and not args.current:
         raise ProjectDiscoveryError(
-            "Укажите --project-id UUID, --latest или --current. "
+            "Укажите --project-id UUID, --latest, --latest-any или --current. "
             "Пример: python scripts/check_live_project_verdict.py --latest"
         )
 
     return resolve_project_id(
         project_id=args.project_id or None,
         latest=args.latest,
+        latest_any=args.latest_any,
         current=args.current,
         base_url=backend,
         runtime_root=args.runtime_root,
@@ -140,11 +154,7 @@ def main(argv: list[str] | None = None) -> int:
         project_id = resolved.project_id if resolved else None
 
         if resolved:
-            label = resolved.project_name or resolved.project_id
-            print(
-                f"Resolved project: {label} "
-                f"({resolved.source}, backend={resolved.backend_url})"
-            )
+            print(format_discovery_banner(resolved))
 
         payload = load_payload(
             project_id=project_id,

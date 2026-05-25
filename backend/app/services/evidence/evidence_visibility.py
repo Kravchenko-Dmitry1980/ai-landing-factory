@@ -114,6 +114,9 @@ class EvidenceVisibilityBuilder:
         )
 
         parser_mode = fidelity.parser_mode if fidelity else report.parser_strategy
+        field_decisions = _fusion_field_decisions(fidelity)
+        if field_decisions:
+            field_sources = _merge_fusion_field_sources(field_sources, field_decisions)
         return EvidenceVisibilityResponse(
             project_id=str(contract.project_id),
             parser_mode=parser_mode,
@@ -127,6 +130,7 @@ class EvidenceVisibilityBuilder:
             strong_fields=list(report.strong_fields),
             warnings=_dedupe(warnings),
             improvement_hints=hints,
+            field_decisions=field_decisions,
         )
 
     def _fallback(
@@ -191,6 +195,7 @@ class EvidenceVisibilityBuilder:
             strong_fields=[],
             warnings=_dedupe(warnings),
             improvement_hints=hints,
+            field_decisions=_fusion_field_decisions(fidelity),
         )
 
 
@@ -411,3 +416,46 @@ def _dedupe(items: list[str]) -> list[str]:
             seen.add(item)
             out.append(item)
     return out
+
+
+def _fusion_field_decisions(fidelity: FidelityMetadata | None) -> dict[str, str]:
+    if not fidelity or not fidelity.field_decisions:
+        return {}
+    summary: dict[str, str] = {}
+    for field_name, raw in fidelity.field_decisions.items():
+        if isinstance(raw, dict):
+            sources = raw.get("selected_sources") or []
+            if sources:
+                summary[field_name] = " + ".join(str(s) for s in sources)
+        elif isinstance(raw, str):
+            summary[field_name] = raw
+    return summary
+
+
+def _merge_fusion_field_sources(
+    field_sources: dict[str, FieldSourceView],
+    field_decisions: dict[str, str],
+) -> dict[str, FieldSourceView]:
+    for field_name, sources_label in field_decisions.items():
+        refs = [part.strip() for part in sources_label.split("+") if part.strip()]
+        existing = field_sources.get(field_name)
+        if existing:
+            merged_refs = _dedupe(list(existing.source_refs) + refs)
+            field_sources[field_name] = existing.model_copy(
+                update={
+                    "source_refs": merged_refs,
+                    "reasons": _dedupe(
+                        list(existing.reasons) + [f"field fusion: {sources_label}"]
+                    ),
+                    "coverage": existing.coverage if existing.coverage != "missing" else "strong",
+                }
+            )
+        else:
+            field_sources[field_name] = FieldSourceView(
+                field_name=field_name,
+                coverage="strong",
+                confidence=0.85,
+                source_refs=refs,
+                reasons=[f"field fusion: {sources_label}"],
+            )
+    return field_sources

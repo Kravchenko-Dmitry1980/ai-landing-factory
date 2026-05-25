@@ -1,0 +1,12 @@
+{
+  "verdict": "stale_generated_landing",
+  "source_count": 1,
+  "filenames": ["Proekt-Intellektualnyj-agregator.pptx"],
+  "team_structured_count": 0,
+  "contract_team_count": 0,
+  "contract_has_team": false,
+  "export_has_team": false,
+  "generated_landing_has_team": false,
+  "landing_stale": true,
+  "team_coverage": "missing"
+}

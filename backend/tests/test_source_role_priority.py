@@ -100,7 +100,7 @@ def test_endocrinology_multi_source_preserves_modules_and_completeness() -> None
         )
     )
     assert contract.fidelity
-    assert contract.fidelity.parser_mode == "multi_source_assembly"
+    assert contract.fidelity.parser_mode == "field_level_fusion"
     assert contract.fidelity.completeness
     assert contract.fidelity.completeness.score >= 85
     module_names = " ".join(m.name for m in contract.fidelity.modules).lower()

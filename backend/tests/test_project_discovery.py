@@ -83,29 +83,14 @@ def test_resolve_explicit_project_id(monkeypatch, runtime_root: Path) -> None:
 
 def test_resolve_current_reads_runtime(monkeypatch, runtime_root: Path) -> None:
     pid = str(uuid4())
-    write_last_project(runtime_root, project_id=pid, project_name="X", source="upload")
-    monkeypatch.setattr(
-        "app.services.diagnostics.project_discovery.check_backend_available",
-        lambda _url: True,
-    )
-    resolved = resolve_project_id(
-        current=True,
-        base_url="http://127.0.0.1:8010",
-        runtime_root=runtime_root,
-    )
-    assert resolved.project_id == pid
-    assert resolved.source == "current"
-
-
-def test_resolve_latest_via_api(monkeypatch, runtime_root: Path, tmp_path: Path) -> None:
-    latest_id = str(uuid4())
 
     class _FakeResponse:
-        status_code = 200
+        def __init__(self, payload, status_code: int = 200):
+            self._payload = payload
+            self.status_code = status_code
 
-        @staticmethod
-        def json():
-            return [{"id": latest_id, "name": "Latest"}]
+        def json(self):
+            return self._payload
 
     class _FakeClient:
         def __init__(self, *args, **kwargs):
@@ -118,7 +103,74 @@ def test_resolve_latest_via_api(monkeypatch, runtime_root: Path, tmp_path: Path)
             return False
 
         def get(self, url, params=None):
-            return _FakeResponse()
+            if url.endswith(f"/projects/{pid}"):
+                return _FakeResponse({"id": pid, "name": "Current user deck"})
+            if "evidence-report" in url:
+                return _FakeResponse(
+                    {
+                        "source_count": 1,
+                        "evidence_count": 2,
+                        "sources": [{"filename": "deck.pptx"}],
+                    }
+                )
+            if "/contract" in url:
+                return _FakeResponse({}, status_code=404)
+            return _FakeResponse({}, status_code=404)
+
+    write_last_project(runtime_root, project_id=pid, project_name="X", source="upload")
+    monkeypatch.setattr(
+        "app.services.diagnostics.project_discovery.check_backend_available",
+        lambda _url: True,
+    )
+    monkeypatch.setattr("app.services.diagnostics.project_discovery.httpx.Client", _FakeClient)
+    resolved = resolve_project_id(
+        current=True,
+        base_url="http://127.0.0.1:8010",
+        runtime_root=runtime_root,
+    )
+    assert resolved.project_id == pid
+    assert resolved.discovery_mode == "current"
+    assert resolved.source == "current"
+    assert resolved.source_count == 1
+
+
+def test_resolve_latest_via_api(monkeypatch, runtime_root: Path, tmp_path: Path) -> None:
+    latest_id = str(uuid4())
+
+    class _FakeResponse:
+        def __init__(self, payload, status_code: int = 200):
+            self._payload = payload
+            self.status_code = status_code
+
+        def json(self):
+            return self._payload
+
+    class _FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def get(self, url, params=None):
+            if url.endswith("/api/v1/projects"):
+                return _FakeResponse([{"id": latest_id, "name": "Latest user deck"}])
+            if url.endswith(f"/projects/{latest_id}"):
+                return _FakeResponse({"id": latest_id, "name": "Latest user deck"})
+            if "evidence-report" in url:
+                return _FakeResponse(
+                    {
+                        "source_count": 1,
+                        "evidence_count": 3,
+                        "sources": [{"filename": "deck.pptx"}],
+                    }
+                )
+            if "/contract" in url:
+                return _FakeResponse({}, status_code=404)
+            return _FakeResponse({}, status_code=404)
 
     monkeypatch.setattr(
         "app.services.diagnostics.project_discovery.check_backend_available",
@@ -134,7 +186,8 @@ def test_resolve_latest_via_api(monkeypatch, runtime_root: Path, tmp_path: Path)
     )
     assert resolved.project_id == latest_id
     assert resolved.source == "latest"
-    assert resolved.project_name == "Latest"
+    assert resolved.project_name == "Latest user deck"
+    assert resolved.source_count == 1
 
 
 def test_resolve_missing_mode_raises(monkeypatch, runtime_root: Path) -> None:

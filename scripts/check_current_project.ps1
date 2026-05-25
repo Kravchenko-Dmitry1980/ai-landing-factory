@@ -1,37 +1,67 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Run live project verdict gate on the current/last opened project.
+  Live project verdict gate for the current/last opened project.
 
 .EXAMPLE
   .\scripts\check_current_project.ps1
+
+.EXAMPLE
+  .\scripts\check_current_project.ps1 -Help
 #>
+param(
+    [switch]$Help
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 
-$RootDir = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+if ($Help) {
+    Write-Host @"
+Usage:
+  .\scripts\check_current_project.ps1
+  .\scripts\check_current_project.ps1 -Help
+
+Description:
+  Runs LIVE PROJECT VERDICT on the last upload/create project from
+  .runtime\last_project.json (fallback: newest project).
+  Backend URL is read from .runtime\ports.json automatically.
+  No manual PROJECT_ID required.
+
+Examples:
+  cd C:\Dima\Projects\CURSOR\Lend
+  .\scripts\check_current_project.ps1
+"@
+    exit 0
+}
+
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RootDir = Split-Path -Parent $ScriptDir
 $PortsFile = Join-Path $RootDir ".runtime\ports.json"
 $PythonExe = Join-Path $RootDir ".venv\Scripts\python.exe"
-$ScriptPath = Join-Path $RootDir "backend\scripts\check_live_project_verdict.py"
+$VerdictScript = Join-Path $RootDir "backend\scripts\check_live_project_verdict.py"
+
+if (-not (Test-Path $PortsFile)) {
+    Write-Host "ports.json not found. Run .\scripts\start_dev.ps1 first."
+    exit 1
+}
 
 if (-not (Test-Path $PythonExe)) {
-    Write-Error "Python venv not found: $PythonExe"
+    Write-Host "Python venv not found. Run .\.venv\Scripts\pip.exe install -r backend\requirements.txt"
+    exit 1
 }
 
-$backendUrl = "http://127.0.0.1:8001"
-if (Test-Path $PortsFile) {
-    try {
-        $ports = Get-Content -Path $PortsFile -Raw -Encoding UTF8 | ConvertFrom-Json
-        if ($ports.backend_url) {
-            $backendUrl = [string]$ports.backend_url
-        }
-    }
-    catch {
-        Write-Warning "Could not read $PortsFile — using default backend URL."
-    }
+$Ports = Get-Content $PortsFile -Raw -Encoding UTF8 | ConvertFrom-Json
+$BackendUrl = [string]$Ports.backend_url
+
+if ([string]::IsNullOrWhiteSpace($BackendUrl)) {
+    Write-Host "backend_url is empty in .runtime\ports.json. Run .\scripts\start_dev.ps1 first."
+    exit 1
 }
 
-Write-Host "Live project verdict (current) — backend: $backendUrl"
+$BackendUrl = $BackendUrl.TrimEnd("/")
 
-& $PythonExe $ScriptPath --current --backend-url $backendUrl --runtime-root $RootDir
+& $PythonExe $VerdictScript --current --backend-url $BackendUrl
 exit $LASTEXITCODE

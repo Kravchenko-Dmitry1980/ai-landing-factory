@@ -21,6 +21,7 @@ from app.services.contract_fidelity.structured_landing_parser import StructuredL
 from app.services.evidence.evidence_visibility import EvidenceVisibilityBuilder
 from app.services.evidence.multi_source_assembler import MultiSourceEvidenceAssembler
 from app.services.evidence.source_inventory import SourceInventoryBuilder
+from app.services.fusion.field_fusion_engine import FieldFusionEngine
 from app.services.export.styled_html_exporter import ExportTheme, StyledHtmlExporter
 from app.services.semantic.landing_bridge import semantic_to_landing
 
@@ -60,6 +61,7 @@ def _make_builder() -> ContractBuilderService:
     builder._completeness_gate = ContractCompletenessGate()
     builder._inventory_builder = SourceInventoryBuilder()
     builder._multi_source_assembler = MultiSourceEvidenceAssembler()
+    builder._field_fusion_engine = FieldFusionEngine()
     return builder
 
 
@@ -90,7 +92,7 @@ def test_live_multifile_team_pipeline_contract() -> None:
     contract = _make_builder().build(_indlab_extraction())
     assert contract.fidelity is not None
     assert contract.fidelity.source_count == 2
-    assert contract.fidelity.parser_mode == "multi_source_assembly"
+    assert contract.fidelity.parser_mode == "field_level_fusion"
     assert len(contract.fidelity.team_structured) >= MIN_TEAM
 
     report = EvidenceVisibilityBuilder().build(contract)

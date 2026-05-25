@@ -21,7 +21,7 @@ forbidden_team_names:
   - Из Telegram
   - Схема обработки данных
   - Векторная БД
-expected_parser_mode: multi_source_assembly
+expected_parser_mode: field_level_fusion
 reject_essence_slide1_only: true
 reject_generic_title: true
 pptx_only:

@@ -205,38 +205,32 @@ cd c:\Dima\Projects\CURSOR\Lend\backend
 
 Pipeline: для каждого файла → `FileExtraction` (text + metadata + warnings) → агрегация в `ExtractionPayload` → `LandingContract`. Неизвестный формат не падает — stub fallback с warning.
 
-## Multi-source landing assembly
+## Multi-source landing assembly (field-level fusion)
 
 Можно загружать **несколько файлов** одного проекта (PPTX, DOCX, PDF, TXT/MD, отчёты, ТЗ, список команды, краткий бриф). Система:
 
 1. Строит **SourceInventory** по каждому файлу.
 2. Разбивает материалы на **EvidenceItem** (слайд / секция / страница / абзац).
-3. Собирает поля контракта через **MultiSourceEvidenceAssembler** (`parser_mode: multi_source_assembly`).
-4. Если уверенность ниже порога — fallback на `project_presentation` или `heuristic`, с отчётом `evidence_report` в `fidelity`.
+3. Собирает candidate contracts: **MultiSourceEvidenceAssembler**, **PresentationLandingSynthesizer**.
+4. При **2+ источниках** вызывает **FieldFusionEngine** — лучшее значение **каждого поля** из всех документов (`parser_mode: field_level_fusion`).
+5. При одном файле — прежний выбор MS vs presentation vs heuristic.
 
-Каждый файл может содержать только часть данных; в метаданных контракта доступны `missing_fields`, `weak_fields`, `field_sources`, `source_count`, `evidence_count`.
+**Комбо документов:** PPTX → modules/stack; DOCX/TXT → team/details; PDF/report → results. Пример: team из DOCX + modules из PPTX → один ленд.
 
-**Для лучшего результата приложите:**
-
-- презентацию проекта (PPTX);
-- техническое задание (DOCX/PDF);
-- описание команды;
-- отчёт / итоги;
-- явный технологический стек.
+В метаданных: `field_decisions`, `fusion_trace`, `field_sources`, `missing_fields`, `weak_fields`. Подробнее: [docs/FIELD_LEVEL_FUSION_H6.md](docs/FIELD_LEVEL_FUSION_H6.md).
 
 **Smoke:**
 
 ```powershell
 cd C:\Dima\Projects\CURSOR\Lend\backend
+..\.venv\Scripts\python.exe scripts\smoke_field_fusion.py --all
 ..\.venv\Scripts\python.exe scripts\smoke_multi_source_assembly.py --fixture telegram_analytics
-..\.venv\Scripts\python.exe scripts\smoke_multi_source_assembly.py --project-id <uuid>
-..\.venv\Scripts\python.exe scripts\smoke_multi_source_assembly.py --files deck.pptx tz.docx team.txt
 ```
 
 **Тесты:**
 
 ```powershell
-..\.venv\Scripts\python.exe -m pytest tests\test_pptx_extractor_all_slides.py tests\test_evidence_extractor.py tests\test_field_assembler.py tests\test_multi_source_assembly.py -q
+..\.venv\Scripts\python.exe -m pytest tests\test_field_level_fusion_engine.py tests\test_multi_source_assembly.py -q
 ```
 
 Загрузка через UI: тот же upload pipeline → `ContractBuilderService.build()` после extraction.
@@ -304,7 +298,31 @@ cd C:\Dima\Projects\CURSOR\Lend
 .\scripts\check_current_project.ps1
 ```
 
+`check_current_project.ps1` читает `.runtime/last_project.json`, **проверяет что проект с материалами**, и при пустом/technical/broken current **fallback-ится на safe `--latest`** с WARNING в выводе.
+
 Backend URL берётся из `.runtime/ports.json` автоматически.
+
+- `.\scripts\check_last_project.ps1` выбирает **последний проект с загруженными источниками** (`--latest`).
+- Технические проекты CORS/smoke/test и пустые проекты **игнорируются**.
+- Для диагностики **вообще последнего** проекта (включая CORS test): `--latest-any`.
+- Для **конкретного** проекта: `--project-id UUID` (скопируйте из `/editor/{uuid}`).
+
+**Важно:** если PowerShell ругается на `<PROJECT_ID>`, не вводите заглушки буквально — символ `<` это оператор. Используйте:
+
+```powershell
+.\scripts\check_last_project.ps1
+```
+
+**Если команда не подтянулась в HTML export:**
+
+1. Запустите `.\scripts\check_last_project.ps1`
+2. Смотрите **Classification** в выводе:
+   - `single_file_no_team_source` → загрузите DOCX/TXT с составом команды (или PPTX со слайдом «Команда проекта»)
+   - `docx_present_but_team_missing` → баг extraction/team_parser/merge
+   - `contract_has_team_but_export_missing` → баг export (`StyledHtmlExporter`, landing_bridge)
+   - `stale_generated_landing` → нажмите **Перепарсить** / regenerate landing
+
+**Приоритет verdict:** если одновременно `source_count=1`, команда отсутствует (`team_coverage=missing`) и `landing_stale=true`, главным считается **user input issue** — `single_file_no_team_source` (Status: `USER_ACTION_REQUIRED`, exit 0). `landing_stale` в этом случае выводится в блоке **Warnings**, а не как основной verdict.
 
 ### CLI без PowerShell
 
@@ -357,7 +375,7 @@ cd C:\Dima\Projects\CURSOR\Lend\backend
   --json-file tests\fixtures\diagnostics\single_file_no_team_source.json
 ```
 
-**Runtime:** после upload backend пишет `.runtime/last_project.json` (для `--current`). Frontend дублирует `projectId` в `localStorage`.
+**Runtime:** после upload backend пишет `.runtime/last_project.json` (для `--current`). Frontend дублирует `projectId` в `localStorage`. Если `last_project.json` указывает на пустой или служебный проект, `--current` автоматически переключится на последний user project с источниками.
 
 **Интерпретация статусов:**
 
@@ -370,10 +388,10 @@ cd C:\Dima\Projects\CURSOR\Lend\backend
 
 **Типовые классификации:**
 
-- `source_count=1` + `verdict=single_file_no_team_source` → загружен только PPTX (или один файл без team text layer). **Добавьте DOCX/TXT** или PPTX со слайдом «Команда проекта».
+- `source_count=1` + команда отсутствует → `single_file_no_team_source` (даже если `landing_stale=true`; stale — только warning). **Добавьте DOCX/TXT** или PPTX со слайдом «Команда проекта», затем **Перепарсить / Сформировать ленд**.
 - `source_count>=2` + есть `.docx`/`.txt` + `team_structured_count=0` → **bug extraction/team_parser/merge**.
 - `contract_has_team=true` + `export_has_team=false` → **bug export** (`StyledHtmlExporter`, landing_bridge).
-- `landing_stale=true` → **reparse / regenerate landing**.
+- `landing_stale=true` + команда уже есть в contract/export → **reparse / regenerate landing** (`STALE`).
 
 Gate **не включён** в default `check_all.ps1` (project-specific). Запускайте вручную для проблемного projectId.
 

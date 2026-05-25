@@ -1,5 +1,7 @@
 """Contract fidelity schemas — structured landing detection, parsing, completeness."""
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from app.schemas.evidence import EvidenceAssemblyReport, FieldSourceTrace
@@ -92,3 +94,5 @@ class FidelityMetadata(BaseModel):
     weak_fields: list[str] = Field(default_factory=list)
     assembly_confidence: float = 0.0
     evidence_report: EvidenceAssemblyReport | None = None
+    fusion_trace: Any | None = None
+    field_decisions: dict[str, Any] = Field(default_factory=dict)
