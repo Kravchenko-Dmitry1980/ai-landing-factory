@@ -248,7 +248,13 @@ cd C:\Dima\Projects\CURSOR\Lend\backend
 
 **UI:** на главной странице форма показывает список выбранных файлов и позволяет удалить файл до загрузки. Кнопка **«Загрузить и создать ленд»** отправляет все файлы в `POST /api/v1/projects/{id}/upload` (поле `files[]`).
 
-**Важно про команду:** если загрузить только PPTX без DOCX/TXT с разделом «Команда проекта», поле `team` будет **missing/weak** — это ожидаемо, команда не выдумывается.
+**Важно про команду:** если загрузить только PPTX без DOCX/TXT с разделом «Команда проекта», поле `team` будет **missing/weak** — это ожидаемо, команда не выдумывается. Если команда визуально есть на слайде, но не в text layer — нужен DOCX/TXT или OCR (см. warning `pptx_team_text_missing` в evidence-report).
+
+**Group team lines:** несколько ФИО в одной строке (`Егор Быков, Максим Иванков, …`) получают общую роль и bullets — см. [docs/ORCHESTRATED_EXTRACTION_H7.md](docs/ORCHESTRATED_EXTRACTION_H7.md).
+
+```powershell
+..\.venv\Scripts\python.exe scripts\smoke_team_group_blocks.py
+```
 
 **После обновлений парсера** для существующих проектов:
 

@@ -72,7 +72,22 @@ ROLE_HINTS = (
 
 
 def parse_team_section(text: str) -> list[TeamMember]:
-    """Parse team block into structured members."""
+    """Parse team block into structured members (group-line + legacy role-based)."""
+    from app.services.evidence.group_team_parser import (
+        merge_team_members,
+        parse_team_section_group_aware,
+    )
+
+    if not text.strip():
+        return []
+
+    group_members = parse_team_section_group_aware(text)
+    legacy_members = _parse_team_section_legacy(text)
+    return merge_team_members(group_members + legacy_members)
+
+
+def _parse_team_section_legacy(text: str) -> list[TeamMember]:
+    """Legacy parser for role-based team sections (Endocrinology-style)."""
     if not text.strip():
         return []
 

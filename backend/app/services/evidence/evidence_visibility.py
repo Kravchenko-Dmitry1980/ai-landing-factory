@@ -115,6 +115,12 @@ class EvidenceVisibilityBuilder:
 
         parser_mode = fidelity.parser_mode if fidelity else report.parser_strategy
         field_decisions = _fusion_field_decisions(fidelity)
+        orch = fidelity.orchestration_trace if fidelity else None
+        team_group_expansions: list[dict[str, str]] = []
+        orchestration_payload = None
+        if orch:
+            team_group_expansions = list(getattr(orch, "team_group_expansions", []) or [])
+            orchestration_payload = orch.model_dump() if hasattr(orch, "model_dump") else orch
         if field_decisions:
             field_sources = _merge_fusion_field_sources(field_sources, field_decisions)
         return EvidenceVisibilityResponse(
@@ -131,6 +137,8 @@ class EvidenceVisibilityBuilder:
             warnings=_dedupe(warnings),
             improvement_hints=hints,
             field_decisions=field_decisions,
+            orchestration_trace=orchestration_payload,
+            team_group_expansions=team_group_expansions,
         )
 
     def _fallback(

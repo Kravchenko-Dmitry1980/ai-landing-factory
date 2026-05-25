@@ -56,6 +56,7 @@ from app.services.evidence.source_inventory import (
     has_single_high_confidence_ready_doc,
 )
 from app.services.fusion.field_fusion_engine import FieldFusionEngine
+from app.services.orchestration.document_orchestrator import DocumentOrchestrator
 
 
 
@@ -116,6 +117,7 @@ class ContractBuilderService:
         self._multi_source_assembler = MultiSourceEvidenceAssembler()
 
         self._field_fusion_engine = FieldFusionEngine()
+        self._document_orchestrator = DocumentOrchestrator()
 
 
 
@@ -153,6 +155,11 @@ class ContractBuilderService:
 
             self._field_fusion_engine = FieldFusionEngine()
 
+        if not hasattr(self, "_document_orchestrator"):
+
+            self._document_orchestrator = DocumentOrchestrator()
+        self._document_orchestrator = DocumentOrchestrator()
+
 
 
     def build(self, extraction: ExtractionResult) -> LandingContract:
@@ -168,6 +175,8 @@ class ContractBuilderService:
         source_type = self._source_type_detector.detect(text, file_type=file_type)
 
         inventory = self._inventory_builder.build(extraction)
+
+        orchestration_trace = self._document_orchestrator.run(extraction)
 
         use_structured_only = (
             detection.is_structured_landing
@@ -313,6 +322,22 @@ class ContractBuilderService:
 
         contract = self._supplement_pptx_team(contract, extraction, text, source_type)
 
+        contract = self._attach_orchestration_trace(contract, orchestration_trace)
+
+        return contract
+
+    def _attach_orchestration_trace(
+        self,
+        contract: LandingContract,
+        trace,
+    ) -> LandingContract:
+        if not contract.fidelity:
+            contract.fidelity = FidelityMetadata()
+        contract.fidelity.orchestration_trace = trace
+        report = contract.fidelity.evidence_report
+        if report and trace.global_warnings:
+            merged = list(dict.fromkeys(list(report.warnings) + trace.global_warnings))
+            report.warnings = merged
         return contract
 
     def _merge_team_from_ms_contract(

@@ -42,3 +42,5 @@ class EvidenceVisibilityResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     improvement_hints: list[str] = Field(default_factory=list)
     field_decisions: dict[str, str] = Field(default_factory=dict)
+    orchestration_trace: dict[str, object] | None = None
+    team_group_expansions: list[dict[str, str]] = Field(default_factory=list)

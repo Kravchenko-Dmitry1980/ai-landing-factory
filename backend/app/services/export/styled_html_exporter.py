@@ -467,9 +467,12 @@ class StyledHtmlExporter:
         fidelity: FidelityMetadata | None,
         theme: ExportTheme = ExportTheme.ENTERPRISE_DARK,
     ) -> str:
+        from app.services.orchestration.agents.export_guard_agent import guard_team_for_export
+
         members: list[TeamMember] = list(fidelity.team_structured) if fidelity else []
         if not members and block and block.bullets:
             members = self._members_from_team_bullets(block.bullets)
+        members, guard_warnings = guard_team_for_export(members)
         members = filter_team_members(members)
         if members:
             cards = []

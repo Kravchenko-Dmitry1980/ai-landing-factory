@@ -7,6 +7,11 @@ import re
 from app.schemas.evidence import TeamMemberCandidate
 from app.services.contract_fidelity.pptx_team_markers import text_has_team_markers
 from app.services.contract_fidelity.team_parser import _split_name_list, _strip_urls
+from app.services.evidence.group_team_parser import (
+    parse_team_blocks,
+    expand_group_block,
+    merge_team_members as merge_group_team_members,
+)
 from app.services.contract_fidelity.team_candidate_validator import (
     filter_team_candidates,
     is_team_context,
@@ -42,6 +47,27 @@ def extract_people_from_text(
     members: list[TeamMemberCandidate] = []
     seen: set[str] = set()
     team_ctx = in_team_section or is_team_context(section_hint, text) or text_has_team_markers(text)
+
+    if team_ctx and text_has_team_markers(text):
+        block_members: list[TeamMemberCandidate] = []
+        for block in parse_team_blocks(text):
+            for member in expand_group_block(block):
+                block_members.append(
+                    TeamMemberCandidate(
+                        name=member.name,
+                        role=member.role,
+                        project_area=member.project_area,
+                        contributions=list(member.contributions),
+                        source_refs=[source_ref] if source_ref else [],
+                    )
+                )
+        if block_members:
+            return filter_team_candidates(
+                merge_group_candidates(block_members),
+                section_hint=section_hint,
+                source_text=text,
+                in_team_section=team_ctx,
+            )
 
     def _add(name: str, role: str = "") -> None:
         name = _strip_urls(name.strip())
@@ -186,3 +212,25 @@ def diagnose_people_from_text(
         in_team_section=team_ctx,
     )
     return filtered, rejected, raw
+
+
+def merge_group_candidates(
+    members: list[TeamMemberCandidate],
+) -> list[TeamMemberCandidate]:
+    merged: dict[str, TeamMemberCandidate] = {}
+    for member in members:
+        key = member.name.lower()
+        existing = merged.get(key)
+        if existing is None:
+            merged[key] = member
+            continue
+        merged[key] = TeamMemberCandidate(
+            name=existing.name,
+            role=existing.role or member.role,
+            project_area=existing.project_area or member.project_area,
+            contributions=list(
+                dict.fromkeys(existing.contributions + member.contributions)
+            ),
+            source_refs=list(dict.fromkeys(existing.source_refs + member.source_refs)),
+        )
+    return list(merged.values())

@@ -453,6 +453,12 @@ Invoke-QACommand -Name "Test corpus smoke" `
     -Skip:$SkipCorpusSmoke `
     -SkipReason "SkipCorpusSmoke"
 
+Invoke-QACommand -Name "Team group blocks smoke" `
+    -WorkingDirectory $BackendDir `
+    -Command @($PythonExe, "scripts\smoke_team_group_blocks.py") `
+    -Skip:$SkipCorpusSmoke `
+    -SkipReason "SkipCorpusSmoke"
+
 Invoke-QACommand -Name "Endocrinology acceptance" `
     -WorkingDirectory $BackendDir `
     -Command @($PythonExe, "scripts\smoke_endocrinology_acceptance.py", "--project-id", $ProjectId) `

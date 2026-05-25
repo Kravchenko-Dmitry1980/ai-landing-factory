@@ -96,3 +96,4 @@ class FidelityMetadata(BaseModel):
     evidence_report: EvidenceAssemblyReport | None = None
     fusion_trace: Any | None = None
     field_decisions: dict[str, Any] = Field(default_factory=dict)
+    orchestration_trace: Any | None = None
