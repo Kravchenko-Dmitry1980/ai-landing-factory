@@ -241,6 +241,48 @@ cd C:\Dima\Projects\CURSOR\Lend\backend
 
 Загрузка через UI: тот же upload pipeline → `ContractBuilderService.build()` после extraction.
 
+## Multi-file project upload
+
+Один проект = один будущий ленд. Загрузите **все** материалы проекта одной сессией (можно выбрать несколько файлов или добавить партиями):
+
+| Файл | Роль |
+|------|------|
+| `presentation.pptx` | Модули, стек, архитектура |
+| `landing.docx` | Название, суть, **команда**, задачи |
+| `team.txt` | Состав команды (если отдельно от DOCX) |
+| `report.pdf` | Итоги, метрики |
+
+**UI:** на главной странице форма показывает список выбранных файлов и позволяет удалить файл до загрузки. Кнопка **«Загрузить и создать ленд»** отправляет все файлы в `POST /api/v1/projects/{id}/upload` (поле `files[]`).
+
+**Важно про команду:** если загрузить только PPTX без DOCX/TXT с разделом «Команда проекта», поле `team` будет **missing/weak** — это ожидаемо, команда не выдумывается.
+
+**После обновлений парсера** для существующих проектов:
+
+1. Загрузите недостающие источники (или все материалы заново).
+2. В редакторе: **Перепарсить** → **Сформировать ленд** → скачайте export заново.
+
+**Live smoke (HTTP, backend должен быть запущен):**
+
+```powershell
+cd C:\Dima\Projects\CURSOR\Lend\backend
+..\.venv\Scripts\python.exe scripts\smoke_live_multifile_project.py `
+  --backend-url http://127.0.0.1:8001 `
+  --corpus-project indlab_telegram_news
+```
+
+Или с явными путями (`.pptx.txt` / `.docx.txt` snapshots конвертируются во временные бинарники):
+
+```powershell
+..\.venv\Scripts\python.exe scripts\smoke_live_multifile_project.py `
+  --backend-url http://127.0.0.1:8001 `
+  --project-name "Indlab live multifile" `
+  --files `
+    ..\test_corpus\golden\indlab_telegram_news\sources\01_presentation.pptx.txt `
+    ..\test_corpus\golden\indlab_telegram_news\sources\02_landing.docx.txt
+```
+
+В `check_all.ps1` шаг включён по умолчанию; пропуск: `-SkipLiveMultifileSmoke`.
+
 ## Evidence Visibility in Editor
 
 В редакторе (`/editor/{projectId}`) под блоком **Качество контракта** отображается секция **Source & Evidence** — прозрачность сборки ленда из загруженных материалов.
@@ -291,6 +333,8 @@ npm test -- EvidenceVisibilityPanel
 ```
 
 Если поля weak/missing — добавьте соответствующий файл (команда, отчёт, текстовая версия презентации) и нажмите **Перепарсить** или перезагрузите материалы.
+
+**После изменения парсеров (team / evidence / export):** для уже сохранённого проекта в `backend/data/contracts/` нажмите в редакторе **Перепарсить** и **Сформировать ленд заново**, затем экспортируйте HTML снова. Старый export без reparse может содержать устаревшие team-card.
 
 ## Test corpus (регрессия)
 

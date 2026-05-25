@@ -22,6 +22,7 @@ param(
     [switch]$SkipFrontendBuild,
     [switch]$SkipVisualSmoke,
     [switch]$SkipPublicExportSmoke,
+    [switch]$SkipLiveMultifileSmoke,
     [switch]$FailFast,
     [switch]$VerboseOutput
 )
@@ -469,6 +470,14 @@ Invoke-QACommand -Name "Export polish smoke" `
     -Command @($PythonExe, "scripts\smoke_public_export.py", "--project-id", $ProjectId, "--backend-url", $BackendUrl) `
     -Skip:$SkipPublicExportSmoke `
     -SkipReason "SkipPublicExportSmoke" `
+    -RequireBackend `
+    -BackendUnavailableMessage $backendDownMsg
+
+Invoke-QACommand -Name "Live multifile smoke" `
+    -WorkingDirectory $BackendDir `
+    -Command @($PythonExe, "scripts\smoke_live_multifile_project.py", "--backend-url", $BackendUrl, "--corpus-project", "indlab_telegram_news") `
+    -Skip:$SkipLiveMultifileSmoke `
+    -SkipReason "SkipLiveMultifileSmoke" `
     -RequireBackend `
     -BackendUnavailableMessage $backendDownMsg
 

@@ -58,17 +58,34 @@ def _team_required(expected: dict) -> bool:
     return int(expected.get("min_team", 0)) > 0
 
 
+FORBIDDEN_HTML_NAMES = (
+    "Посты Telegram",
+    "Из Telegram",
+    "Схема обработки данных",
+    "Векторная БД",
+)
+
+
 def _validate_team(contract, expected: dict, html: str) -> list[str]:
     errors: list[str] = []
     team = contract.fidelity.team_structured if contract.fidelity else []
     team_count = len(team)
     required = _team_required(expected)
+    names = [m.name for m in team]
+
+    for forbidden in expected.get("forbidden_team_names") or FORBIDDEN_HTML_NAMES:
+        if forbidden in names:
+            errors.append(f"forbidden team member in contract: {forbidden}")
+        if f"<h3>{forbidden}</h3>" in html:
+            errors.append(f"forbidden team-card in export: {forbidden}")
 
     if required and team_count == 0:
         errors.append("contract team_structured is empty but team is required")
         return errors
 
     if not required and team_count == 0:
+        if "id='team'" in html or 'id="team"' in html:
+            errors.append("export renders team section without valid team")
         return errors
 
     if team_count > 0:
@@ -78,6 +95,9 @@ def _validate_team(contract, expected: dict, html: str) -> list[str]:
             errors.append("export HTML missing team-card")
         if "id='team'" not in html and 'id="team"' not in html:
             errors.append("export HTML missing section id=team")
+        for frag in expected.get("must_have_team") or []:
+            if not any(frag.lower() in n.lower() for n in names):
+                errors.append(f"expected team surname missing: {frag}")
 
     return errors
 

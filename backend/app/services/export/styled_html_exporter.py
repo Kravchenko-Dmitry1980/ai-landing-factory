@@ -19,6 +19,7 @@ from app.services.export.html_bullet_utils import (
     truncate_sentence_safe,
 )
 from app.services.export.html_exporter import HtmlExporter
+from app.services.contract_fidelity.team_candidate_validator import filter_team_members
 
 CSS_ENTERPRISE_DARK = """
 :root {
@@ -469,6 +470,7 @@ class StyledHtmlExporter:
         members: list[TeamMember] = list(fidelity.team_structured) if fidelity else []
         if not members and block and block.bullets:
             members = self._members_from_team_bullets(block.bullets)
+        members = filter_team_members(members)
         if members:
             cards = []
             for m in members:
@@ -511,4 +513,4 @@ class StyledHtmlExporter:
                 continue
             seen.add(name.lower())
             members.append(TeamMember(name=name, role=role, project_area="", contributions=[]))
-        return members
+        return filter_team_members(members)

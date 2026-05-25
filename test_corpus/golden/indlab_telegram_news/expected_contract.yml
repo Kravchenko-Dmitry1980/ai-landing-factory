@@ -16,6 +16,11 @@ must_have_team:
   - Ерюкова
   - Глазунова
 min_team: 10
+forbidden_team_names:
+  - Посты Telegram
+  - Из Telegram
+  - Схема обработки данных
+  - Векторная БД
 expected_parser_mode: multi_source_assembly
 reject_essence_slide1_only: true
 reject_generic_title: true

@@ -15,6 +15,10 @@ from app.schemas.fidelity import LandingModule, TeamMember
 from app.services.contract_fidelity.structured_landing_parser import StructuredLandingParser
 from app.services.evidence.field_candidates import GENERIC_TITLES, is_generic_title
 from app.services.evidence.people_extractor import extract_people_from_text
+from app.services.contract_fidelity.team_candidate_validator import (
+    filter_team_members,
+    is_team_context,
+)
 from app.services.evidence.technology_dictionary import (
     extract_technologies,
     technologies_to_grouped,
@@ -616,8 +620,15 @@ class FieldAssembler:
         role_map = role_map or {}
         for item in _sort_items_by_role(evidence.items if evidence else [], role_map, "team"):
             ref = f"{item.filename}#{item.location_index}"
+            hint = item.section_hint or item.location_label or ""
+            in_team = is_team_context(hint, item.text)
             candidates.extend(
-                extract_people_from_text(item.text, source_ref=ref)
+                extract_people_from_text(
+                    item.text,
+                    source_ref=ref,
+                    section_hint=hint,
+                    in_team_section=in_team,
+                )
             )
             if candidates:
                 traces.append(_trace("team", item, "people extraction", 0.75))
@@ -637,7 +648,7 @@ class FieldAssembler:
                     contributions=c.contributions,
                 )
             )
-        return members[:20], traces
+        return filter_team_members(members)[:20], traces
 
     def assemble_modules(
         self,
@@ -825,10 +836,7 @@ def _apply_primary_sections(
     if parsed.outlook:
         assembled["outlook"] = parsed.outlook
     if parsed.team:
-        existing = assembled.get("team")
-        existing_count = len(existing) if isinstance(existing, list) else 0
-        if len(parsed.team) >= existing_count:
-            assembled["team"] = parsed.team
+        assembled["team"] = filter_team_members(parsed.team)
 
 
 def _role_map(inventory: list[SourceInventoryItem] | None) -> dict[str, str]:

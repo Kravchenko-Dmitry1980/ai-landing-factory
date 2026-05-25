@@ -63,8 +63,9 @@ def semantic_to_landing(
         _, team_bullets = from_contract("team")
     if not team_bullets and contract.fidelity and contract.fidelity.team_structured:
         from app.services.contract_fidelity.team_parser import team_to_bullets
+        from app.services.contract_fidelity.team_candidate_validator import filter_team_members
 
-        team_bullets = team_to_bullets(contract.fidelity.team_structured)
+        team_bullets = team_to_bullets(filter_team_members(contract.fidelity.team_structured))
     if not outlook_body:
         outlook_body, _ = from_contract("outlook")
     if not tagline_body:

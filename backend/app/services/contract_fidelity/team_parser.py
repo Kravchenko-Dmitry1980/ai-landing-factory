@@ -5,6 +5,11 @@ from __future__ import annotations
 import re
 
 from app.schemas.fidelity import TeamMember
+from app.services.contract_fidelity.team_candidate_validator import (
+    filter_team_members,
+    is_valid_person_name,
+    validate_team_candidate,
+)
 
 NAME_RE = re.compile(
     r"^[А-ЯЁA-Z][а-яёa-z]+(?:\s+[А-ЯЁA-Z][а-яёa-z]+){1,2}$"
@@ -75,13 +80,20 @@ def parse_team_section(text: str) -> list[TeamMember]:
     seen: set[str] = set()
     for block in _split_member_blocks(text):
         for member in _parse_member_blocks(block):
+            if not validate_team_candidate(
+                member.name,
+                role=member.role,
+                source_text=text,
+                in_team_section=True,
+            ):
+                continue
             key = member.name.lower()
             if key in seen:
                 continue
             seen.add(key)
             members.append(member)
 
-    return members
+    return filter_team_members(members)
 
 
 def team_to_bullets(members: list[TeamMember]) -> list[str]:
@@ -246,12 +258,7 @@ def _strip_urls(text: str) -> str:
 
 
 def _is_valid_name(name: str) -> bool:
-    name = ALIAS_RE.sub("", name.strip())
-    if len(name) < 5 or len(name) > 80:
-        return False
-    if name.lower() in TECH_NAME_BLOCKLIST:
-        return False
-    return bool(NAME_RE.match(name))
+    return is_valid_person_name(name)
 
 
 def _looks_like_role(line: str) -> bool:

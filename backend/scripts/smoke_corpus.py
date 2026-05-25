@@ -260,6 +260,11 @@ def _validate_contract(contract, expected: dict, project_slug: str) -> list[str]
     if min_team and team_count < min_team:
         errors.append(f"team count {team_count} < {min_team}")
 
+    for forbidden in expected.get("forbidden_team_names") or []:
+        blob = " ".join(team_lines).lower()
+        if forbidden.lower() in blob:
+            errors.append(f"forbidden team name present: {forbidden}")
+
     if not fidelity:
         errors.append("missing fidelity metadata")
 

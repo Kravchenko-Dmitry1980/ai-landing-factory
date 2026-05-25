@@ -5,16 +5,15 @@ from __future__ import annotations
 import re
 
 from app.schemas.evidence import TeamMemberCandidate
-from app.services.contract_fidelity.team_parser import (
-    _is_valid_name,
-    _split_name_list,
-    _strip_urls,
+from app.services.contract_fidelity.team_parser import _split_name_list, _strip_urls
+from app.services.contract_fidelity.team_candidate_validator import (
+    filter_team_candidates,
+    is_team_context,
+    is_valid_person_name,
+    is_valid_team_role,
+    validate_team_candidate,
 )
-from app.services.evidence.technology_dictionary import TECHNOLOGY_ENTRIES
 
-FIO_RE = re.compile(
-    r"^[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)?$"
-)
 LEAD_RE = re.compile(r"Тимлид\s*:\s*(.+?)(?:\n|$)", re.IGNORECASE)
 ASSISTANT_RE = re.compile(
     r"Помощник\s+тимлида\s*:\s*(.+?)(?:\n|$)", re.IGNORECASE
@@ -26,47 +25,30 @@ ROLE_LINE_RE = re.compile(
 NUMBERED_RE = re.compile(r"^\d+\.\s+(.+)$")
 NAME_ROLE_RE = re.compile(r"^(.+?)\s*[—–-]\s*(.+)$")
 
-TECH_NAMES = {v[1].lower() for v in TECHNOLOGY_ENTRIES.values()}
-TECH_NAMES.update(k.lower() for k in TECHNOLOGY_ENTRIES)
-TECH_NAMES.update(
-    {
-        "qdrant",
-        "bertopic",
-        "neo4j",
-        "python",
-        "telegram",
-        "openai",
-        "react",
-        "docker",
-    }
-)
-
-
-def _is_person_name(line: str) -> bool:
-    line = _strip_urls(line.strip())
-    if len(line) < 5 or len(line) > 80:
-        return False
-    if line.lower() in TECH_NAMES:
-        return False
-    if any(tok in line.lower() for tok in ("api", "docker", "python", "slide")):
-        return False
-    return _is_valid_name(line) or bool(FIO_RE.match(line))
-
 
 def extract_people_from_text(
     text: str,
     *,
     source_ref: str = "",
+    section_hint: str = "",
+    in_team_section: bool = False,
 ) -> list[TeamMemberCandidate]:
     """Extract team member candidates from a text block."""
     members: list[TeamMemberCandidate] = []
     seen: set[str] = set()
+    team_ctx = in_team_section or is_team_context(section_hint, text)
 
     def _add(name: str, role: str = "") -> None:
         name = _strip_urls(name.strip())
         if not name or name.lower() in seen:
             return
-        if not _is_person_name(name):
+        if not validate_team_candidate(
+            name,
+            role=role,
+            section_hint=section_hint,
+            source_text=text,
+            in_team_section=team_ctx,
+        ):
             return
         seen.add(name.lower())
         members.append(
@@ -103,12 +85,21 @@ def extract_people_from_text(
             payload = name_role.group(1).strip()
             inline_role = name_role.group(2).strip()
 
+        if not team_ctx and inline_role and not is_valid_team_role(inline_role):
+            inline_role = ""
+
         if "," in payload:
             for name in _split_name_list(payload):
-                _add(name, inline_role)
+                if is_valid_person_name(name):
+                    _add(name, inline_role)
             continue
 
-        if _is_person_name(payload):
+        if is_valid_person_name(payload):
             _add(payload, inline_role)
 
-    return members
+    return filter_team_candidates(
+        members,
+        section_hint=section_hint,
+        source_text=text,
+        in_team_section=team_ctx,
+    )
