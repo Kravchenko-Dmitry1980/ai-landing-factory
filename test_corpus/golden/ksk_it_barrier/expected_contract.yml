@@ -1,0 +1,17 @@
+title_contains:
+  - "шлагбаум"
+  - "КСК"
+min_completeness: 80
+must_have_stack:
+  - YOLOv8
+  - Streamlit
+  - CVAT
+  - Roboflow
+must_have_modules:
+  - "обнаружение"
+  - "номер"
+min_modules: 5
+must_have_team: []
+expected_parser_mode: project_presentation
+reject_essence_slide1_only: true
+reject_generic_title: true

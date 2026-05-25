@@ -1,0 +1,17 @@
+title_contains:
+  - "Нейро-ассистент"
+  - "Интеллектуальный агрегатор"
+  - "Telegram"
+min_completeness: 80
+must_have_stack:
+  - Qdrant
+  - BERTopic
+  - Neo4j
+must_have_modules:
+  - "семантический"
+  - "граф"
+min_modules: 3
+must_have_team: []
+expected_parser_mode: multi_source_assembly
+reject_essence_slide1_only: true
+reject_generic_title: true

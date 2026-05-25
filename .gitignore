@@ -1,0 +1,349 @@
+# ============================================================
+# AI Landing Factory / Lend
+# Root .gitignore
+# ============================================================
+
+
+# ============================================================
+# 1. Python / Backend
+# ============================================================
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+*.so
+*.pyd
+
+.Python
+.python-version
+
+.venv/
+venv/
+env/
+ENV/
+
+*.egg-info/
+.eggs/
+dist/
+build/
+wheels/
+pip-wheel-metadata/
+
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+.cache/
+
+.ipynb_checkpoints/
+
+
+# ============================================================
+# 2. Backend local data / generated artifacts
+# ============================================================
+
+backend/data/
+backend/uploads/
+backend/exports/
+backend/tmp/
+backend/temp/
+backend/.cache/
+
+# Local generated reports / runtime-only backend artifacts
+backend/reports/
+backend/artifacts/
+
+# If later Alembic local scratch appears
+backend/alembic_tmp/
+
+
+# ============================================================
+# 3. Node / Frontend / Next.js
+# ============================================================
+
+node_modules/
+frontend/node_modules/
+
+.next/
+frontend/.next/
+
+out/
+frontend/out/
+
+.vercel/
+frontend/.vercel/
+
+.turbo/
+frontend/.turbo/
+
+*.tsbuildinfo
+next-env.d.ts.bak
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Optional package manager stores/caches
+.pnpm-store/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+
+# ============================================================
+# 4. Environment files / secrets
+# ============================================================
+
+.env
+.env.*
+!.env.example
+
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+frontend/.env
+frontend/.env.*
+!frontend/.env.local.example
+!frontend/.env.example
+
+# Local API keys / credentials
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+
+secrets/
+credentials/
+private/
+
+
+# ============================================================
+# 5. Runtime / logs / QA logs
+# ============================================================
+
+.runtime/
+logs/
+
+*.log
+*.log.*
+
+# Keep log directories out of git even if created later
+backend/logs/
+frontend/logs/
+
+# Dev server process artifacts
+*.pid
+*.pid.lock
+
+
+# ============================================================
+# 6. Test corpus
+# ============================================================
+# Rule:
+# - Git keeps lightweight *.txt snapshots and expected_contract.yml.
+# - Local binary originals stay only on developer machine.
+
+test_corpus/**/sources/*.pptx
+test_corpus/**/sources/*.ppt
+test_corpus/**/sources/*.docx
+test_corpus/**/sources/*.doc
+test_corpus/**/sources/*.pdf
+test_corpus/**/sources/*.xlsx
+test_corpus/**/sources/*.xls
+test_corpus/**/sources/*.csv
+test_corpus/**/sources/*.zip
+test_corpus/**/sources/*.rar
+test_corpus/**/sources/*.7z
+
+# Media-heavy inputs for future OCR / screenshots / audio / video tests
+test_corpus/**/sources/*.png
+test_corpus/**/sources/*.jpg
+test_corpus/**/sources/*.jpeg
+test_corpus/**/sources/*.webp
+test_corpus/**/sources/*.tiff
+test_corpus/**/sources/*.bmp
+test_corpus/**/sources/*.mp3
+test_corpus/**/sources/*.wav
+test_corpus/**/sources/*.m4a
+test_corpus/**/sources/*.mp4
+test_corpus/**/sources/*.mov
+test_corpus/**/sources/*.avi
+test_corpus/**/sources/*.mkv
+
+# Local binary/source folders
+test_corpus/**/sources/bin/
+test_corpus/**/sources/raw/
+test_corpus/**/sources/originals/
+
+# Keep these tracked
+!test_corpus/**/sources/*.txt
+!test_corpus/**/sources/README.md
+!test_corpus/**/expected_contract.yml
+!test_corpus/**/README.md
+!test_corpus/**/.gitkeep
+
+
+# ============================================================
+# 7. Generated exports / visual artifacts
+# ============================================================
+
+exports/
+artifacts/
+tmp/
+temp/
+
+frontend/artifacts/
+frontend/screenshots/
+frontend/test-results/
+frontend/playwright-report/
+frontend/coverage/
+
+backend/artifacts/
+backend/test-results/
+
+
+# ============================================================
+# 8. Playwright / browser testing future-proofing
+# ============================================================
+
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+
+# ============================================================
+# 9. Local databases / storage / queues
+# ============================================================
+
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+redis-data/
+postgres-data/
+qdrant-data/
+storage/
+volumes/
+
+
+# ============================================================
+# 10. OS junk
+# ============================================================
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+
+$RECYCLE.BIN/
+
+*.swp
+*.swo
+*~
+
+
+# ============================================================
+# 11. IDE / editors
+# ============================================================
+
+.idea/
+.vscode/
+
+# Keep Cursor project rules tracked
+!.cursor/
+!.cursor/rules/
+!.cursor/rules/*.mdc
+
+# Cursor / editor local cache if appears
+.cursor/index/
+.cursor/cache/
+.cursor/tmp/
+
+*.code-workspace
+
+
+# ============================================================
+# 12. Windows / PowerShell local artifacts
+# ============================================================
+
+*.ps1xml
+*.pssc
+*.psrc
+
+# PowerShell transcript files
+PowerShell_transcript*.txt
+
+
+# ============================================================
+# 13. Docker / local compose overrides
+# ============================================================
+
+docker-compose.override.yml
+compose.override.yml
+
+.docker/
+docker-data/
+
+
+# ============================================================
+# 14. Large model / ML artifacts future-proofing
+# ============================================================
+
+models/
+weights/
+checkpoints/
+
+*.pt
+*.pth
+*.onnx
+*.engine
+*.safetensors
+*.ckpt
+*.bin
+
+# HuggingFace / local model caches
+.huggingface/
+.cache/huggingface/
+backend/.cache/huggingface/
+
+
+# ============================================================
+# 15. Local archives / backups
+# ============================================================
+
+*.bak
+*.backup
+*.old
+*.orig
+*.tmp
+
+backup/
+backups/
+
+
+# ============================================================
+# 16. Hallmark note
+# ============================================================
+# hallmark/ is intentionally tracked as a reference folder.
+# Do NOT ignore hallmark/.
+# But nested git metadata must not exist:
+# hallmark/.git should be removed, not ignored.

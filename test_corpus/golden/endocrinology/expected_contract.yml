@@ -1,0 +1,13 @@
+title_contains:
+  - "Эндокринология"
+min_completeness: 85
+must_have_stack: []
+must_have_modules:
+  - "GlaucoLogic"
+  - "Copilot"
+  - "VitaCalc"
+min_modules: 3
+must_have_team: []
+expected_parser_mode: multi_source_assembly
+reject_essence_slide1_only: true
+reject_generic_title: true

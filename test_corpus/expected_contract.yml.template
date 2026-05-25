@@ -1,0 +1,33 @@
+# Шаблон ожиданий для golden-проекта (скопируйте в expected_contract.yml)
+
+# Подстроки в title (достаточно одной совпадения, регистр не важен)
+title_contains:
+  - "Название проекта или фрагмент"
+
+# Минимальный completeness score (0–100) после ContractCompletenessGate
+min_completeness: 75
+
+# Канонические имена технологий (хотя бы одна из списка должна быть в tech_stack)
+must_have_stack:
+  - Qdrant
+  - Python
+
+# Имена или фрагменты модулей (хотя бы min_modules совпадений, см. ниже)
+must_have_modules:
+  - "Семантический поиск"
+  - "Демо-панель"
+
+# Минимум модулей в fidelity.modules (0 = не проверять)
+min_modules: 3
+
+# ФИО или роли (хотя бы одна подстрока в team), пустой список = не проверять
+must_have_team: []
+
+# Ожидаемый parser_mode (structured | project_presentation | multi_source_assembly | heuristic)
+expected_parser_mode: multi_source_assembly
+
+# Опционально: essence не должна начинаться только со Slide 1
+reject_essence_slide1_only: true
+
+# Опционально: запретить generic title («Проект», «Презентация», …)
+reject_generic_title: true

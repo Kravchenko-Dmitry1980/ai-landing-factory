@@ -1,0 +1,11 @@
+Domain profile: {domain}
+Planned section types: {section_plan}
+
+Narrative arc summary:
+{narrative_summary}
+
+LandingContract (PII-safe, source of truth):
+{contract_json}
+
+Generate GeneratedSemanticLanding JSON. Ground every fact in contract blocks.
+Mark missing_data explicitly. No HTML. No JSX.

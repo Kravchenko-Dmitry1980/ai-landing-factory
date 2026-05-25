@@ -1,0 +1,58 @@
+---
+description: Web quality gate for frontend preview/export — audit only, no auto-refactors
+globs: frontend/**/*
+alwaysApply: false
+---
+
+# Web Quality Gate (Preview & Export)
+
+Scope: **frontend preview and HTML export only**.  
+Reference: Modern Web Guidance skill — use for audit guidance, **do not auto-implement** patterns into code.
+
+## Out of scope (do not touch)
+
+- Backend API, services, repositories
+- PII pipeline, redaction, privacy storage
+- Renderer architecture (`src/rendering/`, section registry, contract adapter)
+- Editor UI unless the task explicitly requires it
+
+## After frontend preview/export changes — mandatory checks
+
+**Full pipeline (recommended before handoff / demo):**
+
+```powershell
+cd C:\Dima\Projects\CURSOR\Lend
+.\scripts\check_all.ps1 -ProjectId {id}
+```
+
+Requires backend + frontend running for smoke steps. Log: `logs/qa/check_all_*.log`
+
+**Minimum if check_all is too slow:**
+
+Run in order:
+
+1. `cd frontend && npm test`
+2. `cd frontend && npm run build`
+3. Manual review: `http://localhost:3000/preview/{id}?style=university_platform`
+4. DevTools Console — **zero errors** (including hydration warnings)
+5. `cd backend && ..\.venv\Scripts\python.exe scripts\smoke_university_export.py --project-id {id}`
+6. `cd frontend && node scripts/smoke-visual-acceptance.mjs --project-id {id}`
+
+Full checklist: `docs/WEB_QUALITY_GATE.md`  
+Visual acceptance (university_platform): `frontend/docs/VISUAL_ACCEPTANCE_UNIVERSITY.md`  
+One-command QA: `README_RUN.md` → One-command QA pipeline
+
+## Style constraints — `university_platform`
+
+- Light academic palette; readable typography
+- **Forbidden**: random gradients, dark theme, glassmorphism, neon/decorative effects
+- Do not rewrite working preview/export code without an explicit task
+
+## Dependencies
+
+- Do **not** add new npm libraries without justification in the task
+- Prefer existing tokens, Tailwind utilities, and StyleProfile CSS vars
+
+## Audit areas (reference Modern Web Guidance when reviewing)
+
+Responsive 360/768/1440 · heading hierarchy · aria-labels · keyboard nav · contrast · no console/hydration errors · no heavy animations · export opens standalone

@@ -1,0 +1,10 @@
+Slide 1:
+GlaucoLogic — Система поддержки врача при анализе ОКТ
+
+Slide 2:
+Архитектура системы
+Cloudflare Tunnel, Faster-Whisper, Docker Compose, PostgreSQL, TypeScript, RAG
+
+Slide 3:
+Pipeline
+Qdrant, Redis, FastAPI, React, GPU
