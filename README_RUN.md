@@ -44,11 +44,23 @@ Lend/
 
 ## Friendly one-command dev start
 
-Запуск backend + frontend одной командой. Если порт **3000** или **8001** занят, скрипт автоматически выберет следующий свободный (до 3010 / 8010). **Не нужно** вручную разбираться с `netstat`, PID или `taskkill` — чужие процессы не останавливаются.
+Запуск backend + frontend одной командой. Если порт **3000** или **8001** занят, скрипт автоматически выберет следующий свободный (до **3050** / **8050**). **Не нужно** вручную разбираться с `netstat`, PID или `taskkill` — чужие процессы не останавливаются.
 
 ```powershell
 cd C:\Dima\Projects\CURSOR\Lend
 .\scripts\start_dev.ps1
+```
+
+Другой диапазон портов:
+
+```powershell
+.\scripts\start_dev.ps1 -BackendPortStart 8001 -BackendPortEnd 8050 -FrontendPortStart 3000 -FrontendPortEnd 3050
+```
+
+Если **весь диапазон занят**, скрипт выведет таблицу (port, PID, process name, path) и подсказку:
+
+```
+Попробуйте .\scripts\stop_dev.ps1 или закройте процессы из таблицы.
 ```
 
 В консоли появятся актуальные URL, например:
@@ -63,7 +75,7 @@ http://localhost:3000
 
 Текущие порты сохраняются в `.runtime/ports.json`. Логи: `logs/dev/backend_*.log`, `logs/dev/frontend_*.log`.
 
-`start_dev.ps1` автоматически синхронизирует frontend port с backend CORS: backend получает `BACKEND_CORS_ORIGINS` для `localhost` / `127.0.0.1` портов **3000–3010**, а `frontend/.env.local` — актуальный `NEXT_PUBLIC_API_URL`.
+`start_dev.ps1` автоматически синхронизирует frontend port с backend CORS: backend получает `BACKEND_CORS_ORIGINS` для `localhost` / `127.0.0.1` портов **3000–3050**, а `frontend/.env.local` — актуальный `NEXT_PUBLIC_API_URL`.
 
 **Остановить** только процессы, запущенные `start_dev.ps1`:
 
@@ -112,7 +124,7 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 
 ### CORS (browser frontend)
 
-Dev default в `backend/app/config.py` разрешает `http://localhost:3000` … `:3010` и `http://127.0.0.1:3000` … `:3010`.
+Dev default в `backend/app/config.py` разрешает `http://localhost:3000` … `:3050` и `http://127.0.0.1:3000` … `:3050`.
 
 При запуске через `.\scripts\start_dev.ps1` CORS синхронизируется автоматически — вручную править `.env` не нужно.
 
@@ -248,7 +260,27 @@ cd C:\Dima\Projects\CURSOR\Lend\backend
 
 **UI:** на главной странице форма показывает список выбранных файлов и позволяет удалить файл до загрузки. Кнопка **«Загрузить и создать ленд»** отправляет все файлы в `POST /api/v1/projects/{id}/upload` (поле `files[]`).
 
-**Важно про команду:** если загрузить только PPTX без DOCX/TXT с разделом «Команда проекта», поле `team` будет **missing/weak** — это ожидаемо, команда не выдумывается. Если команда визуально есть на слайде, но не в text layer — нужен DOCX/TXT или OCR (см. warning `pptx_team_text_missing` в evidence-report).
+**Важно про команду:** если загрузить только PPTX без DOCX/TXT с разделом «Команда проекта», поле `team` будет **missing/weak** — это ожидаемо, команда не выдумывается. Если команда визуально есть на слайде, но не в text layer — включите OCR (`OCR_ENABLED=true`) или загрузите DOCX/TXT (см. warning `pptx_team_text_missing` в evidence-report).
+
+**OCR (Stage H.8, optional):** targeted OCR для image-only слайдов/PDF scans. По умолчанию выключен.
+
+```powershell
+# backend/.env
+OCR_ENABLED=true
+OCR_ENGINE=paddleocr
+OCR_FALLBACK_ENGINE=tesseract
+```
+
+Диагностика одного файла:
+
+```powershell
+cd C:\Dima\Projects\CURSOR\Lend\backend
+..\.venv\Scripts\python.exe scripts\debug_ocr_source.py `
+  --file "C:\path\to\presentation.pptx" `
+  --slides 25
+```
+
+Подробнее: [docs/OCR_LAYER_H8.md](docs/OCR_LAYER_H8.md)
 
 **Group team lines:** несколько ФИО в одной строке (`Егор Быков, Максим Иванков, …`) получают общую роль и bullets — см. [docs/ORCHESTRATED_EXTRACTION_H7.md](docs/ORCHESTRATED_EXTRACTION_H7.md).
 
@@ -792,7 +824,7 @@ cd C:\Dima\Projects\CURSOR\Lend
 
 ## Расширение (следующие шаги)
 
-- `ImageOcrExtractor` для скриншотов.
+- OCR production rollout (`OCR_ENABLED=true` + worker image with PaddleOCR/Tesseract) — см. [docs/OCR_LAYER_H8.md](docs/OCR_LAYER_H8.md).
 - OpenAI semantic with richer section schemas (architecture_nodes diagrams).
 - PostgreSQL вместо JSON-файлов.
 - Очередь задач (Celery/ARQ) для тяжёлого extraction.

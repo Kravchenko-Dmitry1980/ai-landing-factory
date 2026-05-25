@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
   Port availability helpers for dev launcher (Windows).
@@ -39,6 +39,126 @@ function Test-PortFree {
     return $true
 }
 
+function Get-PortProcessInfo {
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$Port
+    )
+
+    $rows = [System.Collections.Generic.List[object]]::new()
+    $connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    if (-not $connections) {
+        return @()
+    }
+
+    foreach ($conn in @($connections)) {
+        $processId = [int]$conn.OwningProcess
+        if ($processId -le 0) { continue }
+
+        $proc = Get-Process -Id $processId -ErrorAction SilentlyContinue
+        $processName = "?"
+        $processPath = ""
+
+        if ($null -ne $proc) {
+            $processName = [string]$proc.ProcessName
+            try {
+                if ($proc.Path) {
+                    $processPath = [string]$proc.Path
+                }
+            }
+            catch {
+                $processPath = ""
+            }
+        }
+
+        $rows.Add([PSCustomObject]@{
+                Port        = $Port
+                PID         = $processId
+                ProcessName = $processName
+                Path        = $processPath
+            })
+    }
+
+    return $rows.ToArray()
+}
+
+function Get-OccupiedPortsInRange {
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$Start,
+        [Parameter(Mandatory = $true)]
+        [int]$End
+    )
+
+    if ($Start -gt $End) {
+        throw "Invalid port range: $Start..$End"
+    }
+
+    $rows = [System.Collections.Generic.List[object]]::new()
+    $seen = @{}
+
+    for ($port = $Start; $port -le $End; $port++) {
+        if (Test-PortFree -Port $port) {
+            continue
+        }
+
+        foreach ($info in (Get-PortProcessInfo -Port $port)) {
+            $key = "{0}:{1}" -f $info.Port, $info.PID
+            if ($seen.ContainsKey($key)) { continue }
+            $seen[$key] = $true
+            $rows.Add($info)
+        }
+    }
+
+    return $rows.ToArray()
+}
+
+function Write-PortRangeDiagnostics {
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$Start,
+        [Parameter(Mandatory = $true)]
+        [int]$End,
+        [string]$Label = "port"
+    )
+
+    $occupied = Get-OccupiedPortsInRange -Start $Start -End $End
+    if (-not $occupied -or $occupied.Count -eq 0) {
+        Write-Host "  (net slushateley v diapazone ${Start}-${End}; bind nedostupen - prover'te firewall ili rezervaciyu portov)"
+        return
+    }
+
+    $occupied |
+        Sort-Object Port, PID |
+        Format-Table -AutoSize Port, PID, ProcessName, Path |
+        Out-String -Width 200 |
+        ForEach-Object { Write-Host $_ }
+}
+
+function Write-PortUnavailableHelp {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ServiceLabel,
+        [Parameter(Mandatory = $true)]
+        [int]$Start,
+        [Parameter(Mandatory = $true)]
+        [int]$End
+    )
+
+    Write-Host ""
+    Write-Host "Не найден свободный $ServiceLabel порт в диапазоне ${Start}-${End}." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Занятые порты в этом диапазоне ($ServiceLabel):"
+    Write-PortRangeDiagnostics -Start $Start -End $End -Label $ServiceLabel
+    Write-Host "Что делать:" -ForegroundColor Yellow
+    Write-Host "  1. Попробуйте .\scripts\stop_dev.ps1 (останавливает только процессы, запущенные start_dev.ps1)."
+    Write-Host "  2. Или закройте процессы из таблицы вручную (Диспетчер задач / taskkill по PID)."
+    Write-Host "  3. Или укажите другой диапазон, например:"
+    Write-Host "     .\scripts\start_dev.ps1 -BackendPortStart 8060 -BackendPortEnd 8090 -FrontendPortStart 3060 -FrontendPortEnd 3090"
+    Write-Host ""
+    Write-Host "Чужие процессы скрипт не останавливает автоматически." -ForegroundColor DarkYellow
+}
+
 function Find-FreePort {
     param(
         [Parameter(Mandatory = $true)]
@@ -63,7 +183,7 @@ function Find-FreePort {
 function Build-DevCorsOrigins {
     param(
         [int]$Start = 3000,
-        [int]$End = 3010
+        [int]$End = 3050
     )
 
     $origins = [System.Collections.Generic.List[string]]::new()

@@ -4,9 +4,9 @@ from typing import Any
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Dev-only: allow local Next.js on any port in the start_dev.ps1 range (3000-3010).
+# Dev-only: allow local Next.js on any port in the start_dev.ps1 range (3000-3050).
 DEV_FRONTEND_PORT_START = 3000
-DEV_FRONTEND_PORT_END = 3010
+DEV_FRONTEND_PORT_END = 3050
 
 
 def build_dev_cors_origins(
@@ -109,6 +109,20 @@ class Settings(BaseSettings):
     @property
     def knowledge_graphs_dir(self) -> Path:
         return self.data_dir / "knowledge_graphs"
+
+    # OCR layer (Stage H.8)
+    ocr_enabled: bool = False
+    ocr_engine: str = "paddleocr"
+    ocr_fallback_engine: str = "tesseract"
+    ocr_dpi: int = 250
+    ocr_max_pages: int = 30
+    ocr_max_slides: int = 40
+    ocr_min_text_chars: int = 40
+    ocr_cache_enabled: bool = True
+
+    @property
+    def ocr_cache_dir(self) -> Path:
+        return self.data_dir / "ocr_cache"
 
 
 settings = Settings()

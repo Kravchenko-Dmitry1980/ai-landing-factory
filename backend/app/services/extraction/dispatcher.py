@@ -41,13 +41,19 @@ class ExtractionDispatcher:
 
         ext = normalize_extension(path)
         if ext in TEXT_EXTENSIONS:
-            return extract_text_file(path, filename)
+            record = extract_text_file(path, filename)
+            record.metadata["source_path"] = str(path.resolve())
+            return record
 
         for extractor in self._extractors:
             if extractor.supports(path):
-                return extractor.extract(path, filename)
+                record = extractor.extract(path, filename)
+                record.metadata["source_path"] = str(path.resolve())
+                return record
 
-        return fallback_extract_file(path, filename)
+        record = fallback_extract_file(path, filename)
+        record.metadata["source_path"] = str(path.resolve())
+        return record
 
 
 class DispatcherExtractionService(DocumentExtractor):

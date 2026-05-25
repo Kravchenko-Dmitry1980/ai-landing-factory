@@ -23,6 +23,7 @@ param(
     [switch]$SkipVisualSmoke,
     [switch]$SkipPublicExportSmoke,
     [switch]$SkipLiveMultifileSmoke,
+    [switch]$SkipOcrSmoke,
     [switch]$FailFast,
     [switch]$VerboseOutput
 )
@@ -369,7 +370,7 @@ if ($activeCorsOrigins) {
     Write-Log "CORS origins (start_dev): $activeCorsOrigins"
 }
 else {
-    Write-Log "CORS origins: dev default localhost/127.0.0.1 :3000-3010 (see backend/app/config.py)"
+    Write-Log "CORS origins: dev default localhost/127.0.0.1 :3000-3050 (see backend/app/config.py)"
 }
 
 $backendProbe = Test-HttpAvailable -Url $backendPrivacyUrl
@@ -458,6 +459,15 @@ Invoke-QACommand -Name "Team group blocks smoke" `
     -Command @($PythonExe, "scripts\smoke_team_group_blocks.py") `
     -Skip:$SkipCorpusSmoke `
     -SkipReason "SkipCorpusSmoke"
+
+if (-not $SkipOcrSmoke) {
+    Invoke-QACommand -Name "PPTX OCR team smoke (optional)" `
+        -WorkingDirectory $BackendDir `
+        -Command @($PythonExe, "scripts\smoke_pptx_ocr_team.py")
+}
+else {
+    Write-Log "SKIP: PPTX OCR team smoke (SkipOcrSmoke)"
+}
 
 Invoke-QACommand -Name "Endocrinology acceptance" `
     -WorkingDirectory $BackendDir `

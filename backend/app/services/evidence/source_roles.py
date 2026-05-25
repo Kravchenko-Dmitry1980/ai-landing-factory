@@ -15,6 +15,7 @@ SOURCE_ROLES = (
     "technical_spec",
     "report",
     "team_source",
+    "supporting_visual_evidence",
     "unknown",
 )
 
@@ -68,6 +69,14 @@ def _infer_role(
         return "primary_project_doc"
 
     text = (file_rec.extracted_text or "") if file_rec else ""
+
+    if file_rec and (
+        file_rec.file_type == "ocr"
+        or file_rec.metadata.get("source_role") == "supporting_visual_evidence"
+    ):
+        return "supporting_visual_evidence"
+    if item.source_role == "supporting_visual_evidence":
+        return "supporting_visual_evidence"
 
     if item.detected_source_type == "technical_spec":
         return "technical_spec"

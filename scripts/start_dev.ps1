@@ -5,9 +5,17 @@
 
 .EXAMPLE
   .\scripts\start_dev.ps1
+
+.EXAMPLE
+  .\scripts\start_dev.ps1 -BackendPortStart 8001 -BackendPortEnd 8050 -FrontendPortStart 3000 -FrontendPortEnd 3050
 #>
 [CmdletBinding()]
-param()
+param(
+    [int]$BackendPortStart = 8001,
+    [int]$BackendPortEnd = 8050,
+    [int]$FrontendPortStart = 3000,
+    [int]$FrontendPortEnd = 3050
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -28,11 +36,6 @@ $ProcessesFile = Join-Path $RuntimeDir "dev_processes.json"
 $UvicornExe = Join-Path $RootDir ".venv\Scripts\uvicorn.exe"
 $BackendMain = Join-Path $BackendDir "app\main.py"
 $EnvLocalPath = Join-Path $FrontendDir ".env.local"
-
-$BackendPortStart = 8001
-$BackendPortEnd = 8010
-$FrontendPortStart = 3000
-$FrontendPortEnd = 3010
 
 . (Join-Path $PSScriptRoot "lib\ports.ps1")
 
@@ -95,16 +98,24 @@ function Write-PortsJson {
     param(
         [int]$BackendPort,
         [int]$FrontendPort,
-        [string]$CorsOrigins
+        [string]$CorsOrigins,
+        [int]$BackendPortStart = 8001,
+        [int]$BackendPortEnd = 8050,
+        [int]$FrontendPortStart = 3000,
+        [int]$FrontendPortEnd = 3050
     )
 
     $payload = [ordered]@{
-        backend_port  = $BackendPort
-        frontend_port = $FrontendPort
-        backend_url   = "http://127.0.0.1:$BackendPort"
-        frontend_url  = "http://localhost:$FrontendPort"
-        cors_origins  = $CorsOrigins
-        updated_at    = (Get-Date).ToString("o")
+        backend_port        = $BackendPort
+        frontend_port       = $FrontendPort
+        backend_port_start  = $BackendPortStart
+        backend_port_end    = $BackendPortEnd
+        frontend_port_start = $FrontendPortStart
+        frontend_port_end   = $FrontendPortEnd
+        backend_url         = "http://127.0.0.1:$BackendPort"
+        frontend_url        = "http://localhost:$FrontendPort"
+        cors_origins        = $CorsOrigins
+        updated_at          = (Get-Date).ToString("o")
     }
 
     ($payload | ConvertTo-Json) | Set-Content -Path $PortsFile -Encoding UTF8
@@ -159,17 +170,27 @@ Write-Info ""
 Ensure-Directories
 Test-Prerequisites
 
+if ($BackendPortStart -gt $BackendPortEnd) {
+    Write-Fail "BackendPortStart ($BackendPortStart) must be <= BackendPortEnd ($BackendPortEnd)."
+    exit 1
+}
+if ($FrontendPortStart -gt $FrontendPortEnd) {
+    Write-Fail "FrontendPortStart ($FrontendPortStart) must be <= FrontendPortEnd ($FrontendPortEnd)."
+    exit 1
+}
+
+Write-Info "Port ranges: backend ${BackendPortStart}-${BackendPortEnd}, frontend ${FrontendPortStart}-${FrontendPortEnd}"
+Write-Info ""
+
 $backendPort = Find-FreePort -Start $BackendPortStart -End $BackendPortEnd
 if ($null -eq $backendPort) {
-    Write-Fail "Не найден свободный порт в диапазоне ${BackendPortStart}-${BackendPortEnd}."
-    Write-Fail "Закройте лишние dev-серверы или измените диапазон."
+    Write-PortUnavailableHelp -ServiceLabel "backend" -Start $BackendPortStart -End $BackendPortEnd
     exit 1
 }
 
 $frontendPort = Find-FreePort -Start $FrontendPortStart -End $FrontendPortEnd
 if ($null -eq $frontendPort) {
-    Write-Fail "Не найден свободный порт в диапазоне ${FrontendPortStart}-${FrontendPortEnd}."
-    Write-Fail "Закройте лишние dev-серверы или измените диапазон."
+    Write-PortUnavailableHelp -ServiceLabel "frontend" -Start $FrontendPortStart -End $FrontendPortEnd
     exit 1
 }
 
@@ -188,7 +209,9 @@ Write-Info ""
 Write-FrontendEnvLocal -BackendPort $backendPort
 
 $corsOrigins = Build-DevCorsOrigins -Start $FrontendPortStart -End $FrontendPortEnd
-Write-PortsJson -BackendPort $backendPort -FrontendPort $frontendPort -CorsOrigins $corsOrigins
+Write-PortsJson -BackendPort $backendPort -FrontendPort $frontendPort -CorsOrigins $corsOrigins `
+    -BackendPortStart $BackendPortStart -BackendPortEnd $BackendPortEnd `
+    -FrontendPortStart $FrontendPortStart -FrontendPortEnd $FrontendPortEnd
 
 $npmExe = (Get-Command npm.cmd).Source
 

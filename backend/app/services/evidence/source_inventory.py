@@ -62,6 +62,20 @@ class SourceInventoryBuilder:
         file_rec: FileExtraction,
         text: str,
     ) -> SourceInventoryItem:
+        if file_rec.file_type == "ocr" or file_rec.metadata.get("is_ocr_derivative"):
+            return SourceInventoryItem(
+                source_id=source_id,
+                filename=file_rec.filename,
+                file_type="ocr",
+                char_count=len(text),
+                slide_count=_int_or_none(file_rec.metadata.get("page_or_slide")),
+                detected_source_type="team_list" if "команда" in text.lower() else "mixed_project_materials",
+                source_role=str(file_rec.metadata.get("source_role") or "supporting_visual_evidence"),
+                confidence=0.55,
+                markers=["ocr_derivative"],
+                warnings=list(file_rec.warnings or []),
+            )
+
         normalized = text.lower().replace("\u00a0", " ")
         markers_hit: list[str] = []
         scores: dict[str, float] = {}

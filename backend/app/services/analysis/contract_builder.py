@@ -56,6 +56,7 @@ from app.services.evidence.source_inventory import (
     has_single_high_confidence_ready_doc,
 )
 from app.services.fusion.field_fusion_engine import FieldFusionEngine
+from app.services.ocr.ocr_enrichment import OcrEnrichmentService
 from app.services.orchestration.document_orchestrator import DocumentOrchestrator
 
 
@@ -118,6 +119,7 @@ class ContractBuilderService:
 
         self._field_fusion_engine = FieldFusionEngine()
         self._document_orchestrator = DocumentOrchestrator()
+        self._ocr_enrichment = OcrEnrichmentService()
 
 
 
@@ -158,6 +160,8 @@ class ContractBuilderService:
         if not hasattr(self, "_document_orchestrator"):
 
             self._document_orchestrator = DocumentOrchestrator()
+        if not hasattr(self, "_ocr_enrichment"):
+            self._ocr_enrichment = OcrEnrichmentService()
         self._document_orchestrator = DocumentOrchestrator()
 
 
@@ -165,6 +169,8 @@ class ContractBuilderService:
     def build(self, extraction: ExtractionResult) -> LandingContract:
 
         self._ensure_fidelity_deps()
+
+        extraction, ocr_warnings = self._ocr_enrichment.enrich(extraction)
 
         text = _primary_extracted_text(extraction)
 
@@ -323,7 +329,27 @@ class ContractBuilderService:
         contract = self._supplement_pptx_team(contract, extraction, text, source_type)
 
         contract = self._attach_orchestration_trace(contract, orchestration_trace)
+        contract = self._attach_ocr_warnings(contract, ocr_warnings)
 
+        return contract
+
+    def _attach_ocr_warnings(
+        self,
+        contract: LandingContract,
+        ocr_warnings: list[str],
+    ) -> LandingContract:
+        if not ocr_warnings:
+            return contract
+        if not contract.fidelity:
+            contract.fidelity = FidelityMetadata()
+        report = contract.fidelity.evidence_report
+        if report:
+            report.warnings = list(dict.fromkeys(list(report.warnings) + ocr_warnings))
+        trace = contract.fidelity.orchestration_trace
+        if trace:
+            trace.global_warnings = list(
+                dict.fromkeys(list(trace.global_warnings or []) + ocr_warnings)
+            )
         return contract
 
     def _attach_orchestration_trace(
