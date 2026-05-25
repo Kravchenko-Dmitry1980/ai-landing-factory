@@ -303,7 +303,7 @@ export function resolveActiveProfileId(
     return ps;
   }
   if (landing) {
-    return defaultRenderConfig(landing, contract).profileId;
+    return defaultRenderConfig(landing, contract ?? null).profileId;
   }
   return "enterprise";
 }

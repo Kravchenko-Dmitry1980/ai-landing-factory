@@ -15,6 +15,7 @@ import type {
   SemanticGenerationResponse,
   SourceStructureReport,
   ContractCompletenessReport,
+  EvidenceVisibility,
   UnifiedGenerateResponse,
   UploadResponse,
 } from "./types";
@@ -229,6 +230,12 @@ export async function getSourceStructure(
   return request<SourceStructureReport>(
     `/projects/${projectId}/source-structure`,
   );
+}
+
+export async function getEvidenceReport(
+  projectId: string,
+): Promise<EvidenceVisibility> {
+  return request<EvidenceVisibility>(`/projects/${projectId}/evidence-report`);
 }
 
 export async function reparseStructuredLanding(

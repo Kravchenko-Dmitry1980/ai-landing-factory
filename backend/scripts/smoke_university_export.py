@@ -185,7 +185,7 @@ def validate_university_export_html(html: str) -> list[CheckResult]:
 def fetch_export_html(project_id: str, backend_url: str) -> tuple[int, str]:
     base = backend_url.rstrip("/")
     url = f"{base}/api/v1/projects/{project_id}/export/html"
-    with httpx.Client(timeout=60.0) as client:
+    with httpx.Client(timeout=60.0, trust_env=False) as client:
         response = client.get(url, params={"theme": "university_platform"})
     return response.status_code, response.text
 

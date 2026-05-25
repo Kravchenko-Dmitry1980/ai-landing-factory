@@ -10,7 +10,9 @@ from app.core.dependencies import (
     get_semantic_engine,
     get_unified_generator,
 )
+from app.schemas.evidence_visibility import EvidenceVisibilityResponse
 from app.schemas.fidelity import ContractCompletenessReport, SourceStructureReport
+from app.services.evidence.evidence_visibility import EvidenceVisibilityBuilder
 from app.schemas.generation_responses import (
     ArchitectureResponse,
     GenerateRequest,
@@ -35,6 +37,14 @@ async def get_contract_completeness(project_id: UUID) -> ContractCompletenessRep
     if contract.fidelity and contract.fidelity.completeness:
         return contract.fidelity.completeness
     return ContractCompletenessGate().evaluate(contract)
+
+
+@router.get("/{project_id}/evidence-report", response_model=EvidenceVisibilityResponse)
+async def get_evidence_report(project_id: UUID) -> EvidenceVisibilityResponse:
+    contract = await get_contract_repository().get_contract(project_id)
+    if not contract:
+        raise HTTPException(404, "LandingContract not found")
+    return EvidenceVisibilityBuilder().build(contract)
 
 
 @router.get("/{project_id}/source-structure", response_model=SourceStructureReport)

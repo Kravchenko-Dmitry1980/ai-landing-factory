@@ -114,7 +114,9 @@ def _split_sections(text: str) -> dict[str, str]:
         body_start = end
         body_end = unique[i + 1][0] if i + 1 < len(unique) else len(text)
         body = text[body_start:body_end].strip()
-        if key not in sections or len(body) > len(sections[key]):
+        if key in sections:
+            sections[key] = f"{sections[key]}\n\n{body}".strip()
+        else:
             sections[key] = body
 
     return sections

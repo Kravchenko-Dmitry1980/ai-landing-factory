@@ -154,6 +154,91 @@ export interface ContractCompletenessReport {
   export_incomplete: boolean;
 }
 
+export type EvidenceCoverage = "missing" | "weak" | "strong";
+export type SourceStatus = "used" | "weak" | "ignored" | "empty";
+
+export interface FieldSourceTrace {
+  field_name: string;
+  source_filename: string;
+  location_type: string;
+  location_index: number | null;
+  reason: string;
+  confidence: number;
+}
+
+export interface SourceInventoryItem {
+  source_id: string;
+  filename: string;
+  file_type: string;
+  char_count: number;
+  slide_count: number | null;
+  page_count: number | null;
+  detected_source_type: string;
+  source_role: string;
+  confidence: number;
+  warnings: string[];
+}
+
+export interface FieldEvidence {
+  field_name: string;
+  confidence: number;
+  coverage: EvidenceCoverage;
+  selected_texts: string[];
+  source_refs: string[];
+}
+
+export interface EvidenceAssemblyReport {
+  project_id: string | null;
+  sources: SourceInventoryItem[];
+  total_evidence_items: number;
+  fields: Record<string, FieldEvidence>;
+  missing_fields: string[];
+  weak_fields: string[];
+  strong_fields: string[];
+  parser_strategy: string;
+  confidence: number;
+  warnings: string[];
+  field_traces: FieldSourceTrace[];
+}
+
+export interface EvidenceSourceView {
+  source_id: string;
+  filename: string;
+  file_type: string;
+  detected_source_type: string;
+  source_role: string;
+  evidence_count: number;
+  char_count: number;
+  slide_count: number | null;
+  page_count: number | null;
+  status: SourceStatus;
+  notes: string[];
+}
+
+export interface FieldSourceView {
+  field_name: string;
+  coverage: EvidenceCoverage;
+  confidence: number;
+  source_refs: string[];
+  reasons: string[];
+  selected_snippets: string[];
+}
+
+export interface EvidenceVisibility {
+  project_id: string;
+  parser_mode: string;
+  source_count: number;
+  evidence_count: number;
+  assembly_confidence: number;
+  sources: EvidenceSourceView[];
+  field_sources: Record<string, FieldSourceView>;
+  missing_fields: string[];
+  weak_fields: string[];
+  strong_fields: string[];
+  warnings: string[];
+  improvement_hints: string[];
+}
+
 export interface FidelityMetadata {
   parser_mode: string;
   detection?: DetectionResult | null;
@@ -161,6 +246,14 @@ export interface FidelityMetadata {
   modules: LandingModule[];
   team_structured: TeamMember[];
   tech_stack_grouped: Record<string, string[]>;
+  source_count?: number;
+  evidence_count?: number;
+  source_types?: string[];
+  field_sources?: FieldSourceTrace[];
+  missing_fields?: string[];
+  weak_fields?: string[];
+  assembly_confidence?: number;
+  evidence_report?: EvidenceAssemblyReport | null;
 }
 
 export interface SectionInfo {

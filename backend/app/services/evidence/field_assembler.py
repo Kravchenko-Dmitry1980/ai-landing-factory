@@ -825,7 +825,10 @@ def _apply_primary_sections(
     if parsed.outlook:
         assembled["outlook"] = parsed.outlook
     if parsed.team:
-        assembled["team"] = parsed.team
+        existing = assembled.get("team")
+        existing_count = len(existing) if isinstance(existing, list) else 0
+        if len(parsed.team) >= existing_count:
+            assembled["team"] = parsed.team
 
 
 def _role_map(inventory: list[SourceInventoryItem] | None) -> dict[str, str]:

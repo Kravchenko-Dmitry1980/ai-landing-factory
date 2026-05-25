@@ -110,7 +110,7 @@ def main() -> int:
     print(f"GET {url}?theme=university_platform\n")
 
     try:
-        with httpx.Client(timeout=30.0) as client:
+        with httpx.Client(timeout=30.0, trust_env=False) as client:
             response = client.get(url, params={"theme": "university_platform"})
     except httpx.HTTPError as exc:
         print(f"FAIL: HTTP request error: {exc}")

@@ -241,6 +241,57 @@ cd C:\Dima\Projects\CURSOR\Lend\backend
 
 Загрузка через UI: тот же upload pipeline → `ContractBuilderService.build()` после extraction.
 
+## Evidence Visibility in Editor
+
+В редакторе (`/editor/{projectId}`) под блоком **Качество контракта** отображается секция **Source & Evidence** — прозрачность сборки ленда из загруженных материалов.
+
+**Что видно:**
+
+- **Parser mode** — `multi_source_assembly`, `structured`, `project_presentation`, `heuristic`
+- **Sources / Evidence items / Assembly confidence**
+- **Strong / Weak / Missing fields**
+- Таблица источников: файл, тип, **source role**, число evidence, статус, заметки
+- **Field coverage** — для каждого поля: strong / weak / missing, источник, location (slide / page / section), reason
+- **Improvement hints** — что добавить для улучшения ленда
+
+**Source roles:**
+
+| Role | Назначение |
+|------|------------|
+| `primary_project_doc` | Задаёт название, заказчика и основную структуру проекта |
+| `module_presentation` | Обогащает модуль, не меняет название проекта |
+| `supporting_presentation` | Дополняет стек, результаты, архитектуру |
+| `technical_spec` | Требования, входные/выходные данные |
+| `report` | Итоги, метрики, перспективы |
+| `team_source` | Состав команды |
+
+**Field coverage:** `strong` — явный источник; `weak` — частично; `missing` — поле отсутствует.
+
+**Примеры:**
+
+- **Endocrinology:** `01_landing.docx` → `primary_project_doc`, title source = primary doc; `02_glaucologic_presentation.pptx` → `module_presentation`; `03_ai_copilot_presentation.pptx` → status `empty` (image-only, text=0).
+- **Indlab:** landing + presentation; stack sources включают Qdrant / BERTopic / Neo4j.
+- **KSK:** один PPTX, evidence по слайдам.
+
+**API:** `GET /api/v1/projects/{project_id}/evidence-report` — slim payload без полного raw-текста документов (snippets ≤ 180 символов).
+
+**Smoke:**
+
+```powershell
+cd C:\Dima\Projects\CURSOR\Lend\backend
+..\.venv\Scripts\python.exe scripts\smoke_evidence_visibility.py --project-id <uuid>
+```
+
+**Тесты:**
+
+```powershell
+..\.venv\Scripts\python.exe -m pytest tests\test_evidence_visibility_api.py -q
+cd ..\frontend
+npm test -- EvidenceVisibilityPanel
+```
+
+Если поля weak/missing — добавьте соответствующий файл (команда, отчёт, текстовая версия презентации) и нажмите **Перепарсить** или перезагрузите материалы.
+
 ## Test corpus (регрессия)
 
 Каталог `test_corpus/`: **одна папка = один проект = один LandingContract**. Эталоны в `test_corpus/golden/` (лёгкие `sources/*.pptx.txt`, без бинарников в git).

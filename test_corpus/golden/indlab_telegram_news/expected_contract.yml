@@ -11,7 +11,11 @@ must_have_modules:
   - "семантический"
   - "граф"
 min_modules: 3
-must_have_team: []
+must_have_team:
+  - Кравченко
+  - Ерюкова
+  - Глазунова
+min_team: 10
 expected_parser_mode: multi_source_assembly
 reject_essence_slide1_only: true
 reject_generic_title: true

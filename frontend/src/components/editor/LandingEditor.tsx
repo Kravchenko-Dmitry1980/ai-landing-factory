@@ -10,6 +10,7 @@ import {
   generateLanding,
   getContract,
   getContractCompleteness,
+  getEvidenceReport,
   getSourceStructure,
   reparseStructuredLanding,
   regenerateLanding,
@@ -22,6 +23,7 @@ import type {
   LandingBlock,
   LandingContract,
   LandingStylePreset,
+  EvidenceVisibility,
   SourceStructureReport,
 } from "@/lib/types";
 import { ContractQualityPanel } from "@/components/editor/ContractQualityPanel";
@@ -71,7 +73,9 @@ export function LandingEditor({ projectId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [completeness, setCompleteness] = useState<ContractCompletenessReport | null>(null);
   const [sourceStructure, setSourceStructure] = useState<SourceStructureReport | null>(null);
+  const [evidenceVisibility, setEvidenceVisibility] = useState<EvidenceVisibility | null>(null);
   const [structureLoading, setStructureLoading] = useState(false);
+  const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [reparsing, setReparsing] = useState(false);
 
   const load = useCallback(async () => {
@@ -88,16 +92,23 @@ export function LandingEditor({ projectId }: Props) {
           : "",
       );
       setEnrichmentInfo(data.enrichment ?? null);
+      setEvidenceLoading(true);
       try {
-        const [comp, struct] = await Promise.all([
-          getContractCompleteness(projectId),
-          getSourceStructure(projectId),
-        ]);
-        setCompleteness(comp);
-        setSourceStructure(struct);
+        setCompleteness(await getContractCompleteness(projectId));
       } catch {
         setCompleteness(data.fidelity?.completeness ?? null);
       }
+      try {
+        setSourceStructure(await getSourceStructure(projectId));
+      } catch {
+        setSourceStructure(null);
+      }
+      try {
+        setEvidenceVisibility(await getEvidenceReport(projectId));
+      } catch {
+        setEvidenceVisibility(null);
+      }
+      setEvidenceLoading(false);
     } catch (err) {
       setError(formatApiError(err, "Не удалось загрузить контракт"));
     } finally {
@@ -159,13 +170,23 @@ export function LandingEditor({ projectId }: Props) {
       setBlocks(updated.blocks);
       setCompleteness(updated.fidelity?.completeness ?? null);
       setStructureLoading(true);
-      setSourceStructure(await getSourceStructure(projectId));
+      setEvidenceLoading(true);
+      try {
+        const [struct, evidence] = await Promise.all([
+          getSourceStructure(projectId),
+          getEvidenceReport(projectId),
+        ]);
+        setSourceStructure(struct);
+        setEvidenceVisibility(evidence);
+      } finally {
+        setStructureLoading(false);
+        setEvidenceLoading(false);
+      }
       await regenerateLanding(projectId);
     } catch (err) {
       setError(formatApiError(err, "Не удалось перепарсить ленд"));
     } finally {
       setReparsing(false);
-      setStructureLoading(false);
     }
   }
 
@@ -239,7 +260,13 @@ export function LandingEditor({ projectId }: Props) {
         reparsing={reparsing}
       />
 
-      <SourceStructurePanel report={sourceStructure} loading={structureLoading} />
+      <SourceStructurePanel
+        report={sourceStructure}
+        evidence={evidenceVisibility}
+        loading={structureLoading}
+        evidenceLoading={evidenceLoading}
+        parserMode={contract?.fidelity?.parser_mode}
+      />
 
       {contract?.fidelity?.team_structured &&
         contract.fidelity.team_structured.length > 0 && (

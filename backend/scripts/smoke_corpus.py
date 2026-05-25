@@ -255,6 +255,11 @@ def _validate_contract(contract, expected: dict, project_slug: str) -> list[str]
         if frag.lower() not in blob:
             errors.append(f"team missing fragment: {frag}")
 
+    min_team = int(expected.get("min_team", 0))
+    team_count = len(fidelity.team_structured) if fidelity and fidelity.team_structured else 0
+    if min_team and team_count < min_team:
+        errors.append(f"team count {team_count} < {min_team}")
+
     if not fidelity:
         errors.append("missing fidelity metadata")
 
