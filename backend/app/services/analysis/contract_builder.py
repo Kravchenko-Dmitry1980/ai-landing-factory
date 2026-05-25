@@ -277,8 +277,55 @@ class ContractBuilderService:
 
                 contract.fidelity = FidelityMetadata(completeness=completeness)
 
+        contract = self._supplement_pptx_team(contract, extraction, text, source_type)
 
+        return contract
 
+    def _supplement_pptx_team(
+        self,
+        contract: LandingContract,
+        extraction: ExtractionResult,
+        text: str,
+        source_type,
+    ) -> LandingContract:
+        """If PPTX-only contract has no team, try presentation synthesizer team slide."""
+        from app.services.contract_fidelity.team_candidate_validator import filter_team_members
+
+        fidelity = contract.fidelity
+        if not fidelity or fidelity.team_structured:
+            return contract
+        if len(extraction.files) != 1:
+            return contract
+        if extraction.files[0].file_type != "pptx":
+            return contract
+
+        parsed = self._presentation_synthesizer.synthesize(text, source_type)
+        team = filter_team_members(parsed.team)
+        if not team:
+            return contract
+
+        fidelity.team_structured = team
+        team_bullets = team_to_bullets(team)
+        updated = False
+        for block in contract.blocks:
+            if block.key == "team":
+                block.bullets = team_bullets
+                updated = True
+                break
+        if not updated:
+            contract.blocks.append(
+                LandingBlock(
+                    key="team",
+                    title="Команда проекта",
+                    content="",
+                    bullets=team_bullets,
+                )
+            )
+        fidelity.completeness = self._completeness_gate.evaluate(contract)
+        logger.info(
+            "Supplemented PPTX-only team from presentation synthesizer (%d members)",
+            len(team),
+        )
         return contract
 
 

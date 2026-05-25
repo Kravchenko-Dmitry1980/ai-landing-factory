@@ -5,15 +5,10 @@ from pptx import Presentation
 
 from app.schemas.extraction import FileExtraction
 from app.services.extraction.base import FileExtractor
+from app.services.extraction.pptx_shape_text import extract_shape_texts, join_shape_texts
 from app.services.extraction.utils import file_type_label, normalize_extension
 
 logger = logging.getLogger(__name__)
-
-
-def _shape_text(shape) -> str:
-    if not hasattr(shape, "text"):
-        return ""
-    return (shape.text or "").strip()
 
 
 class PptxExtractor(FileExtractor):
@@ -33,11 +28,11 @@ class PptxExtractor(FileExtractor):
             notes_count = 0
 
             for idx, slide in enumerate(prs.slides, start=1):
-                texts: list[str] = []
+                shape_texts: list[str] = []
                 for shape in slide.shapes:
-                    t = _shape_text(shape)
-                    if t:
-                        texts.append(t)
+                    shape_texts.extend(extract_shape_texts(shape))
+
+                texts = [t for t in shape_texts if t.strip()]
                 slide_title = texts[0] if texts else ""
                 slide_body = "\n".join(texts[1:]) if len(texts) > 1 else (
                     texts[0] if texts else ""
@@ -52,15 +47,20 @@ class PptxExtractor(FileExtractor):
                             notes_count += 1
                             notes_parts.append(f"Notes {idx}:\n{note_text}")
 
-                if texts:
-                    block = f"Slide {idx}:\n" + "\n".join(texts)
+                full_slide_text = join_shape_texts(texts)
+                if note_text:
+                    full_slide_text = f"{full_slide_text}\n\nNotes:\n{note_text}".strip()
+
+                if texts or note_text:
+                    block = f"Slide {idx}:\n{full_slide_text}"
                     slide_parts.append(block)
                     structured_slides.append(
                         {
                             "index": idx,
                             "title": slide_title,
-                            "text": slide_body or slide_title,
+                            "text": slide_body or slide_title or full_slide_text,
                             "notes": note_text,
+                            "char_count": len(full_slide_text),
                         }
                     )
                 else:

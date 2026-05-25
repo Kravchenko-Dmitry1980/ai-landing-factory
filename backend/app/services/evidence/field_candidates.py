@@ -5,6 +5,10 @@ from __future__ import annotations
 import re
 
 from app.schemas.evidence import EvidenceItem
+from app.services.contract_fidelity.pptx_team_markers import (
+    slide_title_has_team_marker,
+    text_has_team_markers,
+)
 
 FIELD_RULES: list[tuple[str, list[str]]] = [
     ("title", ["проект:", "название проекта", "slide 1"]),
@@ -43,7 +47,14 @@ FIELD_RULES: list[tuple[str, list[str]]] = [
         "технологический стек", "архитектура системы", "архитектура пайплайна",
         "stack", "pipeline", "ml pipeline",
     ]),
-    ("team", ["команда", "тимлид", "помощник тимлида", "участники"]),
+    ("team", [
+        "команда проекта",
+        "команда управления",
+        "участники команды",
+        "роли в проекте",
+        "тимлид:",
+        "помощник тимлида:",
+    ]),
     ("modules", [
         "шаг 1", "шаг 2", "pipeline", "архитектура", "модули",
         "семантический поиск", "темы (", "граф новостей",
@@ -84,7 +95,13 @@ def classify_field_candidates(item: EvidenceItem) -> list[str]:
         if "tech_stack" not in candidates:
             candidates.append("tech_stack")
 
-    if item.people:
+    if item.people or text_has_team_markers(text):
+        if "team" not in candidates:
+            candidates.append("team")
+
+    if item.location_type == "slide" and slide_title_has_team_marker(
+        item.location_label, text
+    ):
         if "team" not in candidates:
             candidates.append("team")
 

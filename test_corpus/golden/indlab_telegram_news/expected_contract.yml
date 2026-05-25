@@ -24,3 +24,7 @@ forbidden_team_names:
 expected_parser_mode: multi_source_assembly
 reject_essence_slide1_only: true
 reject_generic_title: true
+pptx_only:
+  must_have_team: false
+  min_team: 0
+  reason: no_extractable_team_text_in_pptx

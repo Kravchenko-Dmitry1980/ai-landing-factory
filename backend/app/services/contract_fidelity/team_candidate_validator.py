@@ -76,7 +76,10 @@ STOP_WORDS = frozenset(
 )
 
 TEAM_CONTEXT_HINTS = (
-    "команда",
+    "команда проекта",
+    "команда управления",
+    "участники команды",
+    "роли в проекте",
     "участник",
     "тимлид",
     "разработчик",
@@ -168,19 +171,42 @@ def validate_team_candidate(
     source_text: str = "",
     in_team_section: bool = False,
 ) -> bool:
+    return validate_team_candidate_with_reason(
+        name,
+        role=role,
+        section_hint=section_hint,
+        source_text=source_text,
+        in_team_section=in_team_section,
+    )[0]
+
+
+def validate_team_candidate_with_reason(
+    name: str,
+    *,
+    role: str = "",
+    section_hint: str = "",
+    source_text: str = "",
+    in_team_section: bool = False,
+) -> tuple[bool, str]:
     if not is_valid_person_name(name):
-        return False
+        normalized = _normalize_name(name)
+        words_lower = {w.lower() for w in normalized.split()}
+        if words_lower & STOP_WORDS:
+            return False, "rejected: domain_stop_word"
+        if not PERSON_NAME_RE.match(normalized):
+            return False, "rejected: not_person_name"
+        return False, "rejected: not_person_name"
 
     if in_team_section or is_team_context(section_hint, source_text):
-        return True
+        return True, "accepted: valid_name_in_team_context"
 
     if role and is_valid_team_role(role):
-        return True
+        return True, "accepted: valid_name_with_role"
 
     if _has_inline_role_marker(name, source_text):
-        return True
+        return True, "accepted: valid_name_with_role"
 
-    return False
+    return False, "rejected: outside_team_context"
 
 
 def validate_team_member(member: TeamMember) -> bool:

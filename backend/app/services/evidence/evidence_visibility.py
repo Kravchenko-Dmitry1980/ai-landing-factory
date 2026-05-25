@@ -41,8 +41,16 @@ ROLE_NOTES: dict[str, str] = {
     "unknown": "Роль источника не определена однозначно.",
 }
 
+PPTX_ONLY_TEAM_HINT = (
+    "В презентации не найден извлекаемый текст команды. Если команда находится "
+    "на изображении, нужен OCR или отдельный DOCX/TXT."
+)
+
 FIELD_IMPROVEMENT_HINTS: dict[str, str] = {
-    "team": "Добавьте файл или слайд с составом команды.",
+    "team": (
+        "Добавьте файл или слайд с составом команды (DOCX/TXT или слайд "
+        "«Команда проекта» с ФИО и ролями)."
+    ),
     "results": "Добавьте отчёт или слайд с итогами проекта.",
     "outlook": "Добавьте материалы о перспективах развития проекта.",
     "tech_stack": "Добавьте презентацию или ТЗ с технологиями проекта.",
@@ -327,6 +335,11 @@ def _build_improvement_hints(
                 f"Файл «{src.filename}» похож на image-only презентацию. "
                 "Для анализа нужен OCR или текстовая версия."
             )
+    if "team" in missing and sources and all(
+        s.file_type == "pptx" for s in sources if s.status != "empty"
+    ):
+        if PPTX_ONLY_TEAM_HINT not in hints:
+            hints.append(PPTX_ONLY_TEAM_HINT)
     return _dedupe(hints)
 
 

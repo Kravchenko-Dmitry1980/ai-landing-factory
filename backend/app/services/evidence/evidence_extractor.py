@@ -7,6 +7,10 @@ import uuid
 
 from app.schemas.evidence import EvidenceItem, SourceInventoryItem
 from app.schemas.extraction import ExtractionResult, FileExtraction
+from app.services.contract_fidelity.pptx_team_markers import (
+    slide_title_has_team_marker,
+    text_has_team_markers,
+)
 from app.services.evidence.evidence_normalizer import (
     extract_dates,
     extract_keywords,
@@ -70,12 +74,18 @@ class EvidenceExtractor:
             match = re.search(r"(\d+)", header)
             idx = int(match.group(1)) if match else len(items) + 1
             slide_text = f"{header}\n{body}".strip()
+            title = _slide_title(slide_text)
+            in_team = slide_title_has_team_marker(title, slide_text) or text_has_team_markers(
+                slide_text
+            )
             items.append(
                 self._make_item(
                     source_id, file_rec, slide_text,
                     location_type="slide",
                     location_index=idx,
-                    location_label=_slide_title(slide_text),
+                    location_label=title,
+                    section_hint=title if in_team else None,
+                    in_team_section=in_team,
                 )
             )
             i += 2
@@ -209,10 +219,19 @@ class EvidenceExtractor:
         location_index: int | None,
         location_label: str | None = None,
         section_hint: str | None = None,
+        in_team_section: bool = False,
     ) -> EvidenceItem:
         normalized = normalize_text(text)
         technologies = extract_technologies(text)
-        people = [m.name for m in extract_people_from_text(text, source_ref=file_rec.filename)]
+        people = [
+            m.name
+            for m in extract_people_from_text(
+                text,
+                source_ref=file_rec.filename,
+                section_hint=section_hint or location_label or "",
+                in_team_section=in_team_section,
+            )
+        ]
         dates = extract_dates(text)
         item = EvidenceItem(
             evidence_id=f"ev-{uuid.uuid4().hex[:10]}",
