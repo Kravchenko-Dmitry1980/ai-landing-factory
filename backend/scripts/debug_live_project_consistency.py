@@ -16,6 +16,12 @@ import httpx
 BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND))
 
+from app.services.diagnostics.live_project_verdict import (  # noqa: E402
+    classify_live_project_diagnostic,
+    format_verdict_report,
+    verdict_exit_code,
+)
+
 DEFAULT_BACKEND_URL = "http://127.0.0.1:8001"
 
 FORBIDDEN_HTML_NAMES = (
@@ -277,9 +283,21 @@ def _compute_verdict(
     return "OK"
 
 
+def diagnostics_to_payload(diag: ProjectDiagnostics) -> dict[str, Any]:
+    """JSON payload with gate-compatible alias fields."""
+    payload = asdict(diag)
+    payload["export_has_team"] = diag.export_has_team_section
+    payload["contract_team_count"] = max(diag.team_structured_count, diag.team_count)
+    payload["contract_has_team"] = (
+        diag.team_structured_count > 0 or diag.team_count > 0
+    )
+    payload["generated_landing_has_team"] = diag.landing_has_team
+    return payload
+
+
 def print_report(diag: ProjectDiagnostics, as_json: bool = False) -> None:
     if as_json:
-        print(json.dumps(asdict(diag), ensure_ascii=False, indent=2))
+        print(json.dumps(diagnostics_to_payload(diag), ensure_ascii=False, indent=2))
         return
 
     print(f"=== Live Project Consistency: {diag.project_id} ===")
@@ -379,10 +397,23 @@ def main() -> int:
         action="store_true",
         help="Require team in export when DOCX is among sources",
     )
+    parser.add_argument(
+        "--classify",
+        action="store_true",
+        help="Apply verdict gate classification to diagnostic output",
+    )
     args = parser.parse_args()
 
     diag = audit_project(args.backend_url, args.project_id)
+    payload = diagnostics_to_payload(diag)
     print_report(diag, as_json=args.json)
+
+    gate = None
+    if args.classify:
+        gate = classify_live_project_diagnostic(payload)
+        if not args.json:
+            print()
+        print(format_verdict_report(gate, payload))
 
     if args.check or args.assert_team_if_docx_present:
         failures = assert_acceptance(diag, args.assert_team_if_docx_present)
@@ -391,7 +422,12 @@ def main() -> int:
                 print(f"ASSERT FAIL: {item}", file=sys.stderr)
             return 1
         print("ASSERT OK")
-    elif diag.verdict != "OK" and diag.verdict != "single_file_no_team_source":
+        return 0
+
+    if args.classify and gate is not None:
+        return verdict_exit_code(gate.status)
+
+    if diag.verdict != "OK" and diag.verdict != "single_file_no_team_source":
         return 1
 
     return 0

@@ -283,6 +283,63 @@ cd C:\Dima\Projects\CURSOR\Lend\backend
 
 В `check_all.ps1` шаг включён по умолчанию; пропуск: `-SkipLiveMultifileSmoke`.
 
+## Live Project Verdict Gate
+
+Строгая классификация состояния live-проекта по JSON-диагностике — без ручного разбора export.
+
+**Шаг 1 — собрать JSON:**
+
+```powershell
+cd C:\Dima\Projects\CURSOR\Lend\backend
+..\.venv\Scripts\python.exe scripts\debug_live_project_consistency.py `
+  --project-id <PROJECT_ID> `
+  --backend-url http://127.0.0.1:8006 `
+  --json
+```
+
+С `--classify` сразу печатается gate-отчёт поверх JSON:
+
+```powershell
+..\.venv\Scripts\python.exe scripts\debug_live_project_consistency.py `
+  --project-id <PROJECT_ID> `
+  --backend-url http://127.0.0.1:8006 `
+  --json `
+  --classify
+```
+
+**Шаг 2 — применить verdict gate:**
+
+```powershell
+..\.venv\Scripts\python.exe scripts\check_live_project_verdict.py `
+  --project-id <PROJECT_ID> `
+  --backend-url http://127.0.0.1:8006
+```
+
+Или из сохранённого JSON:
+
+```powershell
+..\.venv\Scripts\python.exe scripts\check_live_project_verdict.py `
+  --json-file tests\fixtures\diagnostics\single_file_no_team_source.json
+```
+
+**Интерпретация статусов:**
+
+| Status | Значение | Exit code |
+|--------|----------|-----------|
+| `OK` | Команда найдена, export консистентен | 0 |
+| `USER_ACTION_REQUIRED` | Один файл, команды нет — **не баг** | 0 |
+| `BUG` | Потеря team на extraction/merge/export | 1 |
+| `STALE` | Generated landing устарел | 1 |
+
+**Типовые классификации:**
+
+- `source_count=1` + `verdict=single_file_no_team_source` → загружен только PPTX (или один файл без team text layer). **Добавьте DOCX/TXT** или PPTX со слайдом «Команда проекта».
+- `source_count>=2` + есть `.docx`/`.txt` + `team_structured_count=0` → **bug extraction/team_parser/merge**.
+- `contract_has_team=true` + `export_has_team=false` → **bug export** (`StyledHtmlExporter`, landing_bridge).
+- `landing_stale=true` → **reparse / regenerate landing**.
+
+Gate **не включён** в default `check_all.ps1` (project-specific). Запускайте вручную для проблемного projectId.
+
 ## Evidence Visibility in Editor
 
 В редакторе (`/editor/{projectId}`) под блоком **Качество контракта** отображается секция **Source & Evidence** — прозрачность сборки ленда из загруженных материалов.

@@ -1,0 +1,8 @@
+{
+  "verdict": "uploaded_docx_but_extraction_missing",
+  "source_count": 2,
+  "filenames": ["project.pptx", "landing.docx"],
+  "team_structured_count": 0,
+  "export_has_team": false,
+  "landing_stale": false
+}
