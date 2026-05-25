@@ -13,3 +13,4 @@ class ProjectRecord:
     name: str = ""
     description: str | None = None
     created_at: datetime = field(default_factory=utc_now)
+    updated_at: datetime = field(default_factory=utc_now)

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { createProject, formatApiError, uploadMaterials } from "@/lib/api";
+import { rememberLastProject } from "@/lib/lastProject";
 import {
   mergeFileSelection,
   removeFileAt,
@@ -45,6 +46,7 @@ export function UploadForm() {
     try {
       const project = await createProject(name.trim(), description.trim() || undefined);
       await uploadMaterials(project.id, files, description.trim() || undefined);
+      rememberLastProject(project.id);
       router.push(`/editor/${project.id}`);
     } catch (err) {
       setError(formatApiError(err, "Ошибка загрузки"));

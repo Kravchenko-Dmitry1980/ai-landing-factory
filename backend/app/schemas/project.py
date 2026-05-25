@@ -14,3 +14,12 @@ class ProjectResponse(BaseModel):
     name: str
     description: str | None
     created_at: datetime
+    updated_at: datetime | None = None
+
+
+class ProjectSummary(BaseModel):
+    id: UUID
+    name: str
+    created_at: datetime
+    updated_at: datetime
+    version: int = 1

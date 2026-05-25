@@ -285,14 +285,51 @@ cd C:\Dima\Projects\CURSOR\Lend\backend
 
 ## Live Project Verdict Gate
 
-Строгая классификация состояния live-проекта по JSON-диагностике — без ручного разбора export.
+Строгая классификация состояния live-проекта — **без ручного UUID**.
+
+### One-command (рекомендуется)
+
+```powershell
+cd C:\Dima\Projects\CURSOR\Lend
+
+.\scripts\start_dev.ps1
+# загрузите файлы через UI
+
+.\scripts\check_last_project.ps1
+```
+
+Текущий (последний открытый через upload) проект:
+
+```powershell
+.\scripts\check_current_project.ps1
+```
+
+Backend URL берётся из `.runtime/ports.json` автоматически.
+
+### CLI без PowerShell
+
+```powershell
+cd C:\Dima\Projects\CURSOR\Lend\backend
+
+..\.venv\Scripts\python.exe scripts\check_live_project_verdict.py --latest
+..\.venv\Scripts\python.exe scripts\check_live_project_verdict.py --current
+```
+
+Конкретный проект — **скопируйте UUID из URL** `/editor/{uuid}` (не вводите `<PROJECT_ID>` буквально — PowerShell воспримет `<` как оператор):
+
+```powershell
+..\.venv\Scripts\python.exe scripts\check_live_project_verdict.py `
+  --project-id 55a98f90-73fc-4d26-a477-3c974a0cbeed
+```
+
+### JSON-диагностика (опционально)
 
 **Шаг 1 — собрать JSON:**
 
 ```powershell
 cd C:\Dima\Projects\CURSOR\Lend\backend
 ..\.venv\Scripts\python.exe scripts\debug_live_project_consistency.py `
-  --project-id <PROJECT_ID> `
+  --latest `
   --backend-url http://127.0.0.1:8006 `
   --json
 ```
@@ -301,7 +338,7 @@ cd C:\Dima\Projects\CURSOR\Lend\backend
 
 ```powershell
 ..\.venv\Scripts\python.exe scripts\debug_live_project_consistency.py `
-  --project-id <PROJECT_ID> `
+  --project-id 55a98f90-73fc-4d26-a477-3c974a0cbeed `
   --backend-url http://127.0.0.1:8006 `
   --json `
   --classify
@@ -310,9 +347,7 @@ cd C:\Dima\Projects\CURSOR\Lend\backend
 **Шаг 2 — применить verdict gate:**
 
 ```powershell
-..\.venv\Scripts\python.exe scripts\check_live_project_verdict.py `
-  --project-id <PROJECT_ID> `
-  --backend-url http://127.0.0.1:8006
+..\.venv\Scripts\python.exe scripts\check_live_project_verdict.py --latest
 ```
 
 Или из сохранённого JSON:
@@ -321,6 +356,8 @@ cd C:\Dima\Projects\CURSOR\Lend\backend
 ..\.venv\Scripts\python.exe scripts\check_live_project_verdict.py `
   --json-file tests\fixtures\diagnostics\single_file_no_team_source.json
 ```
+
+**Runtime:** после upload backend пишет `.runtime/last_project.json` (для `--current`). Frontend дублирует `projectId` в `localStorage`.
 
 **Интерпретация статусов:**
 

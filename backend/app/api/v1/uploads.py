@@ -30,13 +30,12 @@ from app.schemas.pii import PiiSummary
 
 from app.schemas.upload import UploadResponse
 
+from app.services.diagnostics.last_project_tracker import write_last_project
 from app.services.pipeline import ContentPipeline
 
-
-
 router = APIRouter()
-
 _project_repo = ProjectRepository(settings)
+_RUNTIME_ROOT = settings.base_dir.parent
 
 
 
@@ -132,7 +131,13 @@ async def upload_materials(
 
     pii_summary = PiiSummary.model_validate(pii_raw) if pii_raw else None
 
-
+    await _project_repo.touch(project_id)
+    write_last_project(
+        _RUNTIME_ROOT,
+        project_id=project_id,
+        project_name=project.name,
+        source="upload",
+    )
 
     return UploadResponse(
 

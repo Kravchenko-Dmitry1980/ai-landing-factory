@@ -14,12 +14,19 @@ from typing import Any
 import httpx
 
 BACKEND = Path(__file__).resolve().parents[1]
+REPO_ROOT = BACKEND.parent
 sys.path.insert(0, str(BACKEND))
 
+from app.config import settings  # noqa: E402
 from app.services.diagnostics.live_project_verdict import (  # noqa: E402
     classify_live_project_diagnostic,
     format_verdict_report,
     verdict_exit_code,
+)
+from app.services.diagnostics.project_discovery import (  # noqa: E402
+    ProjectDiscoveryError,
+    get_backend_url_from_runtime,
+    resolve_project_id,
 )
 
 DEFAULT_BACKEND_URL = "http://127.0.0.1:8001"
@@ -384,8 +391,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Audit live project source → contract → landing → export consistency",
     )
-    parser.add_argument("--project-id", required=True)
-    parser.add_argument("--backend-url", default=DEFAULT_BACKEND_URL)
+    parser.add_argument("--project-id", default="")
+    parser.add_argument("--latest", action="store_true")
+    parser.add_argument("--current", action="store_true")
+    parser.add_argument("--runtime-root", type=Path, default=REPO_ROOT)
+    parser.add_argument("--backend-url", default="")
     parser.add_argument("--json", action="store_true", help="Print JSON diagnostics")
     parser.add_argument(
         "--check",
@@ -404,7 +414,32 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    diag = audit_project(args.backend_url, args.project_id)
+    backend_url = args.backend_url.rstrip("/") if args.backend_url else get_backend_url_from_runtime(args.runtime_root)
+
+    try:
+        if args.latest and args.current:
+            raise ProjectDiscoveryError("Use only one of --latest or --current.")
+        if not args.project_id and not args.latest and not args.current:
+            raise ProjectDiscoveryError(
+                "Укажите --project-id, --latest или --current."
+            )
+        resolved = resolve_project_id(
+            project_id=args.project_id or None,
+            latest=args.latest,
+            current=args.current,
+            base_url=backend_url,
+            runtime_root=args.runtime_root,
+            data_dir=settings.data_dir,
+        )
+        project_id = resolved.project_id
+        backend_url = resolved.backend_url
+        if not args.json:
+            print(f"Resolved project: {resolved.project_name or project_id} ({resolved.source})")
+    except ProjectDiscoveryError as exc:
+        print(f"FAIL: {exc}", file=sys.stderr)
+        return 1
+
+    diag = audit_project(backend_url, project_id)
     payload = diagnostics_to_payload(diag)
     print_report(diag, as_json=args.json)
 
