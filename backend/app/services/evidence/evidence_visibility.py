@@ -46,6 +46,16 @@ PPTX_ONLY_TEAM_HINT = (
     "на изображении, нужен OCR или отдельный DOCX/TXT."
 )
 
+SINGLE_FILE_WARNING = (
+    "Загружен только один файл. Для полного ленда обычно нужен комплект: "
+    "PPTX + DOCX/TXT."
+)
+
+SINGLE_FILE_TEAM_HINT = (
+    "Загружен только один файл. Команда не найдена. Добавьте DOCX/TXT со списком "
+    "участников или PPTX со слайдом «Команда проекта» с ФИО и ролями в текстовом слое."
+)
+
 FIELD_IMPROVEMENT_HINTS: dict[str, str] = {
     "team": (
         "Добавьте файл или слайд с составом команды (DOCX/TXT или слайд "
@@ -90,6 +100,17 @@ class EvidenceVisibilityBuilder:
             report.missing_fields,
             report.weak_fields,
             sources,
+            source_count=len(report.sources),
+            team_structured_count=len(fidelity.team_structured) if fidelity else 0,
+        )
+
+        warnings = list(report.warnings)
+        warnings.extend(
+            _build_source_warnings(
+                len(report.sources),
+                fidelity.team_structured if fidelity else [],
+                report.missing_fields,
+            )
         )
 
         parser_mode = fidelity.parser_mode if fidelity else report.parser_strategy
@@ -104,7 +125,7 @@ class EvidenceVisibilityBuilder:
             missing_fields=list(report.missing_fields),
             weak_fields=list(report.weak_fields),
             strong_fields=list(report.strong_fields),
-            warnings=list(report.warnings),
+            warnings=_dedupe(warnings),
             improvement_hints=hints,
         )
 
@@ -129,10 +150,22 @@ class EvidenceVisibilityBuilder:
                 "структурированных материалов или нажмите reparse после загрузки "
                 "дополнительных файлов."
             )
-        hints.extend(
-            FIELD_IMPROVEMENT_HINTS[f]
-            for f in missing + weak
-            if f in FIELD_IMPROVEMENT_HINTS
+        hints = _dedupe(
+            hints
+            + _build_improvement_hints(
+                missing,
+                weak,
+                [],
+                source_count=fidelity.source_count if fidelity else 0,
+                team_structured_count=len(fidelity.team_structured) if fidelity else 0,
+            )
+        )
+        warnings.extend(
+            _build_source_warnings(
+                fidelity.source_count if fidelity else 0,
+                fidelity.team_structured if fidelity else [],
+                missing,
+            )
         )
 
         strong: list[str] = []
@@ -156,8 +189,8 @@ class EvidenceVisibilityBuilder:
             missing_fields=missing,
             weak_fields=weak,
             strong_fields=[],
-            warnings=warnings,
-            improvement_hints=_dedupe(hints),
+            warnings=_dedupe(warnings),
+            improvement_hints=hints,
         )
 
 
@@ -319,10 +352,27 @@ def _coverage_from_lists(
     return "missing"
 
 
+def _build_source_warnings(
+    source_count: int,
+    team_structured: list,
+    missing_fields: list[str],
+) -> list[str]:
+    warnings: list[str] = []
+    if source_count == 1:
+        if SINGLE_FILE_WARNING not in warnings:
+            warnings.append(SINGLE_FILE_WARNING)
+        if not team_structured and "team" in missing_fields:
+            warnings.append(SINGLE_FILE_TEAM_HINT)
+    return warnings
+
+
 def _build_improvement_hints(
     missing: list[str],
     weak: list[str],
     sources: list[EvidenceSourceView],
+    *,
+    source_count: int = 0,
+    team_structured_count: int = 0,
 ) -> list[str]:
     hints: list[str] = []
     for field in missing + weak:
@@ -335,6 +385,9 @@ def _build_improvement_hints(
                 f"Файл «{src.filename}» похож на image-only презентацию. "
                 "Для анализа нужен OCR или текстовая версия."
             )
+    if source_count == 1 and team_structured_count == 0:
+        if SINGLE_FILE_TEAM_HINT not in hints:
+            hints.append(SINGLE_FILE_TEAM_HINT)
     if "team" in missing and sources and all(
         s.file_type == "pptx" for s in sources if s.status != "empty"
     ):

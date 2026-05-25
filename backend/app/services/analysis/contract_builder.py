@@ -210,10 +210,12 @@ class ContractBuilderService:
             pres_score = pres_completeness.score if pres_completeness else 0
 
             if pres_contract and pres_score > ms_score:
+                ms_contract = contract
                 contract = pres_contract
                 if contract.fidelity:
                     contract.fidelity.evidence_report = report
                     contract.fidelity.completeness = pres_completeness
+                contract = self._merge_team_from_ms_contract(contract, ms_contract)
                 logger.info(
                     "Presentation synthesizer chosen for %s (pres=%d > ms=%d)",
                     extraction.project_id,
@@ -232,10 +234,12 @@ class ContractBuilderService:
                     len(inventory),
                 )
             elif pres_contract:
+                ms_contract = contract
                 contract = pres_contract
                 if contract.fidelity:
                     contract.fidelity.evidence_report = report
                     contract.fidelity.completeness = pres_completeness
+                contract = self._merge_team_from_ms_contract(contract, ms_contract)
                 logger.info(
                     "Presentation fallback for %s (ms=%d)",
                     extraction.project_id,
@@ -279,6 +283,74 @@ class ContractBuilderService:
 
         contract = self._supplement_pptx_team(contract, extraction, text, source_type)
 
+        return contract
+
+    def _merge_team_from_ms_contract(
+        self,
+        contract: LandingContract,
+        ms_contract: LandingContract,
+    ) -> LandingContract:
+        """Keep team from multi-source assembly when presentation path wins overall."""
+        from app.services.contract_fidelity.team_candidate_validator import filter_team_members
+
+        ms_fidelity = ms_contract.fidelity
+        if not ms_fidelity or not ms_fidelity.team_structured:
+            return contract
+
+        ms_team = filter_team_members(ms_fidelity.team_structured)
+        if not ms_team:
+            return contract
+
+        fidelity = contract.fidelity
+        existing = (
+            filter_team_members(fidelity.team_structured)
+            if fidelity and fidelity.team_structured
+            else []
+        )
+        if len(existing) >= len(ms_team):
+            return contract
+
+        if not fidelity:
+            contract.fidelity = FidelityMetadata(team_structured=ms_team)
+            fidelity = contract.fidelity
+        else:
+            fidelity.team_structured = ms_team
+
+        team_bullets = team_to_bullets(ms_team)
+        updated = False
+        for block in contract.blocks:
+            if block.key == "team":
+                block.bullets = team_bullets
+                updated = True
+                break
+        if not updated:
+            contract.blocks.append(
+                LandingBlock(
+                    key="team",
+                    title="Команда проекта",
+                    content="",
+                    bullets=team_bullets,
+                )
+            )
+
+        if fidelity.missing_fields and "team" in fidelity.missing_fields:
+            fidelity.missing_fields = [f for f in fidelity.missing_fields if f != "team"]
+        if fidelity.weak_fields and "team" in fidelity.weak_fields:
+            fidelity.weak_fields = [f for f in fidelity.weak_fields if f != "team"]
+
+        report = fidelity.evidence_report
+        if report:
+            if "team" in report.missing_fields:
+                report.missing_fields = [f for f in report.missing_fields if f != "team"]
+            if "team" not in report.strong_fields and ms_team:
+                report.strong_fields = list(report.strong_fields) + ["team"]
+
+        fidelity.completeness = self._completeness_gate.evaluate(contract)
+        logger.info(
+            "Merged team from multi-source assembly (%d members) for %s",
+            len(ms_team),
+            contract.project_id,
+        )
         return contract
 
     def _supplement_pptx_team(

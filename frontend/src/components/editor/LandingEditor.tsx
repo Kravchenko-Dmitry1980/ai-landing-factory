@@ -11,6 +11,7 @@ import {
   getContract,
   getContractCompleteness,
   getEvidenceReport,
+  getLanding,
   getSourceStructure,
   reparseStructuredLanding,
   regenerateLanding,
@@ -19,6 +20,7 @@ import {
 import type {
   ContractCompletenessReport,
   EnrichmentMetadata,
+  GeneratedLanding,
   GeneratedSemanticLanding,
   LandingBlock,
   LandingContract,
@@ -27,6 +29,7 @@ import type {
   SourceStructureReport,
 } from "@/lib/types";
 import { ContractQualityPanel } from "@/components/editor/ContractQualityPanel";
+import { ProjectSourceStatusPanel } from "@/components/editor/ProjectSourceStatusPanel";
 import { SourceStructurePanel } from "@/components/editor/SourceStructurePanel";
 import { TeamCardsPanel } from "@/components/editor/TeamCardsPanel";
 import { DomainDebugPanel } from "@/components/domain/DomainDebugPanel";
@@ -74,6 +77,7 @@ export function LandingEditor({ projectId }: Props) {
   const [completeness, setCompleteness] = useState<ContractCompletenessReport | null>(null);
   const [sourceStructure, setSourceStructure] = useState<SourceStructureReport | null>(null);
   const [evidenceVisibility, setEvidenceVisibility] = useState<EvidenceVisibility | null>(null);
+  const [landingPreview, setLandingPreview] = useState<GeneratedLanding | null>(null);
   const [structureLoading, setStructureLoading] = useState(false);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [reparsing, setReparsing] = useState(false);
@@ -107,6 +111,11 @@ export function LandingEditor({ projectId }: Props) {
         setEvidenceVisibility(await getEvidenceReport(projectId));
       } catch {
         setEvidenceVisibility(null);
+      }
+      try {
+        setLandingPreview(await getLanding(projectId));
+      } catch {
+        setLandingPreview(null);
       }
       setEvidenceLoading(false);
     } catch (err) {
@@ -183,6 +192,11 @@ export function LandingEditor({ projectId }: Props) {
         setEvidenceLoading(false);
       }
       await regenerateLanding(projectId);
+      try {
+        setLandingPreview(await getLanding(projectId));
+      } catch {
+        setLandingPreview(null);
+      }
     } catch (err) {
       setError(formatApiError(err, "Не удалось перепарсить ленд"));
     } finally {
@@ -258,6 +272,12 @@ export function LandingEditor({ projectId }: Props) {
         completeness={completeness}
         onReparse={handleReparse}
         reparsing={reparsing}
+      />
+
+      <ProjectSourceStatusPanel
+        contract={contract}
+        evidence={evidenceVisibility}
+        landing={landingPreview}
       />
 
       <SourceStructurePanel
