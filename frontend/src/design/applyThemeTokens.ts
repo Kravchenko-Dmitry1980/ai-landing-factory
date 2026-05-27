@@ -1,6 +1,6 @@
 import { accentToHex, type ThemeTokens } from "@/lib/styleIntent";
 import type { ThemeTokens as AlfThemeTokens } from "./tokens";
-import type { StyleProfileId } from "./style_profiles";
+import type { StyleProfileId } from "./styleProfiles";
 import { buildThemeTokens } from "./themes";
 
 const RADIUS_MAP = {
@@ -57,6 +57,12 @@ export function applyThemeTokenOverrides(
     out["--alf-text-muted"] = out["--alf-text-muted"] ?? "#7A8799";
   }
 
+  // Bold preset keeps warm accent from base theme when tokens use violet
+  if (profileId === "bold" && !isDark) {
+    out["--alf-accent"] = "#ea580c";
+    out["--alf-accent-muted"] = "#ffedd5";
+  }
+
   return out;
 }
 
@@ -68,6 +74,8 @@ export function heroModeClass(heroMode?: string): string {
       return "alf-hero--cards";
     case "future_3d":
       return "alf-hero--future-3d";
+    case "bold":
+      return "alf-hero--bold";
     default:
       return "alf-hero--classic";
   }
@@ -77,4 +85,17 @@ export function motionClass(motion?: string): string {
   if (motion === "none") return "alf-motion--none";
   if (motion === "expressive") return "alf-motion--expressive";
   return "alf-motion--subtle";
+}
+
+export function cardStyleClass(cardStyle?: string): string {
+  switch (cardStyle) {
+    case "flat":
+      return "alf-cards--flat";
+    case "glass":
+      return "alf-cards--glass";
+    case "outlined":
+      return "alf-cards--outlined";
+    default:
+      return "alf-cards--soft";
+  }
 }

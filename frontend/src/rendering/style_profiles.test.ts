@@ -34,16 +34,17 @@ describe("style profile rendering", () => {
 
   it("tech tokens apply dark background in preview CSS vars", () => {
     const cfg = buildStyleConfigFromEditor("tech", "");
-    const vars = applyThemeTokenOverrides("ai_research", cfg.theme_tokens);
+    const vars = applyThemeTokenOverrides("tech", cfg.theme_tokens);
     expect(vars["--alf-bg"]).toBe("#0f172a");
   });
 
   it("buildRenderPlan carries styleConfig theme tokens", () => {
     const plan = buildRenderPlan(landing, contract, {
-      profileId: "ai_research",
+      profileId: "tech",
       layoutId: "architecture_first",
       styleConfig: buildStyleConfigFromEditor("tech", ""),
     });
+    expect(plan.profileId).toBe("tech");
     expect(plan.themeTokens.hero_mode).toBe("gradient");
   });
 

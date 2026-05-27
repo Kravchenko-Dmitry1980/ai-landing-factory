@@ -7,15 +7,19 @@ import {
 } from "@/design/layout_presets";
 import { runHallmarkQualityGate, runArchitectureHallmarkGate } from "@/design/hallmark_rules";
 import { applyThemeTokenOverrides } from "@/design/applyThemeTokens";
-import { getStyleProfile, STYLE_PROFILES } from "@/design/style_profiles";
+import { getStyleProfile } from "@/design/style_profiles";
 import type { StyleProfileId } from "@/design/style_profiles";
+import { isStyleProfileId as isExportProfileId } from "@/design/styleProfiles";
+import { coerceLegacyProfileId, isLegacyStyleProfileId } from "@/design/legacyProfileCompat";
 import {
   DEFAULT_STYLE_CONFIG,
-  parseStyleConfigFromContract,
-  profileToStyleProfileId,
   resolveThemeTokens,
-  styleConfigToExportTheme,
 } from "@/lib/styleConfig";
+import {
+  resolveExportTheme as resolveExportThemeFromConfig,
+  resolvePreviewProfileId,
+  resolveStyleConfig,
+} from "@/lib/resolveStyleConfig";
 import { buildFidelityData } from "./fidelity_resolver";
 import type {
   GeneratedLanding,
@@ -35,7 +39,12 @@ import type {
 export type { RenderConfig } from "./types";
 
 export function isStyleProfileId(value: string): value is StyleProfileId {
-  return value in STYLE_PROFILES;
+  return isExportProfileId(value) || isLegacyStyleProfileId(value);
+}
+
+export function normalizeProfileId(value: string): StyleProfileId {
+  if (isExportProfileId(value)) return value;
+  return coerceLegacyProfileId(value);
 }
 
 const BLOCK_TO_SECTION: Record<string, SectionType | null> = {
@@ -47,9 +56,10 @@ const BLOCK_TO_SECTION: Record<string, SectionType | null> = {
   inputs: "architecture",
   outputs: "architecture",
   results: "metrics",
+  stack: "stack",
+  team: "team",
   outlook: "roadmap",
   tech_stack: "stack",
-  team: "team",
 };
 
 function blockToSection(block: LandingBlockContent): SectionData | null {
@@ -81,7 +91,7 @@ function buildHero(
       tagline?.body ||
       essence?.body ||
       meta.lead ||
-      "Structured enterprise landing generated from LandingContract.",
+      "Structured landing generated from LandingContract.",
     bullets: meta.client ? [`Client: ${meta.client}`] : [],
     sourceKeys: ["tagline", "essence"],
     meta: {
@@ -153,9 +163,9 @@ export function buildRenderPlan(
   config: RenderConfig,
   semantic?: GeneratedSemanticLanding | null,
 ): RenderPlan {
-  const profileId = config.profileId;
-  const layoutId = config.layoutId;
   const styleConfig = config.styleConfig ?? DEFAULT_STYLE_CONFIG;
+  const profileId = resolvePreviewProfileId(styleConfig);
+  const layoutId = config.layoutId;
   const themeTokens = resolveThemeTokens(styleConfig);
   const cssVars = applyThemeTokenOverrides(profileId, themeTokens);
   const profile = getStyleProfile(profileId);
@@ -234,12 +244,8 @@ export function defaultRenderConfig(
   landing: GeneratedLanding,
   contract: LandingContract | null,
 ): RenderConfig {
-  const styleConfig = parseStyleConfigFromContract(
-    contract?.style_config,
-    contract?.presentation_style,
-    contract?.style,
-  );
-  const profileId = profileToStyleProfileId(styleConfig.profile);
+  const styleConfig = resolveStyleConfig(contract);
+  const profileId = resolvePreviewProfileId(styleConfig);
   let layoutId: LayoutPresetId = DEFAULT_LAYOUT_PRESET;
   const ps = contract?.presentation_style ?? "";
   if (ps.startsWith("layout:")) {
@@ -269,10 +275,14 @@ export function loadRenderConfig(
     const raw = localStorage.getItem(`${RENDER_CONFIG_STORAGE_KEY}_${projectId}`);
     if (!raw) return base;
     const parsed = JSON.parse(raw) as Partial<RenderConfig>;
+    const styleConfig = parsed.styleConfig ?? base.styleConfig;
+    const profileId = styleConfig
+      ? resolvePreviewProfileId(styleConfig)
+      : normalizeProfileId(parsed.profileId ?? base.profileId);
     return {
-      profileId: parsed.profileId ?? base.profileId,
+      profileId,
       layoutId: parsed.layoutId ?? base.layoutId,
-      styleConfig: parsed.styleConfig ?? base.styleConfig,
+      styleConfig,
       showDevPanel: parsed.showDevPanel ?? false,
     };
   } catch {
@@ -280,7 +290,7 @@ export function loadRenderConfig(
   }
 }
 
-/** Priority: URL ?style= → contract presentation_style → localStorage → default */
+/** Priority: URL ?style= → contract style_config → localStorage → default */
 export function resolveRenderConfig(
   projectId: string,
   landing: GeneratedLanding,
@@ -289,13 +299,22 @@ export function resolveRenderConfig(
 ): RenderConfig {
   let config = loadRenderConfig(projectId, landing, contract);
 
-  const ps = contract?.presentation_style ?? "";
-  if (ps && !ps.startsWith("layout:") && isStyleProfileId(ps)) {
-    config = { ...config, profileId: ps };
+  const contractStyle = resolveStyleConfig(contract);
+  if (contract?.style_config?.profile) {
+    config = {
+      ...config,
+      profileId: resolvePreviewProfileId(contractStyle),
+      styleConfig: contractStyle,
+    };
   }
 
-  if (urlStyle && isStyleProfileId(urlStyle)) {
-    config = { ...config, profileId: urlStyle };
+  if (urlStyle) {
+    const normalized = normalizeProfileId(urlStyle);
+    config = {
+      ...config,
+      profileId: normalized,
+      styleConfig: config.styleConfig ?? contractStyle,
+    };
   }
 
   return config;
@@ -309,22 +328,24 @@ export function saveRenderConfig(projectId: string, config: RenderConfig): void 
   );
 }
 
-/** Active preview profile: URL ?style= → renderConfig → contract.presentation_style → default */
+/** Active preview profile: URL ?style= → renderConfig → contract.style_config → default */
 export function resolveActiveProfileId(
   renderConfig: RenderConfig | null | undefined,
   contract: LandingContract | null | undefined,
   urlStyle?: string | null,
   landing?: GeneratedLanding | null,
 ): StyleProfileId {
-  if (urlStyle && isStyleProfileId(urlStyle)) {
-    return urlStyle;
+  if (urlStyle) {
+    return normalizeProfileId(urlStyle);
   }
-  if (renderConfig?.profileId && isStyleProfileId(renderConfig.profileId)) {
-    return renderConfig.profileId;
+  if (renderConfig?.styleConfig) {
+    return resolvePreviewProfileId(renderConfig.styleConfig);
   }
-  const ps = contract?.presentation_style ?? "";
-  if (ps && !ps.startsWith("layout:") && isStyleProfileId(ps)) {
-    return ps;
+  if (renderConfig?.profileId) {
+    return normalizeProfileId(renderConfig.profileId);
+  }
+  if (contract?.style_config?.profile) {
+    return resolvePreviewProfileId(resolveStyleConfig(contract));
   }
   if (landing) {
     return defaultRenderConfig(landing, contract ?? null).profileId;
@@ -340,15 +361,11 @@ export function resolveExportTheme(
   landing?: GeneratedLanding | null,
 ): string {
   if (renderConfig?.styleConfig) {
-    return styleConfigToExportTheme(renderConfig.styleConfig);
+    return resolveExportThemeFromConfig(renderConfig.styleConfig);
   }
-  const fromContract = parseStyleConfigFromContract(
-    contract?.style_config,
-    contract?.presentation_style,
-    contract?.style,
-  );
+  const fromContract = resolveStyleConfig(contract ?? null);
   if (contract?.style_config || contract?.presentation_style) {
-    return styleConfigToExportTheme(fromContract);
+    return resolveExportThemeFromConfig(fromContract);
   }
   const profileId = resolveActiveProfileId(
     renderConfig,
@@ -356,10 +373,7 @@ export function resolveExportTheme(
     urlStyle,
     landing,
   );
-  if (profileId === "university_platform") {
-    return "university_platform";
-  }
-  return "enterprise_dark";
+  return profileId;
 }
 
 export function resolveExportStyleConfig(
@@ -369,11 +383,7 @@ export function resolveExportStyleConfig(
   if (renderConfig?.styleConfig) {
     return renderConfig.styleConfig;
   }
-  return parseStyleConfigFromContract(
-    contract?.style_config,
-    contract?.presentation_style,
-    contract?.style,
-  );
+  return resolveStyleConfig(contract ?? null);
 }
 
 export function buildPreviewHref(
@@ -381,8 +391,9 @@ export function buildPreviewHref(
   profileId?: StyleProfileId | string | null,
 ): string {
   const base = `/preview/${projectId}`;
-  if (profileId && isStyleProfileId(profileId)) {
-    return `${base}?style=${encodeURIComponent(profileId)}`;
+  if (profileId) {
+    const normalized = normalizeProfileId(profileId);
+    return `${base}?style=${encodeURIComponent(normalized)}`;
   }
   return base;
 }

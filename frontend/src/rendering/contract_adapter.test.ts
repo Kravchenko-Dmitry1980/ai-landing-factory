@@ -7,6 +7,7 @@ import {
   buildPreviewHref,
 } from "./contract_adapter";
 import type { GeneratedLanding, LandingContract } from "@/lib/types";
+import { buildStyleConfigFromEditor } from "@/lib/styleConfig";
 
 const landing: GeneratedLanding = {
   project_id: "00000000-0000-0000-0000-000000000001",
@@ -45,7 +46,7 @@ const contract: LandingContract = {
 describe("buildRenderPlan", () => {
   it("orders sections per layout preset", () => {
     const plan = buildRenderPlan(landing, contract, {
-      profileId: "enterprise",
+      profileId: "corporate",
       layoutId: "architecture_first",
     });
     const types = plan.sections.map((s) => s.type);
@@ -61,7 +62,7 @@ describe("buildRenderPlan", () => {
 
   it("runs hallmark gate", () => {
     const plan = buildRenderPlan(landing, contract, {
-      profileId: "ai_research",
+      profileId: "tech",
       layoutId: "technical_system",
     });
     expect(Array.isArray(plan.hallmarkViolations)).toBe(true);
@@ -90,7 +91,7 @@ describe("resolveExportTheme", () => {
     expect(
       resolveExportTheme(
         {
-          profileId: "enterprise",
+          profileId: "minimal",
           layoutId: "technical_system",
           styleConfig: { profile: "minimal" },
         },
@@ -105,9 +106,9 @@ describe("resolveExportTheme", () => {
     expect(
       resolveExportTheme(
         {
-          profileId: "ai_research",
+          profileId: "tech",
           layoutId: "technical_system",
-          styleConfig: { profile: "tech" },
+          styleConfig: buildStyleConfigFromEditor("tech", ""),
         },
         contract,
         null,
@@ -129,7 +130,7 @@ describe("resolveExportTheme", () => {
   it("resolveActiveProfileId prefers url over renderConfig", () => {
     expect(
       resolveActiveProfileId(
-        { profileId: "medical", layoutId: "technical_system" },
+        { profileId: "corporate", layoutId: "technical_system" },
         contract,
         "university_platform",
         landing,

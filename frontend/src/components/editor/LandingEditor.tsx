@@ -21,9 +21,9 @@ import {
 import {
   DEFAULT_STYLE_CONFIG,
   parseStyleConfigFromContract,
-  profileToStyleProfileId as mapProfileToRender,
   styleConfigToPresentationStyle,
 } from "@/lib/styleConfig";
+import { resolvePreviewProfileId } from "@/lib/resolveStyleConfig";
 import type {
   ContractCompletenessReport,
   EnrichmentMetadata,
@@ -89,7 +89,7 @@ export function LandingEditor({ projectId }: Props) {
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [reparsing, setReparsing] = useState(false);
 
-  const previewProfileId = mapProfileToRender(styleConfig.profile);
+  const previewProfileId = resolvePreviewProfileId(styleConfig);
 
   const load = useCallback(async () => {
     setLoading(true);

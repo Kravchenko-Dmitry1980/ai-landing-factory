@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { heroModeClass, motionClass } from "@/design/applyThemeTokens";
+import { heroModeClass, motionClass, cardStyleClass } from "@/design/applyThemeTokens";
 import { themeStyleObject } from "@/design/themes";
 import { logHallmarkViolations } from "@/design/hallmark_rules";
 import type { GeneratedLanding, GeneratedSemanticLanding, LandingContract } from "@/lib/types";
@@ -59,13 +59,15 @@ export function InteractiveRenderer({
 
   const motionCls = motionClass(plan.themeTokens.motion);
   const heroWrapperClass = heroModeClass(plan.themeTokens.hero_mode);
+  const cardsCls = cardStyleClass(plan.profile.cardStyle);
 
   return (
     <div
-      className={`alf-landing alf-interactive ${heroWrapperClass} min-h-screen scroll-smooth bg-[var(--alf-bg)] text-[var(--alf-text)] print:bg-white ${gridClass} ${motionCls}`}
+      className={`alf-landing alf-interactive ${heroWrapperClass} ${cardsCls} min-h-screen scroll-smooth bg-[var(--alf-bg)] text-[var(--alf-text)] print:bg-white ${gridClass} ${motionCls}`}
       style={themeStyleObject(plan.cssVars)}
       data-profile={plan.profileId}
       data-layout={plan.layoutId}
+      data-card-style={plan.profile.cardStyle}
       data-hero-mode={plan.themeTokens.hero_mode ?? "classic"}
     >
       <style>{`
@@ -77,6 +79,25 @@ export function InteractiveRenderer({
           transform: translateY(-4px);
           box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
         }
+        .alf-cards--flat .alf-card-lift {
+          box-shadow: none;
+          border-color: var(--alf-border);
+        }
+        .alf-cards--flat .alf-card-lift:hover {
+          transform: none;
+          box-shadow: none;
+        }
+        .alf-cards--outlined .alf-card-lift {
+          border-width: 2px;
+          box-shadow: none;
+        }
+        .alf-cards--glass .alf-card-lift {
+          background: color-mix(in srgb, var(--alf-surface) 85%, transparent);
+          backdrop-filter: blur(8px);
+        }
+        .alf-cards--soft .alf-card-lift {
+          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+        }
         .alf-interactive .alf-stack-tag {
           transition: background var(--alf-motion-duration, 0.25s) ease;
         }
@@ -86,6 +107,14 @@ export function InteractiveRenderer({
         .alf-hero--gradient header,
         .alf-hero--gradient .alf-hero-inner {
           background: linear-gradient(135deg, var(--alf-accent-muted) 0%, transparent 55%);
+        }
+        .alf-hero--bold header,
+        .alf-hero--bold .alf-hero-inner {
+          padding-top: 2rem;
+          padding-bottom: 2rem;
+        }
+        .alf-hero--bold .alf-hero-inner h1 {
+          letter-spacing: -0.02em;
         }
         .alf-hero--future-3d .alf-hero-inner {
           position: relative;

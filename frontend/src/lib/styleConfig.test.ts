@@ -23,9 +23,14 @@ describe("styleConfig presets", () => {
     expect(themes.has("enterprise_dark")).toBe(false);
   });
 
-  it("tech export theme is tech not enterprise_dark", () => {
+  it("tech export theme and preview profile are both tech", () => {
     expect(styleConfigToExportTheme(buildStyleConfigFromEditor("tech", ""))).toBe("tech");
-    expect(profileToStyleProfileId("tech")).toBe("ai_research");
+    expect(profileToStyleProfileId("tech")).toBe("tech");
+  });
+
+  it("minimal and corporate map 1:1 to preview profiles", () => {
+    expect(profileToStyleProfileId("minimal")).toBe("minimal");
+    expect(profileToStyleProfileId("corporate")).toBe("corporate");
   });
 
   it("legacy minimal maps to minimal profile not enterprise", () => {

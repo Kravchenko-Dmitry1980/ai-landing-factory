@@ -1,4 +1,5 @@
-import type { StyleProfileId } from "@/design/style_profiles";
+import type { StyleProfileId } from "@/design/styleProfiles";
+import { PRESET_BASE_TOKENS } from "@/design/styleProfiles";
 import {
   parseStyleIntent,
   UNIVERSITY_DEFAULT_TOKENS,
@@ -24,65 +25,18 @@ const PRESET_PROFILES: LandingStyleProfile[] = [
 export const PRESET_THEME_TOKENS: Record<
   Exclude<LandingStyleProfile, "custom">,
   ThemeTokens
-> = {
-  university_platform: { ...UNIVERSITY_DEFAULT_TOKENS },
-  minimal: {
-    color_scheme: "light",
-    accent: "violet",
-    radius: "sharp",
-    density: "spacious",
-    motion: "none",
-    hero_mode: "classic",
-    background: "#ffffff",
-    surface: "#fafafa",
-  },
-  corporate: {
-    color_scheme: "light",
-    accent: "blue",
-    radius: "soft",
-    density: "normal",
-    motion: "subtle",
-    hero_mode: "classic",
-    background: "#f8fafc",
-    surface: "#ffffff",
-  },
-  tech: {
-    color_scheme: "dark",
-    accent: "blue",
-    radius: "rounded",
-    density: "normal",
-    motion: "expressive",
-    hero_mode: "gradient",
-    background: "#0f172a",
-    surface: "#1e293b",
-  },
-  bold: {
-    color_scheme: "light",
-    accent: "violet",
-    radius: "rounded",
-    density: "compact",
-    motion: "expressive",
-    hero_mode: "cards",
-    background: "#ffffff",
-    surface: "#fff7ed",
-  },
-};
+> = PRESET_BASE_TOKENS;
 
 export function isLandingStyleProfile(value: string): value is LandingStyleProfile {
   return (PRESET_PROFILES as string[]).includes(value);
 }
 
-/** Map user-facing preset → renderer StyleProfileId (preview only). */
+/** Preview profile id matches export theme id (1:1). */
 export function profileToStyleProfileId(profile: LandingStyleProfile): StyleProfileId {
-  const map: Record<LandingStyleProfile, StyleProfileId> = {
-    university_platform: "university_platform",
-    minimal: "enterprise",
-    corporate: "enterprise",
-    tech: "ai_research",
-    bold: "analytics",
-    custom: "university_platform",
-  };
-  return map[profile] ?? "university_platform";
+  if (isLandingStyleProfile(profile)) {
+    return profile as StyleProfileId;
+  }
+  return "university_platform";
 }
 
 /** Export theme query = profile id (distinct CSS per preset). */

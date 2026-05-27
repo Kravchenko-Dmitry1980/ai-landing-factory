@@ -1,60 +1,60 @@
 import type { CSSProperties } from "react";
 import type { ThemeTokens } from "./tokens";
-import type { StyleProfileId } from "./style_profiles";
+import type { StyleProfileId } from "./styleProfiles";
 
 export function buildThemeTokens(profile: StyleProfileId): ThemeTokens {
   const themes: Record<StyleProfileId, ThemeTokens> = {
-    enterprise: {
+    university_platform: {
       "--alf-bg": "#ffffff",
-      "--alf-surface": "#f8fafc",
-      "--alf-border": "#e2e8f0",
+      "--alf-surface": "#F1F4F7",
+      "--alf-border": "#E5E7EB",
+      "--alf-text": "#111111",
+      "--alf-text-muted": "#7A8799",
+      "--alf-accent": "#7C3AED",
+      "--alf-accent-muted": "#EDE9FE",
+      "--alf-code-bg": "#EEF2F5",
+    },
+    minimal: {
+      "--alf-bg": "#ffffff",
+      "--alf-surface": "#fafafa",
+      "--alf-border": "#f0f0f0",
+      "--alf-text": "#171717",
+      "--alf-text-muted": "#737373",
+      "--alf-accent": "#525252",
+      "--alf-accent-muted": "#f5f5f5",
+      "--alf-code-bg": "#fafafa",
+    },
+    corporate: {
+      "--alf-bg": "#f8fafc",
+      "--alf-surface": "#ffffff",
+      "--alf-border": "#cbd5e1",
       "--alf-text": "#0f172a",
       "--alf-text-muted": "#64748b",
       "--alf-accent": "#2563eb",
       "--alf-accent-muted": "#dbeafe",
       "--alf-code-bg": "#f1f5f9",
     },
-    medical: {
+    tech: {
+      "--alf-bg": "#0f172a",
+      "--alf-surface": "#1e293b",
+      "--alf-border": "rgba(148,163,184,0.25)",
+      "--alf-text": "#e8edf4",
+      "--alf-text-muted": "#94a3b8",
+      "--alf-accent": "#6366f1",
+      "--alf-accent-muted": "#312e8133",
+      "--alf-code-bg": "#243044",
+    },
+    bold: {
       "--alf-bg": "#ffffff",
-      "--alf-surface": "#f8fafc",
-      "--alf-border": "#cbd5e1",
-      "--alf-text": "#1e293b",
-      "--alf-text-muted": "#64748b",
-      "--alf-accent": "#0e7490",
-      "--alf-accent-muted": "#cffafe",
-      "--alf-code-bg": "#f1f5f9",
+      "--alf-surface": "#fff7ed",
+      "--alf-border": "#fed7aa",
+      "--alf-text": "#1c1917",
+      "--alf-text-muted": "#78716c",
+      "--alf-accent": "#ea580c",
+      "--alf-accent-muted": "#ffedd5",
+      "--alf-code-bg": "#fff7ed",
     },
-    ai_research: {
-      "--alf-bg": "#fafafa",
-      "--alf-surface": "#f4f4f5",
-      "--alf-border": "#d4d4d8",
-      "--alf-text": "#18181b",
-      "--alf-text-muted": "#71717a",
-      "--alf-accent": "#4338ca",
-      "--alf-accent-muted": "#e0e7ff",
-      "--alf-code-bg": "#f4f4f5",
-    },
-    education: {
-      "--alf-bg": "#ffffff",
-      "--alf-surface": "#f9fafb",
-      "--alf-border": "#e5e7eb",
-      "--alf-text": "#111827",
-      "--alf-text-muted": "#6b7280",
-      "--alf-accent": "#1d4ed8",
-      "--alf-accent-muted": "#eff6ff",
-      "--alf-code-bg": "#f3f4f6",
-    },
-    analytics: {
-      "--alf-bg": "#ffffff",
-      "--alf-surface": "#f8fafc",
-      "--alf-border": "#e2e8f0",
-      "--alf-text": "#0f172a",
-      "--alf-text-muted": "#475569",
-      "--alf-accent": "#0369a1",
-      "--alf-accent-muted": "#e0f2fe",
-      "--alf-code-bg": "#f1f5f9",
-    },
-    university_platform: {
+    custom: {
       "--alf-bg": "#ffffff",
       "--alf-surface": "#F1F4F7",
       "--alf-border": "#E5E7EB",

@@ -1,4 +1,4 @@
-import type { StyleProfileId } from "./style_profiles";
+import type { StyleProfileId } from "./styleProfiles";
 
 export interface TypographyScale {
   hero: string;
@@ -11,7 +11,18 @@ export interface TypographyScale {
   mono: string;
 }
 
-const DENSE: TypographyScale = {
+const MINIMAL: TypographyScale = {
+  hero: "text-3xl md:text-4xl font-light tracking-tight leading-tight",
+  h1: "text-2xl md:text-3xl font-light tracking-tight",
+  h2: "text-lg md:text-xl font-medium",
+  h3: "text-base font-normal",
+  body: "text-base leading-loose",
+  caption: "text-sm text-[var(--alf-text-muted)]",
+  label: "text-[0.6875rem] uppercase tracking-widest font-medium text-[var(--alf-text-muted)]",
+  mono: "font-mono text-sm",
+};
+
+const CORPORATE: TypographyScale = {
   hero: "text-3xl md:text-4xl font-semibold tracking-tight leading-tight",
   h1: "text-2xl md:text-3xl font-semibold tracking-tight",
   h2: "text-lg md:text-xl font-semibold",
@@ -22,14 +33,25 @@ const DENSE: TypographyScale = {
   mono: "font-mono text-xs",
 };
 
-const STANDARD: TypographyScale = {
-  hero: "text-4xl md:text-[2.75rem] font-semibold tracking-tight leading-[1.15]",
-  h1: "text-2xl md:text-[2rem] font-semibold tracking-tight",
+const TECH: TypographyScale = {
+  hero: "text-4xl md:text-5xl font-bold tracking-tight leading-[1.1]",
+  h1: "text-2xl md:text-3xl font-bold tracking-tight",
   h2: "text-xl font-semibold",
   h3: "text-base font-semibold",
   body: "text-base leading-relaxed",
   caption: "text-sm text-[var(--alf-text-muted)]",
   label: "text-xs uppercase tracking-widest font-medium text-[var(--alf-text-muted)]",
+  mono: "font-mono text-sm",
+};
+
+const BOLD: TypographyScale = {
+  hero: "text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.05]",
+  h1: "text-3xl md:text-4xl font-extrabold tracking-tight",
+  h2: "text-2xl md:text-3xl font-bold",
+  h3: "text-lg font-bold",
+  body: "text-base md:text-lg leading-relaxed",
+  caption: "text-sm text-[var(--alf-text-muted)]",
+  label: "text-xs uppercase tracking-widest font-bold text-[var(--alf-text-muted)]",
   mono: "font-mono text-sm",
 };
 
@@ -45,11 +67,19 @@ const UNIVERSITY: TypographyScale = {
 };
 
 export function getTypographyScale(profile: StyleProfileId): TypographyScale {
-  if (profile === "university_platform") {
-    return UNIVERSITY;
+  switch (profile) {
+    case "minimal":
+      return MINIMAL;
+    case "corporate":
+      return CORPORATE;
+    case "tech":
+      return TECH;
+    case "bold":
+      return BOLD;
+    case "custom":
+      return CORPORATE;
+    case "university_platform":
+    default:
+      return UNIVERSITY;
   }
-  if (profile === "analytics" || profile === "education") {
-    return STANDARD;
-  }
-  return DENSE;
 }

@@ -129,7 +129,7 @@ describe("buildRenderPlan fidelity parity", () => {
       ],
     };
     const plan = buildRenderPlan(landingWithBullets, contract, {
-      profileId: "enterprise",
+      profileId: "corporate",
       layoutId: "architecture_first",
     });
     const purpose = plan.sections.find((s) => s.sourceKeys.includes("purpose"));
