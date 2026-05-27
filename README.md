@@ -36,12 +36,13 @@ Then:
 ## Simple QA (no OCR/VLM)
 
 ```powershell
-.\scripts\smoke_simple_product.ps1
-.\scripts\uat_fresh_clone_check.ps1
+.\scripts\release_check.ps1
 .\scripts\check_all.ps1 -Simple
 ```
 
-Fresh-clone release gate (manual): [docs/UAT_FRESH_CLONE_P2.md](docs/UAT_FRESH_CLONE_P2.md)
+Details: [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)
+
+Fresh-clone demo gate: [docs/UAT_FRESH_CLONE_P2.md](docs/UAT_FRESH_CLONE_P2.md)
 
 ## Operator guide (Russian)
 

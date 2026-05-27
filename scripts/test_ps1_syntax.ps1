@@ -11,6 +11,8 @@ $scripts = @(
     (Join-Path $RootDir "run.ps1"),
     (Join-Path $RootDir "scripts\smoke_simple_product.ps1"),
     (Join-Path $RootDir "scripts\check_all.ps1"),
+    (Join-Path $RootDir "scripts\release_check.ps1"),
+    (Join-Path $RootDir "scripts\check_git_hygiene.ps1"),
     (Join-Path $RootDir "scripts\start_dev.ps1")
 )
 

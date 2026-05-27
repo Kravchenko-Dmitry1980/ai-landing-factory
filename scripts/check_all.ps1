@@ -3,14 +3,22 @@
 .SYNOPSIS
   One-command QA pipeline for AI Landing Factory.
 
+Gate levels (see docs/RELEASE_CHECKLIST.md):
+  -Simple       Product release gate: no OCR/VLM, offline export smoke, no full pytest
+  (default)     Full dev regression: corpus, backend pytest, optional live smokes
+  -RunOcrSmoke   Advanced/research only (requires OCR runtime)
+
 .EXAMPLE
-  .\scripts\check_all.ps1
+  .\scripts\check_all.ps1 -Simple
 
 .EXAMPLE
   .\scripts\check_all.ps1 -ProjectId 55a98f90-73fc-4d26-a477-3c974a0cbeed -FailFast
 
 .EXAMPLE
   .\scripts\check_all.ps1 -SkipFrontendBuild -VerboseOutput
+
+.EXAMPLE
+  .\scripts\check_all.ps1 -RunOcrSmoke
 #>
 [CmdletBinding()]
 param(

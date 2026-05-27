@@ -12,7 +12,17 @@ cd C:\Dima\Projects\CURSOR\Lend
 
 **OCR/VLM по умолчанию выключены.** Подробнее для оператора: [docs/USER_QUICKSTART.md](docs/USER_QUICKSTART.md).
 
-Проверка без OCR: `.\scripts\smoke_simple_product.ps1` и `.\scripts\check_all.ps1 -Simple`.
+## Release / QA
+
+Перед push:
+
+```powershell
+.\scripts\release_check.ps1
+```
+
+Матрица gate-ов и troubleshooting: [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
+
+Быстрая проверка: `.\scripts\check_all.ps1 -Simple`.
 
 ---
 

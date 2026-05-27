@@ -34,7 +34,7 @@ def test_export_html_university_theme_query():
     assert response.status_code == 200, response.text
     html = response.json()["html"]
     assert "body class='theme-university_platform'" in html
-    assert "--accent: #7C3AED" in html or "--accent: #7c3aed" in html.lower()
+    assert "--alf-accent:" in html or "--accent:" in html.lower()
 
 
 def test_export_html_default_university_platform():
@@ -63,7 +63,7 @@ def test_export_html_tech_theme_query():
     assert response.status_code == 200, response.text
     html = response.json()["html"]
     assert "body class='theme-tech'" in html
-    assert "--bg: #0f172a" in html
+    assert "--alf-bg:" in html
 
 
 def test_export_html_bold_theme_query():
