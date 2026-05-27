@@ -23,6 +23,7 @@ from app.schemas.fidelity import (
 )
 
 from app.schemas.landing_contract import ContractStatus, LandingBlock, LandingContract
+from app.schemas.style_config import default_style_config
 
 from app.services.contract_fidelity.completeness_gate import ContractCompletenessGate
 
@@ -940,6 +941,8 @@ class ContractBuilderService:
 
             presentation_style=extraction.payload.presentation_style,
 
+            style_config=default_style_config(),
+
             visual_assets=extraction.payload.visual_assets,
 
             blocks=blocks,
@@ -1136,6 +1139,8 @@ class ContractBuilderService:
 
             presentation_style=extraction.payload.presentation_style,
 
+            style_config=default_style_config(),
+
             visual_assets=extraction.payload.visual_assets,
 
             blocks=blocks,
@@ -1191,6 +1196,8 @@ class ContractBuilderService:
             goals=p.goals,
 
             presentation_style=p.presentation_style,
+
+            style_config=default_style_config(),
 
             visual_assets=p.visual_assets,
 

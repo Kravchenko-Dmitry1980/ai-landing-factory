@@ -237,6 +237,7 @@ export function defaultRenderConfig(
   const styleConfig = parseStyleConfigFromContract(
     contract?.style_config,
     contract?.presentation_style,
+    contract?.style,
   );
   const profileId = profileToStyleProfileId(styleConfig.profile);
   let layoutId: LayoutPresetId = DEFAULT_LAYOUT_PRESET;
@@ -344,6 +345,7 @@ export function resolveExportTheme(
   const fromContract = parseStyleConfigFromContract(
     contract?.style_config,
     contract?.presentation_style,
+    contract?.style,
   );
   if (contract?.style_config || contract?.presentation_style) {
     return styleConfigToExportTheme(fromContract);
@@ -370,6 +372,7 @@ export function resolveExportStyleConfig(
   return parseStyleConfigFromContract(
     contract?.style_config,
     contract?.presentation_style,
+    contract?.style,
   );
 }
 

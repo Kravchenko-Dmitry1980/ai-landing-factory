@@ -90,6 +90,24 @@ export async function getContract(projectId: string): Promise<LandingContract> {
   return request<LandingContract>(`/projects/${projectId}/contract`);
 }
 
+export async function patchStyleConfig(
+  projectId: string,
+  styleConfig: LandingStyleConfig,
+): Promise<{ project_id: string; style_config: LandingStyleConfig }> {
+  return request<{ project_id: string; style_config: LandingStyleConfig }>(
+    `/projects/${projectId}/style-config`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        profile: styleConfig.profile,
+        custom_style_prompt: styleConfig.custom_style_prompt ?? null,
+        theme_tokens: styleConfig.theme_tokens ?? null,
+      }),
+    },
+  );
+}
+
 export async function updateContract(
   projectId: string,
   payload: Partial<

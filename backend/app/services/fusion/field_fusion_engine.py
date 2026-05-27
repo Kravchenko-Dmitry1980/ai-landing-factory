@@ -10,6 +10,7 @@ from app.schemas.extraction import ExtractionResult
 from app.schemas.fidelity import DetectionResult, FidelityMetadata, LandingModule, TeamMember
 from app.schemas.fusion import FieldName, FinalFusionResult, FusionTrace
 from app.schemas.landing_contract import ContractStatus, LandingBlock, LandingContract
+from app.schemas.style_config import default_style_config
 from app.services.contract_fidelity.stack_parser import stack_to_bullets
 from app.services.contract_fidelity.team_parser import team_to_bullets
 from app.services.fusion.completeness_critic import CompletenessCritic
@@ -210,6 +211,7 @@ class FieldFusionEngine:
             quote=str(fused.get("quote") or "") or base.quote,
             goals=goals,
             presentation_style=extraction.payload.presentation_style or base.presentation_style,
+            style_config=base.style_config or default_style_config(),
             visual_assets=extraction.payload.visual_assets or base.visual_assets,
             blocks=blocks,
             fidelity=fidelity,

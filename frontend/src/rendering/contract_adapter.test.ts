@@ -86,7 +86,7 @@ describe("resolveExportTheme", () => {
     );
   });
 
-  it("returns enterprise_dark for enterprise render profile", () => {
+  it("returns minimal export theme for minimal styleConfig", () => {
     expect(
       resolveExportTheme(
         {
@@ -98,7 +98,22 @@ describe("resolveExportTheme", () => {
         null,
         landing,
       ),
-    ).toBe("enterprise_dark");
+    ).toBe("minimal");
+  });
+
+  it("returns tech export theme for tech styleConfig", () => {
+    expect(
+      resolveExportTheme(
+        {
+          profileId: "ai_research",
+          layoutId: "technical_system",
+          styleConfig: { profile: "tech" },
+        },
+        contract,
+        null,
+        landing,
+      ),
+    ).toBe("tech");
   });
 
   it("export defaults to university_platform", () => {

@@ -4,14 +4,16 @@
 
 ## Profiles (presets)
 
-| Profile | Renderer profile | Export theme |
-|---------|------------------|--------------|
-| `university_platform` (default) | `university_platform` | `university_platform` |
-| `minimal` | `enterprise` | `enterprise_dark` |
-| `corporate` | `enterprise` | `enterprise_dark` |
-| `tech` | `ai_research` | `enterprise_dark` |
-| `bold` | `analytics` | `enterprise_dark` |
-| `custom` | `university_platform` + tokens | `university_platform` + token CSS |
+| Profile | Renderer profile (preview) | Export `body class` |
+|---------|--------------------------|---------------------|
+| `university_platform` (default) | `university_platform` | `theme-university_platform` |
+| `minimal` | `enterprise` | `theme-minimal` |
+| `corporate` | `enterprise` | `theme-corporate` |
+| `tech` | `ai_research` | `theme-tech` |
+| `bold` | `analytics` | `theme-bold` |
+| `custom` | `university_platform` + tokens | `theme-custom` + token CSS |
+
+`enterprise_dark` остаётся только для явного legacy query `?theme=enterprise_dark`.
 
 **Auto** в UI — вторичный режим: не переопределяет сохранённый контракт.
 
@@ -67,7 +69,11 @@ Self-contained CSS в экспорте:
 ## API
 
 - `PATCH /contract` — поле `style_config`
-- `GET /export/html?theme=university_platform&style_config={json}`
+- `PATCH /projects/{id}/style-config` — сохранение стиля (редактор)
+- `GET /export/html?theme=tech` — временный override
+- `GET /export/html?style_config={json}` — временный override токенов
+
+При создании контракта: `style_config = university_platform` по умолчанию.
 
 ## Tests
 

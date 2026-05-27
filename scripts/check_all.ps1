@@ -466,6 +466,17 @@ Invoke-QACommand -Name "Simple product smoke" `
     -Skip:(-not $Simple) `
     -SkipReason "Use -Simple to run product smoke"
 
+Invoke-QACommand -Name "Style export smoke" `
+    -WorkingDirectory $RootDir `
+    -Command @(
+        "powershell.exe",
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $RootDir "scripts\smoke_style_export.ps1")
+    ) `
+    -Skip:(-not $Simple) `
+    -SkipReason "Use -Simple to run style export smoke"
+
 Invoke-QACommand -Name "Product mode tests" `
     -WorkingDirectory $BackendDir `
     -Command @($PythonExe, "-m", "pytest", "tests\test_product_mode_simple.py", "-q") `

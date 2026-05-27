@@ -16,7 +16,16 @@ from app.services.export.export_interactive_css import (
     GAP_MAP,
     RADIUS_MAP,
 )
+from app.schemas.style_config import effective_style_config
 from app.services.export.export_theme import ExportTheme
+from app.services.export.export_theme_css import (
+    CSS_BOLD,
+    CSS_CORPORATE,
+    CSS_CUSTOM_BASE,
+    CSS_MINIMAL,
+    CSS_SHARED_LAYOUT,
+    CSS_TECH,
+)
 from app.services.export.export_tagline import resolve_tagline
 from app.services.export.html_bullet_utils import (
     MAX_TEAM_BULLET_CHARS,
@@ -242,9 +251,18 @@ footer {
 }
 """
 
+def _bundle_css(base: str) -> str:
+    return base + CSS_SHARED_LAYOUT
+
+
 THEME_CSS: dict[ExportTheme, str] = {
     ExportTheme.ENTERPRISE_DARK: CSS_ENTERPRISE_DARK,
-    ExportTheme.UNIVERSITY_PLATFORM: CSS_UNIVERSITY_PLATFORM,
+    ExportTheme.UNIVERSITY_PLATFORM: _bundle_css(CSS_UNIVERSITY_PLATFORM),
+    ExportTheme.MINIMAL: _bundle_css(CSS_MINIMAL),
+    ExportTheme.CORPORATE: _bundle_css(CSS_CORPORATE),
+    ExportTheme.TECH: _bundle_css(CSS_TECH),
+    ExportTheme.BOLD: _bundle_css(CSS_BOLD),
+    ExportTheme.CUSTOM: _bundle_css(CSS_CUSTOM_BASE),
 }
 
 
@@ -258,7 +276,7 @@ class StyledHtmlExporter:
     async def to_html(
         self,
         project_id: UUID,
-        theme: ExportTheme = ExportTheme.UNIVERSITY_PLATFORM,
+        theme: ExportTheme | None = None,
         style_config: LandingStyleConfigModel | None = None,
     ) -> str:
         contract = await self._repo.get_contract(project_id)
@@ -268,8 +286,17 @@ class StyledHtmlExporter:
             return "<html><body><p>Landing not generated yet.</p></body></html>"
 
         if contract:
-            merged_style = style_config or contract.style_config
-            return self._render_from_contract(contract, landing, theme, merged_style)
+            merged_style = (
+                style_config
+                or contract.style_config
+                or effective_style_config(contract)
+            )
+            resolved_theme = ExportTheme.from_profile(merged_style.profile)
+            if theme is not None:
+                resolved_theme = theme
+            return self._render_from_contract(
+                contract, landing, resolved_theme, merged_style
+            )
 
         return await self._legacy.to_html(project_id)
 
@@ -278,7 +305,7 @@ class StyledHtmlExporter:
         contract: LandingContract,
         landing: GeneratedLanding | None,
         theme: ExportTheme,
-        style_config: LandingStyleConfigModel | None = None,
+        style_config: LandingStyleConfigModel,
     ) -> str:
         blocks = {b.key: b for b in contract.blocks}
         fidelity: FidelityMetadata | None = contract.fidelity
@@ -314,13 +341,9 @@ class StyledHtmlExporter:
             f"{incomplete}{hero}{modules}{essence}{tasks}{purpose}{io}"
             f"{results}{stack}{team}{outlook}{footer}"
         )
-        css = THEME_CSS[theme] + CSS_INTERACTIVE
+        css = THEME_CSS.get(theme, THEME_CSS[ExportTheme.UNIVERSITY_PLATFORM]) + CSS_INTERACTIVE
         css = self._apply_token_overrides(css, style_config)
-        body_class = (
-            "theme-university_platform"
-            if theme == ExportTheme.UNIVERSITY_PLATFORM
-            else "theme-enterprise_dark"
-        )
+        body_class = theme.body_class()
 
         return (
             f"<!DOCTYPE html><html lang='ru'><head>"

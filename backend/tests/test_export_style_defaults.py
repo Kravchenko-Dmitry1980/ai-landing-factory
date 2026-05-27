@@ -12,6 +12,12 @@ def test_export_theme_default_is_university():
     assert ExportTheme.from_query("neon") == ExportTheme.UNIVERSITY_PLATFORM
 
 
+def test_export_theme_profiles():
+    assert ExportTheme.from_query("tech") == ExportTheme.TECH
+    assert ExportTheme.from_query("bold") == ExportTheme.BOLD
+    assert ExportTheme.TECH.body_class() == "theme-tech"
+
+
 def test_token_overrides_inject_accent_and_hero():
     css = ":root { --bg: #fff; }\n"
     config = LandingStyleConfigModel(

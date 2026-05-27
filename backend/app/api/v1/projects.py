@@ -9,7 +9,9 @@ from app.schemas.generation import GeneratedLanding
 from app.schemas.landing_contract import LandingContract
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectSummary
 from app.services.diagnostics.last_project_tracker import write_last_project
-from app.services.export.export_theme import ExportTheme
+from app.schemas.style_config import StyleConfigPatch, StyleConfigResponse
+from app.core.dependencies import get_contract_builder
+from app.services.export.export_theme import resolve_export_style
 from app.services.export.styled_html_exporter import StyledHtmlExporter
 
 router = APIRouter()
@@ -96,6 +98,39 @@ async def get_landing(project_id: UUID) -> GeneratedLanding:
     return landing
 
 
+@router.patch("/{project_id}/style-config", response_model=StyleConfigResponse)
+async def patch_style_config(
+    project_id: UUID,
+    body: StyleConfigPatch,
+) -> StyleConfigResponse:
+    repo = get_contract_repository()
+    contract = await repo.get_contract(project_id)
+    if not contract:
+        raise HTTPException(404, "LandingContract not found. Upload materials first.")
+    from app.schemas.style_config import LandingStyleConfigModel
+
+    cfg = LandingStyleConfigModel(
+        profile=body.profile,
+        custom_style_prompt=body.custom_style_prompt,
+        theme_tokens=body.theme_tokens,
+    )
+    presentation = body.profile.value
+    if body.profile.value == "custom":
+        presentation = "university_platform"
+    updated = await get_contract_builder().update_contract(
+        project_id,
+        blocks=None,
+        style_config=cfg,
+        presentation_style=presentation,
+    )
+    if not updated:
+        raise HTTPException(404, "LandingContract not found")
+    return StyleConfigResponse(
+        project_id=str(project_id),
+        style_config=updated.style_config or cfg,
+    )
+
+
 @router.get("/{project_id}/export/html")
 async def export_html(
     project_id: UUID,
@@ -104,11 +139,17 @@ async def export_html(
 ) -> dict[str, str]:
     from app.schemas.style_config import parse_style_config_query
 
-    export_theme = ExportTheme.from_query(theme)
+    repo = get_contract_repository()
+    contract = await repo.get_contract(project_id)
     parsed_style = parse_style_config_query(style_config)
-    html = await StyledHtmlExporter(get_contract_repository()).to_html(
+    resolved_theme, _, _ = resolve_export_style(
+        contract,
+        theme_query=theme,
+        style_config_query=parsed_style,
+    )
+    html = await StyledHtmlExporter(repo).to_html(
         project_id,
-        theme=export_theme,
+        theme=resolved_theme,
         style_config=parsed_style,
     )
     return {"html": html}

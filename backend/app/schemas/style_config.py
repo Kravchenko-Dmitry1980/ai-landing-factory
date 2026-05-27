@@ -58,6 +58,60 @@ class LandingStyleConfigModel(BaseModel):
         return text or None
 
 
+def default_style_config() -> LandingStyleConfigModel:
+    return LandingStyleConfigModel(
+        profile=LandingStyleProfile.UNIVERSITY_PLATFORM,
+        theme_tokens=None,
+    )
+
+
+def effective_style_config(contract) -> LandingStyleConfigModel:
+    """Resolve style for export/preview from contract (incl. legacy)."""
+    from app.schemas.landing_contract import LandingContract, LandingStylePreset
+
+    if isinstance(contract, LandingContract) and contract.style_config is not None:
+        return contract.style_config
+
+    ps = ""
+    style_val = ""
+    if isinstance(contract, LandingContract):
+        ps = (contract.presentation_style or "").strip()
+        style_val = (
+            contract.style.value
+            if isinstance(contract.style, LandingStylePreset)
+            else str(contract.style or "")
+        )
+
+    if ps and not ps.startswith("layout:"):
+        try:
+            return LandingStyleConfigModel(profile=LandingStyleProfile(ps))
+        except ValueError:
+            pass
+
+    legacy_map = {
+        "minimal": LandingStyleProfile.MINIMAL,
+        "corporate": LandingStyleProfile.CORPORATE,
+        "tech": LandingStyleProfile.TECH,
+        "bold": LandingStyleProfile.BOLD,
+        "university_platform": LandingStyleProfile.UNIVERSITY_PLATFORM,
+    }
+    if style_val in legacy_map:
+        return LandingStyleConfigModel(profile=legacy_map[style_val])
+
+    return default_style_config()
+
+
+class StyleConfigPatch(BaseModel):
+    profile: LandingStyleProfile
+    custom_style_prompt: str | None = None
+    theme_tokens: ThemeTokensModel | None = None
+
+
+class StyleConfigResponse(BaseModel):
+    project_id: str
+    style_config: LandingStyleConfigModel
+
+
 def parse_style_config_query(raw: str | None) -> LandingStyleConfigModel | None:
     if not raw or not raw.strip():
         return None

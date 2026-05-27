@@ -15,6 +15,7 @@ import {
   getSourceStructure,
   reparseStructuredLanding,
   regenerateLanding,
+  patchStyleConfig,
   updateContract,
 } from "@/lib/api";
 import {
@@ -99,7 +100,11 @@ export function LandingEditor({ projectId }: Props) {
       setBlocks(data.blocks);
       setStyle(data.style);
       setStyleConfig(
-        parseStyleConfigFromContract(data.style_config, data.presentation_style),
+        parseStyleConfigFromContract(
+          data.style_config,
+          data.presentation_style,
+          data.style,
+        ),
       );
       setEnrichmentInfo(data.enrichment ?? null);
       setEvidenceLoading(true);
@@ -145,16 +150,10 @@ export function LandingEditor({ projectId }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const updated = await updateContract(projectId, {
-        blocks,
-        style,
-        presentation_style: styleConfigToPresentationStyle(config),
-        style_config: config,
-      });
+      const result = await patchStyleConfig(projectId, config);
+      setStyleConfig(result.style_config);
+      const updated = await getContract(projectId);
       setContract(updated);
-      setStyleConfig(
-        parseStyleConfigFromContract(updated.style_config, updated.presentation_style),
-      );
       await regenerateLanding(projectId);
     } catch (err) {
       setError(formatApiError(err, "Ошибка сохранения стиля"));
