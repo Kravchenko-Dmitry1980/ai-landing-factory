@@ -237,6 +237,46 @@ export interface EvidenceVisibility {
   strong_fields: string[];
   warnings: string[];
   improvement_hints: string[];
+  advanced_diagnostics_enabled?: boolean;
+}
+
+export interface TeamReviewSummary {
+  total_candidates: number;
+  verified_count: number;
+  probable_count: number;
+  needs_review_count: number;
+  rejected_count: number;
+  publication_mode: string;
+  can_publish_team: boolean;
+  warning?: string | null;
+}
+
+export interface TeamReviewCandidate {
+  id: string;
+  raw_name: string;
+  display_name: string;
+  role?: string | null;
+  contributions: string[];
+  status: string;
+  source: string;
+  source_is_ocr: boolean;
+  confidence?: number | null;
+  warning?: string | null;
+}
+
+export interface TeamReviewData {
+  project_id: string;
+  summary: TeamReviewSummary;
+  candidates: TeamReviewCandidate[];
+  editable_text: string;
+  publication_mode: string;
+}
+
+export interface TeamReviewActionResult {
+  project_id: string;
+  publication_mode: string;
+  summary: TeamReviewSummary;
+  team_count: number;
 }
 
 export interface FidelityMetadata {
@@ -254,6 +294,8 @@ export interface FidelityMetadata {
   weak_fields?: string[];
   assembly_confidence?: number;
   evidence_report?: EvidenceAssemblyReport | null;
+  team_publication_mode?: string;
+  team_review_warning?: string | null;
 }
 
 export interface SectionInfo {

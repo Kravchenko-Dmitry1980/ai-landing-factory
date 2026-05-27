@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from app.schemas.team_verification import TeamCandidateQuality, TeamVerificationReport
+from app.schemas.visual_evidence import VisualEvidenceSummaryLine
+from app.schemas.vlm import VlmExtractionSummaryLine
+
 
 class EvidenceSourceView(BaseModel):
     source_id: str
@@ -44,3 +48,18 @@ class EvidenceVisibilityResponse(BaseModel):
     field_decisions: dict[str, str] = Field(default_factory=dict)
     orchestration_trace: dict[str, object] | None = None
     team_group_expansions: list[dict[str, str]] = Field(default_factory=list)
+    team_verification_report: TeamVerificationReport | None = None
+    ocr_review_candidates: list[TeamCandidateQuality] = Field(default_factory=list)
+    team_publication_policy: str = "verified_only"
+    team_publication_mode: str = "draft_auto"
+    team_review_warning: str | None = None
+    visual_evidence_summary: list[VisualEvidenceSummaryLine] = Field(default_factory=list)
+    visual_items_count: int = 0
+    vlm_candidates_count: int = 0
+    ocr_visual_candidates_count: int = 0
+    vlm_enabled: bool = False
+    vlm_provider: str = "disabled"
+    vlm_processed_count: int = 0
+    vlm_skipped_count: int = 0
+    vlm_extraction_summary: list[VlmExtractionSummaryLine] = Field(default_factory=list)
+    advanced_diagnostics_enabled: bool = False

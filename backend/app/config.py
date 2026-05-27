@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.product_mode import normalize_product_mode
 
 # Dev-only: allow local Next.js on any port in the start_dev.ps1 range (3000-3050).
 DEV_FRONTEND_PORT_START = 3000
@@ -33,6 +37,18 @@ class Settings(BaseSettings):
 
     app_name: str = "AI Landing Factory"
     api_prefix: str = "/api/v1"
+
+    # Product modes (Stage P.1): simple | advanced | research
+    product_mode: str = Field(default="simple", validation_alias="PRODUCT_MODE")
+    advanced_visual_pipeline: bool = Field(
+        default=False,
+        validation_alias="ADVANCED_VISUAL_PIPELINE",
+    )
+    enable_advanced_diagnostics: bool = Field(
+        default=False,
+        validation_alias="ENABLE_ADVANCED_DIAGNOSTICS",
+    )
+    check_advanced: bool = Field(default=False, validation_alias="CHECK_ADVANCED")
     # Stored as comma-separated string so env vars work without JSON encoding.
     backend_cors_origins_env: str = Field(
         default="",
@@ -119,10 +135,94 @@ class Settings(BaseSettings):
     ocr_max_slides: int = 40
     ocr_min_text_chars: int = 40
     ocr_cache_enabled: bool = True
+    ocr_require_engine: bool = False
+    ocr_model_warmup_on_start: bool = False
+    ocr_tesseract_lang: str = "rus+eng"
+    ocr_easyocr_langs: str = "ru,en"
+    ocr_easyocr_gpu: bool = False
+    ocr_engine_priority: str = "tesseract,easyocr,paddleocr"
+    ocr_cache_dir_env: str = Field(default="", validation_alias="OCR_CACHE_DIR")
 
     @property
     def ocr_cache_dir(self) -> Path:
+        raw = (self.ocr_cache_dir_env or "").strip()
+        if raw:
+            path = Path(raw)
+            if not path.is_absolute():
+                return (self.base_dir.parent / path).resolve()
+            return path.resolve()
         return self.data_dir / "ocr_cache"
+
+    # VLM adapter contract (Stage H.9.2) — disabled by default
+    vlm_enabled: bool = False
+    vlm_provider: str = "stub"
+    vlm_model_name: str = ""
+    vlm_max_slides: int = 10
+    vlm_min_visual_confidence: float = 0.6
+    vlm_allowed_content_types: str = (
+        "team_slide,architecture_diagram,tech_stack_slide,goals_slide,"
+        "metrics_slide,roadmap_slide,table_or_matrix,ui_screenshot"
+    )
+    vlm_timeout_seconds: int = 60
+    vlm_store_raw_response: bool = False
+
+    @property
+    def vlm_allowed_content_types_set(self) -> set[str]:
+        return {
+            item.strip()
+            for item in self.vlm_allowed_content_types.split(",")
+            if item.strip()
+        }
+
+    @field_validator("product_mode", mode="before")
+    @classmethod
+    def normalize_product_mode_field(cls, value: Any) -> str:
+        return normalize_product_mode(str(value) if value is not None else None)
+
+    @model_validator(mode="after")
+    def apply_product_mode_defaults(self) -> Settings:
+        """Simple mode disables advanced visual pipeline; research enables QA flags."""
+        mode = self.normalized_product_mode
+        if mode == "simple":
+            object.__setattr__(self, "advanced_visual_pipeline", False)
+            object.__setattr__(self, "check_advanced", False)
+        elif mode == "research":
+            object.__setattr__(self, "check_advanced", True)
+        return self
+
+    @property
+    def normalized_product_mode(self) -> str:
+        return normalize_product_mode(self.product_mode)
+
+    @property
+    def is_simple_product(self) -> bool:
+        return self.normalized_product_mode == "simple"
+
+    @property
+    def is_research_product(self) -> bool:
+        return self.normalized_product_mode == "research"
+
+    @property
+    def effective_advanced_visual_pipeline(self) -> bool:
+        mode = self.normalized_product_mode
+        if mode == "simple":
+            return False
+        if mode == "research":
+            return True
+        return self.advanced_visual_pipeline
+
+    @property
+    def show_advanced_diagnostics(self) -> bool:
+        if self.is_simple_product:
+            return self.enable_advanced_diagnostics
+        return True
+
+    @property
+    def run_advanced_checks(self) -> bool:
+        return self.check_advanced or self.normalized_product_mode in (
+            "advanced",
+            "research",
+        )
 
 
 settings = Settings()

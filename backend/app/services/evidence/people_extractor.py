@@ -7,6 +7,7 @@ import re
 from app.schemas.evidence import TeamMemberCandidate
 from app.services.contract_fidelity.pptx_team_markers import text_has_team_markers
 from app.services.contract_fidelity.team_parser import _split_name_list, _strip_urls
+from app.services.contract_fidelity.team_parser import _split_name_list, _strip_urls
 from app.services.evidence.group_team_parser import (
     parse_team_blocks,
     expand_group_block,
@@ -47,6 +48,16 @@ def extract_people_from_text(
     members: list[TeamMemberCandidate] = []
     seen: set[str] = set()
     team_ctx = in_team_section or is_team_context(section_hint, text) or text_has_team_markers(text)
+
+    if team_ctx:
+        from app.services.ocr.postprocess.ocr_team_text_normalizer import detect_team_ocr_section
+
+        if detect_team_ocr_section(text):
+            from app.services.evidence.ocr_team_extractor import extract_team_from_ocr_text
+
+            ocr_result = extract_team_from_ocr_text(text, source_trace=source_ref)
+            if ocr_result.members:
+                return ocr_result.members
 
     if team_ctx and text_has_team_markers(text):
         block_members: list[TeamMemberCandidate] = []

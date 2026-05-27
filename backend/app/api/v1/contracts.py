@@ -8,9 +8,16 @@ from app.core.dependencies import (
     get_generation_service,
     get_llm_contract_builder,
     get_semantic_engine,
+    get_team_review_service,
     get_unified_generator,
 )
 from app.schemas.evidence_visibility import EvidenceVisibilityResponse
+from app.schemas.team_review import (
+    ManualTeamUpdateRequest,
+    TeamBulkActionRequest,
+    TeamReviewActionResponse,
+    TeamReviewResponse,
+)
 from app.schemas.fidelity import ContractCompletenessReport, SourceStructureReport
 from app.services.evidence.evidence_visibility import EvidenceVisibilityBuilder
 from app.schemas.generation_responses import (
@@ -45,6 +52,50 @@ async def get_evidence_report(project_id: UUID) -> EvidenceVisibilityResponse:
     if not contract:
         raise HTTPException(404, "LandingContract not found")
     return EvidenceVisibilityBuilder().build(contract)
+
+
+@router.get("/{project_id}/team-review", response_model=TeamReviewResponse)
+async def get_team_review(project_id: UUID) -> TeamReviewResponse:
+    try:
+        return await get_team_review_service().get_review(project_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@router.post(
+    "/{project_id}/team-review/bulk-action",
+    response_model=TeamReviewActionResponse,
+)
+async def team_review_bulk_action(
+    project_id: UUID,
+    body: TeamBulkActionRequest,
+) -> TeamReviewActionResponse:
+    try:
+        result = await get_team_review_service().apply_bulk_action(
+            project_id, body.action
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    await get_generation_service().generate(project_id)
+    return result
+
+
+@router.post(
+    "/{project_id}/team-review/manual-text",
+    response_model=TeamReviewActionResponse,
+)
+async def team_review_manual_text(
+    project_id: UUID,
+    body: ManualTeamUpdateRequest,
+) -> TeamReviewActionResponse:
+    try:
+        result = await get_team_review_service().apply_manual_text(
+            project_id, body.text
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    await get_generation_service().generate(project_id)
+    return result
 
 
 @router.get("/{project_id}/source-structure", response_model=SourceStructureReport)

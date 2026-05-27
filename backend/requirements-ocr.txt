@@ -1,0 +1,12 @@
+# Heavy OCR engines — install only via scripts/setup_ocr_runtime.ps1
+-r requirements-advanced.txt
+
+# Paddle stack (large download)
+paddleocr>=2.7.0
+paddlepaddle>=2.6.0
+
+# Alternative engines
+easyocr>=1.7.0
+
+# Optional research engine
+# surya-ocr>=0.4.0

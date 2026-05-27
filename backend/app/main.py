@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.config import settings
+from app.product_mode import log_product_mode_warnings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,6 +23,8 @@ async def lifespan(app: FastAPI):
         path.mkdir(parents=True, exist_ok=True)
     logger.info("Data directories ready: %s", settings.data_dir)
     logger.info("CORS origins: %s", settings.cors_origins)
+    logger.info("Product mode: %s", settings.normalized_product_mode)
+    log_product_mode_warnings(settings)
     yield
 
 

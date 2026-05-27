@@ -1,0 +1,114 @@
+{
+  "source_file": "C:\\Dima\\Projects\\CURSOR\\Lend\\test_corpus\\golden\\indlab_telegram_news\\sources\\01_presentation.pptx",
+  "page_or_slide": 25,
+  "image_count": 1,
+  "known_names": [
+    "Татьяна Ерюкова",
+    "Надежда Глазунова",
+    "Егор Быков"
+  ],
+  "results": [
+    {
+      "engine": "tesseract",
+      "available": true,
+      "ok": true,
+      "runtime_ms": 804,
+      "raw_chars": 577,
+      "normalized_chars": 567,
+      "team_section_detected": true,
+      "accepted_team_count": 1,
+      "rejected_person_count": 1,
+      "known_names_hit_count": 2,
+      "accepted_names": [
+        "Татьяна Ерюкова"
+      ],
+      "rejected_preview": [
+        "Manmusit Apel Аизтольевич (rejected: not_person_name)"
+      ],
+      "text_preview": "Команда проекта |  | `Тимлидпроекта. |  | Koseveno Dip Aneccaraposs: |  | Pyrosonero правом, poneeryp, постановка задач, работа © SBKS2umoU,KOORRMGLBS P/N, METORENON ианалитика |  | \"Участники команды проекта. |  | Татьяна Ерюкова — помошниктиылида: | Аржотектур, ластериоаця, паром; наличия | Manmusit Apel Аизтольевич— пооиниктимлидя | Управление проект, аналитиа, орановционныепрочеосы | hue Блюхеров, |  | Ur, backendwosynr полный pipeline |  | \"надежда Глазунова, |  | Anexcanap Азевич | Нео) метрии, кластерация |  | Ane ...",
+      "normalized_preview": "Команда проекта | Тимлид проекта | Koseveno Dip Aneccaraposs: | Pyrosonero правом, poneeryp, постановка задач, работа SBKS2umoU,KOORRMGLBS P/N, METORENON ианалитика | \"Участники команды проекта. | Татьяна Ерюкова — помощник тимлида | Аржотектур, ластериоаця, паром; наличия | Manmusit Apel Аизтольевич — помощник тимлида | Управление проект, аналитиа, орановционныепрочеосы | hue Блюхеров, | Ur, backendwosynr полный pipeline | \"надежда Глазунова, | Anexcanap Азевич | Нео) метрии, кластерация | Anexcanap Ег ...",
+      "error_code": null,
+      "warnings": [
+        "Possible person line rejected due to low OCR quality: 'Manmusit Apel Аизтольевич'"
+      ],
+      "score": 23.923333333333332
+    },
+    {
+      "engine": "easyocr",
+      "available": true,
+      "ok": true,
+      "runtime_ms": 5089,
+      "raw_chars": 829,
+      "normalized_chars": 834,
+      "team_section_detected": true,
+      "accepted_team_count": 7,
+      "rejected_person_count": 2,
+      "known_names_hit_count": 2,
+      "accepted_names": [
+        "Игорь Колесов",
+        "Дмитрий Шилин",
+        "Дмитрий Елюхеров",
+        "Татьяна Залоротец",
+        "Наденда Глазунова",
+        "Денис Калюаный",
+        "Александр Егорсв"
+      ],
+      "rejected_preview": [
+        "#ЕXнTE ТУГЕ, Н (rejected: not_person_name)",
+        "N=blj = (rejected: not_person_name)"
+      ],
+      "text_preview": "UNIVERSITY | А RTIFICIA 1 | IТЕЦUСЕNСF | Команда проекта | Тимлнд проекта | ще | Дчнтрн; РЛЕкСандроЕ | FвЭд=EЭТЕ=А7ЭН | =ЕхН= Т= | Теп==Е = ==дА= Е=F=T | закат HtDU , {СОрцНцка ГРуТI, !етадаюя | внелнтн | Участннкн команды проекта | Татьяна | Ерюкова | тонсшниктимлнда | Игорь Колесов | ~EXHTE ТУ[Е | клаПеЕЕЕЦТ | Т=Ее | внелтн= | #ЕXнTE ТУГЕ, Н-#Г=ЕTF} TI=  [= -pE | МалицкийАндрей Анатольевич | понсшниктинлида | Дмитрий Шилин | @ПЕ=ЕЛёнетЕ=Ела; | внелнтн= | ортзнеацонае гроцесь | Дзёджесте] | Ев од ==ц TESti | Дмитрий Елюхеров | Татьяна  ...",
+      "normalized_preview": "UNIVERSITY | А RTIFICIA 1 | IТЕЦUСЕNСF | Команда проекта | Тимлнд проекта | ще | Дчнтрн; РЛЕкСандроЕ | FвЭд=EЭТЕ=А7ЭН | =ЕхН= Т= | Теп==Е = ==дА= Е=F=T | закат HtDU , {СОрцНцка ГРуТI, !етадаюя | внелнтн | Участннкн команды проекта | Татьяна | Ерюкова | тонсшниктимлнда | Игорь Колесов | ~EXHTE ТУ[Е | клаПеЕЕЕЦТ | Т=Ее | внелтн= | #ЕXнTE ТУГЕ, Н — #Г=ЕTF} TI= [= -pE | МалицкийАндрей Анатольевич | понсшниктинлида | Дмитрий Шилин | @ПЕ=ЕЛёнетЕ=Ела; | внелнтн= | ортзнеацонае гроцесь | Дзёджесте] | Ев од ==ц TESti | Дмитрий Елюхеров | Татьяна ...",
+      "error_code": null,
+      "warnings": [
+        "Possible person line rejected due to low OCR quality: '#ЕXнTE ТУГЕ, Н'",
+        "Possible person line rejected due to low OCR quality: 'N=blj ='"
+      ],
+      "score": 83.76333333333334
+    },
+    {
+      "engine": "paddleocr",
+      "available": true,
+      "ok": false,
+      "runtime_ms": 4590,
+      "raw_chars": 0,
+      "normalized_chars": 0,
+      "team_section_detected": false,
+      "accepted_team_count": 0,
+      "rejected_person_count": 0,
+      "known_names_hit_count": 0,
+      "accepted_names": [],
+      "rejected_preview": [],
+      "text_preview": "",
+      "normalized_preview": "",
+      "error_code": "paddleocr_pir_onednn_unimplemented",
+      "warnings": [
+        "PaddleOCR failed: (Unimplemented) ConvertPirAttribute2RuntimeAttribute not support [pir::ArrayAttribute<pir::DoubleAttribute>]  (at ..\\paddle\\fluid\\framework\\new_executor\\instruction\\onednn\\onednn_instruction.cc:118)\n"
+      ],
+      "score": -50.0
+    },
+    {
+      "engine": "surya",
+      "available": false,
+      "ok": false,
+      "runtime_ms": 0,
+      "raw_chars": 0,
+      "normalized_chars": 0,
+      "team_section_detected": false,
+      "accepted_team_count": 0,
+      "rejected_person_count": 0,
+      "known_names_hit_count": 0,
+      "accepted_names": [],
+      "rejected_preview": [],
+      "text_preview": "",
+      "normalized_preview": "",
+      "error_code": "surya_unavailable",
+      "warnings": [
+        "Surya OCR package not installed or API unsupported."
+      ],
+      "score": -50.0
+    }
+  ],
+  "best_engine": "easyocr",
+  "reason": "score=83.8, accepted_team=7, known_hits=2, chars=829"
+}

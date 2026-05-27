@@ -64,8 +64,15 @@ def semantic_to_landing(
     if not team_bullets and contract.fidelity and contract.fidelity.team_structured:
         from app.services.contract_fidelity.team_parser import team_to_bullets
         from app.services.contract_fidelity.team_candidate_validator import filter_team_members
+        from app.services.team_verification.export_policy import filter_team_for_public_export
 
-        team_bullets = team_to_bullets(filter_team_members(contract.fidelity.team_structured))
+        report = contract.fidelity.team_verification_report
+        mode = contract.fidelity.team_publication_mode or "safe_public"
+        accepted = list(contract.fidelity.accepted_team_candidate_ids or [])
+        public_team, _ = filter_team_for_public_export(
+            contract.fidelity.team_structured, report, mode, accepted
+        )
+        team_bullets = team_to_bullets(filter_team_members(public_team))
     if not outlook_body:
         outlook_body, _ = from_contract("outlook")
     if not tagline_body:

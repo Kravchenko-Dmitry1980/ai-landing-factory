@@ -58,6 +58,9 @@ from app.services.evidence.source_inventory import (
 from app.services.fusion.field_fusion_engine import FieldFusionEngine
 from app.services.ocr.ocr_enrichment import OcrEnrichmentService
 from app.services.orchestration.document_orchestrator import DocumentOrchestrator
+from app.services.visual.visual_evidence_builder import VisualEvidenceBuilder
+from app.services.visual.visual_source_classifier import VisualSourceClassifier
+from app.services.vlm.vlm_router import VlmEnrichmentService
 
 
 
@@ -120,6 +123,8 @@ class ContractBuilderService:
         self._field_fusion_engine = FieldFusionEngine()
         self._document_orchestrator = DocumentOrchestrator()
         self._ocr_enrichment = OcrEnrichmentService()
+        self._visual_classifier = VisualSourceClassifier()
+        self._vlm_enrichment = VlmEnrichmentService()
 
 
 
@@ -162,6 +167,10 @@ class ContractBuilderService:
             self._document_orchestrator = DocumentOrchestrator()
         if not hasattr(self, "_ocr_enrichment"):
             self._ocr_enrichment = OcrEnrichmentService()
+        if not hasattr(self, "_visual_classifier"):
+            self._visual_classifier = VisualSourceClassifier()
+        if not hasattr(self, "_vlm_enrichment"):
+            self._vlm_enrichment = VlmEnrichmentService()
         self._document_orchestrator = DocumentOrchestrator()
 
 
@@ -170,7 +179,20 @@ class ContractBuilderService:
 
         self._ensure_fidelity_deps()
 
-        extraction, ocr_warnings = self._ocr_enrichment.enrich(extraction)
+        from app.config import settings
+
+        visual_report = None
+        ocr_warnings: list[str] = []
+        if settings.effective_advanced_visual_pipeline:
+            visual_report = self._visual_classifier.classify_extraction(extraction)
+            extraction, ocr_warnings = self._ocr_enrichment.enrich(
+                extraction,
+                visual_report=visual_report,
+            )
+        extraction, vlm_report = self._vlm_enrichment.enrich(
+            extraction,
+            visual_report=visual_report,
+        )
 
         text = _primary_extracted_text(extraction)
 
@@ -328,9 +350,131 @@ class ContractBuilderService:
 
         contract = self._supplement_pptx_team(contract, extraction, text, source_type)
 
+        contract = self._apply_team_verification(contract, extraction)
+
         contract = self._attach_orchestration_trace(contract, orchestration_trace)
         contract = self._attach_ocr_warnings(contract, ocr_warnings)
+        contract = self._attach_visual_evidence(contract, visual_report)
+        contract = self._attach_vlm_evidence(contract, vlm_report)
 
+        return contract
+
+    def _apply_team_verification(
+        self,
+        contract: LandingContract,
+        extraction: ExtractionResult,
+    ) -> LandingContract:
+        """OCR team verification gate — only verified members in team_structured."""
+        from app.services.contract_fidelity.team_candidate_validator import filter_team_members
+        from app.services.contract_fidelity.team_parser import team_to_bullets
+        from app.services.team_verification.export_policy import (
+            draft_team_from_report,
+            team_publication_warning,
+        )
+        from app.services.team_verification.team_verification_service import (
+            TeamVerificationService,
+        )
+        from app.schemas.team_review import TeamPublicationMode
+
+        fidelity = contract.fidelity
+        if not fidelity or not fidelity.team_structured:
+            return contract
+
+        all_members = filter_team_members(fidelity.team_structured)
+        if not all_members:
+            return contract
+
+        service = TeamVerificationService()
+        report = service.verify(all_members, extraction)
+
+        fidelity.team_verification_report = report
+        fidelity.ocr_review_candidates = (
+            report.review_candidates + report.probable_candidates
+        )
+        fidelity.team_publication_policy = "verified_only"
+        fidelity.team_publication_mode = TeamPublicationMode.draft_auto
+        fidelity.accepted_team_candidate_ids = []
+        fidelity.manual_team_override = False
+        fidelity.manual_team_text = None
+
+        draft_team = draft_team_from_report(report)
+        fidelity.team_structured = draft_team if draft_team else all_members
+        fidelity.team_review_warning = (
+            "Команда извлечена из изображения через OCR. Возможны ошибки в ФИО."
+            if report.review_candidates or report.probable_candidates
+            else None
+        )
+
+        team_bullets = team_to_bullets(fidelity.team_structured)
+        for block in contract.blocks:
+            if block.key == "team":
+                block.bullets = team_bullets
+                break
+
+        pub_warning = team_publication_warning(
+            report, fidelity.team_publication_mode
+        )
+        if pub_warning:
+            report_ev = fidelity.evidence_report
+            if report_ev:
+                report_ev.warnings = list(
+                    dict.fromkeys(list(report_ev.warnings) + [pub_warning])
+                )
+
+        if fidelity.completeness:
+            fidelity.completeness = self._completeness_gate.evaluate(contract)
+
+        logger.info(
+            "Team verification gate: draft=%d verified=%d review=%d rejected=%d ocr=%d",
+            len(fidelity.team_structured),
+            report.metrics.verified_count,
+            report.metrics.needs_review_count,
+            report.metrics.rejected_count,
+            report.metrics.ocr_candidates,
+        )
+        return contract
+
+    def _attach_visual_evidence(
+        self,
+        contract: LandingContract,
+        visual_report,
+    ) -> LandingContract:
+        if not visual_report or visual_report.visual_items_count <= 0:
+            return contract
+        if not contract.fidelity:
+            contract.fidelity = FidelityMetadata()
+        contract.fidelity.visual_evidence_report = visual_report
+        contract.fidelity.visual_items_count = visual_report.visual_items_count
+        contract.fidelity.vlm_candidates_count = visual_report.vlm_candidates_count
+        contract.fidelity.ocr_visual_candidates_count = visual_report.ocr_candidates_count
+        report = contract.fidelity.evidence_report
+        if report and visual_report.warnings:
+            report.warnings = list(
+                dict.fromkeys(list(report.warnings) + visual_report.warnings)
+            )
+        return contract
+
+    def _attach_vlm_evidence(
+        self,
+        contract: LandingContract,
+        vlm_report,
+    ) -> LandingContract:
+        if vlm_report is None:
+            return contract
+        if not contract.fidelity:
+            contract.fidelity = FidelityMetadata()
+        fidelity = contract.fidelity
+        fidelity.vlm_extraction_report = vlm_report
+        fidelity.vlm_enabled = bool(vlm_report.enabled)
+        fidelity.vlm_provider = vlm_report.provider or "disabled"
+        fidelity.vlm_processed_count = vlm_report.processed_count
+        fidelity.vlm_skipped_count = vlm_report.skipped_count
+        if vlm_report.warnings:
+            report = fidelity.evidence_report
+            if report:
+                report.warnings = list(
+                    dict.fromkeys(list(report.warnings) + vlm_report.warnings)
+                )
         return contract
 
     def _attach_ocr_warnings(

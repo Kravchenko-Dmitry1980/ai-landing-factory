@@ -51,6 +51,8 @@ class EvidenceExtractor:
         text: str,
     ) -> list[EvidenceItem]:
         ft = file_rec.file_type
+        if ft == "vlm" or file_rec.metadata.get("is_vlm_derivative"):
+            return self._extract_slides(source_id, file_rec, text)
         if ft == "ocr" or file_rec.metadata.get("is_ocr_derivative"):
             return self._extract_slides(source_id, file_rec, text)
         if ft == "pptx" or SLIDE_SPLIT_RE.search(text):

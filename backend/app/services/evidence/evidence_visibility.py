@@ -8,8 +8,16 @@ from app.schemas.evidence_visibility import (
     EvidenceVisibilityResponse,
     FieldSourceView,
 )
+from app.config import settings
 from app.schemas.fidelity import FidelityMetadata
 from app.schemas.landing_contract import LandingContract
+from app.schemas.vlm import VlmExtractionSummaryLine
+from app.product_mode import (
+    SIMPLE_IMAGE_ONLY_HINT,
+    map_improvement_hint,
+    sanitize_message_list,
+)
+from app.services.visual.visual_evidence_builder import VisualEvidenceBuilder
 
 SNIPPET_MAX = 180
 
@@ -46,6 +54,11 @@ PPTX_ONLY_TEAM_HINT = (
     "на изображении, нужен OCR или отдельный DOCX/TXT."
 )
 
+PPTX_ONLY_TEAM_HINT_SIMPLE = (
+    "В презентации не найден извлекаемый текст команды. "
+    "Добавьте DOCX/TXT со списком участников или отредактируйте блок команды вручную."
+)
+
 SINGLE_FILE_WARNING = (
     "Загружен только один файл. Для полного ленда обычно нужен комплект: "
     "PPTX + DOCX/TXT."
@@ -79,9 +92,11 @@ class EvidenceVisibilityBuilder:
         report = fidelity.evidence_report if fidelity else None
 
         if report:
-            return self._from_report(contract, fidelity, report)
+            return _finalize_visibility(
+                self._from_report(contract, fidelity, report),
+            )
 
-        return self._fallback(contract, fidelity)
+        return _finalize_visibility(self._fallback(contract, fidelity))
 
     def _from_report(
         self,
@@ -123,6 +138,20 @@ class EvidenceVisibilityBuilder:
             orchestration_payload = orch.model_dump() if hasattr(orch, "model_dump") else orch
         if field_decisions:
             field_sources = _merge_fusion_field_sources(field_sources, field_decisions)
+
+        team_verification = fidelity.team_verification_report if fidelity else None
+        ocr_review = list(fidelity.ocr_review_candidates) if fidelity else []
+        team_policy = fidelity.team_publication_policy if fidelity else "verified_only"
+        pub_mode = fidelity.team_publication_mode if fidelity else "draft_auto"
+        review_warning = fidelity.team_review_warning if fidelity else None
+        if team_verification and team_verification.warnings:
+            warnings.extend(team_verification.warnings)
+        if review_warning:
+            warnings.append(review_warning)
+
+        visual_summary = _visual_evidence_summary(fidelity)
+        vlm_summary = _vlm_extraction_summary(fidelity)
+
         return EvidenceVisibilityResponse(
             project_id=str(contract.project_id),
             parser_mode=parser_mode,
@@ -139,6 +168,21 @@ class EvidenceVisibilityBuilder:
             field_decisions=field_decisions,
             orchestration_trace=orchestration_payload,
             team_group_expansions=team_group_expansions,
+            team_verification_report=team_verification,
+            ocr_review_candidates=ocr_review,
+            team_publication_policy=team_policy,
+            team_publication_mode=pub_mode,
+            team_review_warning=review_warning,
+            visual_evidence_summary=visual_summary,
+            visual_items_count=fidelity.visual_items_count if fidelity else 0,
+            vlm_candidates_count=fidelity.vlm_candidates_count if fidelity else 0,
+            ocr_visual_candidates_count=fidelity.ocr_visual_candidates_count if fidelity else 0,
+            vlm_enabled=fidelity.vlm_enabled if fidelity else False,
+            vlm_provider=fidelity.vlm_provider if fidelity else "disabled",
+            vlm_processed_count=fidelity.vlm_processed_count if fidelity else 0,
+            vlm_skipped_count=fidelity.vlm_skipped_count if fidelity else 0,
+            vlm_extraction_summary=vlm_summary,
+            advanced_diagnostics_enabled=settings.show_advanced_diagnostics,
         )
 
     def _fallback(
@@ -189,6 +233,7 @@ class EvidenceVisibilityBuilder:
             weak,
             strong,
         )
+        vlm_summary = _vlm_extraction_summary(fidelity)
 
         return EvidenceVisibilityResponse(
             project_id=str(contract.project_id),
@@ -204,7 +249,56 @@ class EvidenceVisibilityBuilder:
             warnings=_dedupe(warnings),
             improvement_hints=hints,
             field_decisions=_fusion_field_decisions(fidelity),
+            visual_evidence_summary=_visual_evidence_summary(fidelity),
+            visual_items_count=fidelity.visual_items_count if fidelity else 0,
+            vlm_candidates_count=fidelity.vlm_candidates_count if fidelity else 0,
+            ocr_visual_candidates_count=fidelity.ocr_visual_candidates_count if fidelity else 0,
+            vlm_enabled=fidelity.vlm_enabled if fidelity else False,
+            vlm_provider=fidelity.vlm_provider if fidelity else "disabled",
+            vlm_processed_count=fidelity.vlm_processed_count if fidelity else 0,
+            vlm_skipped_count=fidelity.vlm_skipped_count if fidelity else 0,
+            vlm_extraction_summary=vlm_summary,
+            advanced_diagnostics_enabled=settings.show_advanced_diagnostics,
         )
+
+
+def _finalize_visibility(
+    report: EvidenceVisibilityResponse,
+) -> EvidenceVisibilityResponse:
+    advanced = settings.show_advanced_diagnostics
+    if advanced:
+        return report
+
+    hints = [
+        map_improvement_hint(h, advanced=False) for h in report.improvement_hints
+    ]
+    warnings = sanitize_message_list(list(report.warnings), advanced=False)
+    review_warning = report.team_review_warning
+    if review_warning:
+        from app.product_mode import sanitize_user_message
+
+        review_warning = sanitize_user_message(review_warning, advanced=False)
+
+    return report.model_copy(
+        update={
+            "improvement_hints": _dedupe(hints),
+            "warnings": warnings,
+            "team_review_warning": review_warning,
+            "visual_evidence_summary": [],
+            "vlm_extraction_summary": [],
+            "vlm_candidates_count": 0,
+            "ocr_visual_candidates_count": 0,
+            "vlm_enabled": False,
+            "vlm_provider": "disabled",
+            "vlm_processed_count": 0,
+            "vlm_skipped_count": 0,
+            "visual_items_count": 0,
+            "ocr_review_candidates": [],
+            "team_verification_report": None,
+            "orchestration_trace": None,
+            "advanced_diagnostics_enabled": False,
+        }
+    )
 
 
 def _count_evidence_by_source(fields: dict[str, FieldEvidence]) -> dict[str, int]:
@@ -394,18 +488,26 @@ def _build_improvement_hints(
             hints.append(hint)
     for src in sources:
         if src.status == "empty":
-            hints.append(
-                f"Файл «{src.filename}» похож на image-only презентацию. "
-                "Для анализа нужен OCR или текстовая версия."
-            )
+            if settings.show_advanced_diagnostics:
+                hints.append(
+                    f"Файл «{src.filename}» похож на image-only презентацию. "
+                    "Для анализа нужен OCR или текстовая версия."
+                )
+            else:
+                hints.append(SIMPLE_IMAGE_ONLY_HINT)
     if source_count == 1 and team_structured_count == 0:
         if SINGLE_FILE_TEAM_HINT not in hints:
             hints.append(SINGLE_FILE_TEAM_HINT)
     if "team" in missing and sources and all(
         s.file_type == "pptx" for s in sources if s.status != "empty"
     ):
-        if PPTX_ONLY_TEAM_HINT not in hints:
-            hints.append(PPTX_ONLY_TEAM_HINT)
+        team_hint = (
+            PPTX_ONLY_TEAM_HINT
+            if settings.show_advanced_diagnostics
+            else PPTX_ONLY_TEAM_HINT_SIMPLE
+        )
+        if team_hint not in hints:
+            hints.append(team_hint)
     return _dedupe(hints)
 
 
@@ -424,6 +526,43 @@ def _dedupe(items: list[str]) -> list[str]:
             seen.add(item)
             out.append(item)
     return out
+
+
+def _vlm_extraction_summary(fidelity: FidelityMetadata | None) -> list[VlmExtractionSummaryLine]:
+    if not fidelity or not fidelity.vlm_extraction_report:
+        return []
+    report = fidelity.vlm_extraction_report
+    lines: list[VlmExtractionSummaryLine] = []
+    for ext in report.extractions:
+        slide = None
+        for cand in ext.field_candidates:
+            if cand.source_slide is not None:
+                slide = cand.source_slide
+                break
+        if slide is None and ext.source_location.startswith("slide-"):
+            try:
+                slide = int(ext.source_location.split("-", 1)[1])
+            except ValueError:
+                slide = None
+        lines.append(
+            VlmExtractionSummaryLine(
+                source_filename=ext.source_filename,
+                page_or_slide=slide,
+                visual_content_type=ext.visual_content_type,
+                task_type=ext.task_type,
+                provider=ext.provider,
+                confidence=round(ext.confidence, 2),
+                field_count=len(ext.field_candidates),
+                warnings=list(ext.warnings[:3]),
+            )
+        )
+    return lines
+
+
+def _visual_evidence_summary(fidelity: FidelityMetadata | None):
+    if not fidelity or not fidelity.visual_evidence_report:
+        return []
+    return VisualEvidenceBuilder.summarize_report(fidelity.visual_evidence_report)
 
 
 def _fusion_field_decisions(fidelity: FidelityMetadata | None) -> dict[str, str]:

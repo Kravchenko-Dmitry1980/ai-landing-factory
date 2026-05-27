@@ -1,5 +1,21 @@
 # AI Landing Factory — запуск MVP
 
+## Quick Start (обычный пользователь)
+
+```powershell
+git clone <repo-url>
+cd C:\Dima\Projects\CURSOR\Lend
+.\run.ps1
+```
+
+Откройте URL из консоли → загрузите PPTX/DOCX/TXT/PDF → проверьте ленд → отредактируйте при необходимости → экспорт HTML.
+
+**OCR/VLM по умолчанию выключены.** Подробнее для оператора: [docs/USER_QUICKSTART.md](docs/USER_QUICKSTART.md).
+
+Проверка без OCR: `.\scripts\smoke_simple_product.ps1` и `.\scripts\check_all.ps1 -Simple`.
+
+---
+
 Content-first pipeline:
 
 ```
@@ -264,23 +280,112 @@ cd C:\Dima\Projects\CURSOR\Lend\backend
 
 **OCR (Stage H.8, optional):** targeted OCR для image-only слайдов/PDF scans. По умолчанию выключен.
 
+Setup и диагностика runtime (Windows):
+
+```powershell
+cd C:\Dima\Projects\CURSOR\Lend
+
+.\scripts\check_ocr_env.ps1
+.\scripts\setup_ocr_runtime.ps1 -WriteEnv
+.\scripts\setup_ocr_runtime.ps1 -InstallBasic
+.\scripts\setup_ocr_runtime.ps1 -InstallPaddle
+.\scripts\check_ocr_env.ps1 -RequireOcr -TestImage
+```
+
+Readiness требует **inference smoke**, не только init. Если Paddle init OK, но inference падает (oneDNN/PIR):
+
+```powershell
+$env:FLAGS_use_mkldnn="0"
+$env:FLAGS_enable_pir_api="0"
+cd backend
+..\.venv\Scripts\python.exe scripts\warmup_ocr_models.py --engine paddleocr
+```
+
+Или установите Tesseract OCR for Windows как fallback.
+
 ```powershell
 # backend/.env
 OCR_ENABLED=true
 OCR_ENGINE=paddleocr
 OCR_FALLBACK_ENGINE=tesseract
+OCR_TESSERACT_LANG=rus+eng
 ```
 
-Диагностика одного файла:
+OCR postprocessing (Stage H.8.3): грязный OCR-текст image-only слайдов проходит `normalize_ocr_team_text()` и `extract_team_from_ocr_text()` перед fusion.
 
 ```powershell
 cd C:\Dima\Projects\CURSOR\Lend\backend
 ..\.venv\Scripts\python.exe scripts\debug_ocr_source.py `
   --file "C:\path\to\presentation.pptx" `
-  --slides 25
+  --slides 25 `
+  --require-ocr
 ```
 
-Подробнее: [docs/OCR_LAYER_H8.md](docs/OCR_LAYER_H8.md)
+Multi-engine benchmark (Stage H.8.4):
+
+```powershell
+..\.venv\Scripts\python.exe scripts\benchmark_ocr_engines.py `
+  --file "C:\path\to\presentation.pptx" `
+  --slides 25 `
+  --engines tesseract,easyocr,paddleocr `
+  --known-name "Татьяна Ерюкова"
+```
+
+Optional QA smoke:
+
+```powershell
+.\scripts\check_all.ps1 -RunOcrSmoke
+```
+
+Подробнее: [docs/OCR_LAYER_H8.md](docs/OCR_LAYER_H8.md), [docs/OCR_RUNTIME_SETUP_H8_2.md](docs/OCR_RUNTIME_SETUP_H8_2.md), [docs/OCR_TEAM_EXTRACTION_H8_3.md](docs/OCR_TEAM_EXTRACTION_H8_3.md), [docs/OCR_ENGINE_BENCHMARK_H8_4.md](docs/OCR_ENGINE_BENCHMARK_H8_4.md), [docs/OCR_TEAM_VERIFICATION_GATE_H8_5.md](docs/OCR_TEAM_VERIFICATION_GATE_H8_5.md)
+
+**OCR team verification gate (Stage H.8.5):** OCR-кандидаты команды получают `verification_status` (`verified` / `needs_review` / `rejected`). **Публичный HTML export исключает unverified OCR-имена.** Review-кандидаты доступны в evidence-report и `GET /api/v1/projects/{id}/team-review`.
+
+```powershell
+..\.venv\Scripts\python.exe scripts\smoke_ocr_team_verification.py `
+  --project indlab_telegram_news
+```
+
+Проверка team-review в API: `GET /api/v1/projects/{project_id}/team-review` — summary, candidates, editable text.
+
+**Team review minimal UX (Stage H.8.6):** OCR-команда auto-fill в редакторе; bulk «Принять всё» / «Оставить только уверенных» / «Редактировать текстом». Public export остаётся safe по умолчанию.
+
+```powershell
+..\.venv\Scripts\python.exe scripts\smoke_team_review_flow.py --project indlab_telegram_news
+```
+
+Подробнее: [docs/TEAM_REVIEW_MINIMAL_UX_H8_6.md](docs/TEAM_REVIEW_MINIMAL_UX_H8_6.md)
+
+**Visual source classifier (Stage H.9.1):** routing layer для image-only слайдов — классифицирует team/architecture/stack/metrics/UI **без VLM**. Результат в `FidelityMetadata.visual_evidence_report` и `GET /evidence-report` (`visual_evidence_summary`).
+
+```powershell
+..\.venv\Scripts\python.exe scripts\debug_visual_sources.py `
+  --file "path\presentation.pptx" --slides 25
+
+..\.venv\Scripts\python.exe scripts\smoke_visual_classifier.py --project indlab_telegram_news
+
+..\.venv\Scripts\python.exe -m pytest tests\test_visual_source_classifier.py -q
+```
+
+В `check_all.ps1` шаг **Visual classifier smoke** включён по умолчанию (text snapshots, без OCR/VLM). Пропуск: `-SkipVisualClassifierSmoke`.
+
+Подробнее: [docs/VISUAL_SOURCE_CLASSIFIER_H9_1.md](docs/VISUAL_SOURCE_CLASSIFIER_H9_1.md)
+
+**VLM adapter contract (Stage H.9.2):** интерфейс structured visual extraction без реальной модели. По умолчанию `VLM_ENABLED=false`. Stub (`VLM_PROVIDER=stub`) — только для тестов.
+
+```powershell
+..\.venv\Scripts\python.exe scripts\debug_vlm_candidates.py --file path\deck.pptx --slides 7,25
+
+..\.venv\Scripts\python.exe scripts\debug_vlm_candidates.py --file path\deck.pptx --enable-stub
+
+..\.venv\Scripts\python.exe scripts\smoke_vlm_adapter_contract.py
+
+..\.venv\Scripts\python.exe -m pytest tests\test_vlm_adapter_contract.py -q
+```
+
+В `check_all.ps1` шаг **VLM adapter contract smoke** включён по умолчанию. Пропуск: `-SkipVlmContractSmoke`.
+
+Подробнее: [docs/VLM_ADAPTER_CONTRACT_H9_2.md](docs/VLM_ADAPTER_CONTRACT_H9_2.md)
 
 **Group team lines:** несколько ФИО в одной строке (`Егор Быков, Максим Иванков, …`) получают общую роль и bullets — см. [docs/ORCHESTRATED_EXTRACTION_H7.md](docs/ORCHESTRATED_EXTRACTION_H7.md).
 

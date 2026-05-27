@@ -76,6 +76,20 @@ class SourceInventoryBuilder:
                 warnings=list(file_rec.warnings or []),
             )
 
+        if file_rec.file_type == "vlm" or file_rec.metadata.get("is_vlm_derivative"):
+            return SourceInventoryItem(
+                source_id=source_id,
+                filename=file_rec.filename,
+                file_type="vlm",
+                char_count=len(text),
+                slide_count=_int_or_none(file_rec.metadata.get("page_or_slide")),
+                detected_source_type="mixed_project_materials",
+                source_role=str(file_rec.metadata.get("source_role") or "supporting_visual_evidence"),
+                confidence=float(file_rec.metadata.get("confidence") or 0.5),
+                markers=["vlm_derivative", str(file_rec.metadata.get("task_type") or "")],
+                warnings=list(file_rec.warnings or []),
+            )
+
         normalized = text.lower().replace("\u00a0", " ")
         markers_hit: list[str] = []
         scores: dict[str, float] = {}

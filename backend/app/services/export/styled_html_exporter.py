@@ -469,10 +469,15 @@ class StyledHtmlExporter:
     ) -> str:
         from app.services.orchestration.agents.export_guard_agent import guard_team_for_export
 
+        verification_report = fidelity.team_verification_report if fidelity else None
+        publication_mode = fidelity.team_publication_mode if fidelity else "safe_public"
+        accepted_ids = list(fidelity.accepted_team_candidate_ids) if fidelity else []
         members: list[TeamMember] = list(fidelity.team_structured) if fidelity else []
         if not members and block and block.bullets:
             members = self._members_from_team_bullets(block.bullets)
-        members, guard_warnings = guard_team_for_export(members)
+        members, guard_warnings = guard_team_for_export(
+            members, verification_report, publication_mode, accepted_ids
+        )
         members = filter_team_members(members)
         if members:
             cards = []

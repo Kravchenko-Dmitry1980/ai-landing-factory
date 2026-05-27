@@ -85,6 +85,12 @@ def get_semantic_engine() -> SemanticGenerationEngine:
     )
 
 
+def get_team_review_service():
+    from app.services.team_review.team_review_service import TeamReviewService
+
+    return TeamReviewService(get_contract_repository())
+
+
 def get_unified_generator():
     from app.services.generation.unified_generator import UnifiedGenerationService
 

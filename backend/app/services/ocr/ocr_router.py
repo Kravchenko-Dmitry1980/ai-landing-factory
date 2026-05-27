@@ -9,8 +9,6 @@ from app.config import settings
 from app.schemas.extraction import FileExtraction
 from app.schemas.ocr import OcrExtractionResult, OcrItem, OcrSourceType
 from app.services.evidence.people_extractor import extract_people_from_text
-from app.services.ocr.engines.paddleocr_engine import PaddleOcrEngine
-from app.services.ocr.engines.tesseract_engine import TesseractOcrEngine
 from app.services.ocr.ocr_cache import get_cached_item, store_cached_item
 from app.services.ocr.ocr_contracts import OcrDecisionAction
 from app.services.ocr.ocr_decision import should_ocr_source
@@ -25,19 +23,9 @@ ENGINE_UNAVAILABLE_WARNING = "OCR engine unavailable."
 
 
 def _select_engine():
-    primary_name = settings.ocr_engine.lower()
-    fallback_name = settings.ocr_fallback_engine.lower()
-    engines = {
-        "paddleocr": PaddleOcrEngine(),
-        "tesseract": TesseractOcrEngine(),
-    }
-    primary = engines.get(primary_name, PaddleOcrEngine())
-    fallback = engines.get(fallback_name, TesseractOcrEngine())
-    if primary.is_available():
-        return primary
-    if fallback.is_available():
-        return fallback
-    return None
+    from app.services.ocr.multi_ocr_router import select_configured_engine
+
+    return select_configured_engine()
 
 
 def run_ocr_for_source(
@@ -121,7 +109,19 @@ def run_ocr_for_source(
 
     texts = [item.text for item in items if item.text.strip()]
     full_text = merge_ocr_blocks(texts)
-    people = extract_people_from_text(full_text, source_ref=source.filename, in_team_section=True)
+    from app.services.evidence.ocr_team_extractor import extract_team_from_ocr_text
+
+    ocr_team = extract_team_from_ocr_text(full_text, source_trace=source.filename)
+    if ocr_team.team_section_detected and ocr_team.members:
+        people = ocr_team.members
+        if ocr_team.warnings:
+            warnings.extend(ocr_team.warnings)
+        if ocr_team.rejected:
+            warnings.append(
+                f"OCR team extraction rejected {len(ocr_team.rejected)} possible person line(s)."
+            )
+    else:
+        people = extract_people_from_text(full_text, source_ref=source.filename, in_team_section=True)
     if items and not people:
         warnings.append("OCR completed but no valid team candidates found.")
     if any(t.reason == "possible_image_only_team_slide" for t in decision.targets):

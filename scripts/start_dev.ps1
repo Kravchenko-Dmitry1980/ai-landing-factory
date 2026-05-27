@@ -94,6 +94,15 @@ function Write-FrontendEnvLocal {
     Set-Content -Path $EnvLocalPath -Value $content -Encoding UTF8 -NoNewline
 }
 
+function Write-JsonFileNoBom {
+    param(
+        [string]$Path,
+        [string]$Json
+    )
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($Path, $Json, $utf8NoBom)
+}
+
 function Write-PortsJson {
     param(
         [int]$BackendPort,
@@ -118,7 +127,7 @@ function Write-PortsJson {
         updated_at          = (Get-Date).ToString("o")
     }
 
-    ($payload | ConvertTo-Json) | Set-Content -Path $PortsFile -Encoding UTF8
+    Write-JsonFileNoBom -Path $PortsFile -Json ($payload | ConvertTo-Json)
 }
 
 function Write-ProcessesJson {
@@ -137,7 +146,7 @@ function Write-ProcessesJson {
         created_at   = (Get-Date).ToString("o")
     }
 
-    ($payload | ConvertTo-Json) | Set-Content -Path $ProcessesFile -Encoding UTF8
+    Write-JsonFileNoBom -Path $ProcessesFile -Json ($payload | ConvertTo-Json)
 }
 
 function Test-ProcessStarted {

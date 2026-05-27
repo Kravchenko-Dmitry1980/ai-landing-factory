@@ -32,6 +32,7 @@ import { ContractQualityPanel } from "@/components/editor/ContractQualityPanel";
 import { ProjectSourceStatusPanel } from "@/components/editor/ProjectSourceStatusPanel";
 import { SourceStructurePanel } from "@/components/editor/SourceStructurePanel";
 import { TeamCardsPanel } from "@/components/editor/TeamCardsPanel";
+import { TeamReviewPanel } from "@/components/editor/TeamReviewPanel";
 import { DomainDebugPanel } from "@/components/domain/DomainDebugPanel";
 import { SemanticDebugPanel } from "@/components/semantic/SemanticDebugPanel";
 import { ArchitectureDebugPanel } from "@/components/architecture/ArchitectureDebugPanel";
@@ -286,6 +287,12 @@ export function LandingEditor({ projectId }: Props) {
         loading={structureLoading}
         evidenceLoading={evidenceLoading}
         parserMode={contract?.fidelity?.parser_mode}
+      />
+
+      <TeamReviewPanel
+        projectId={projectId}
+        onUpdated={load}
+        advancedDiagnostics={evidenceVisibility?.advanced_diagnostics_enabled ?? false}
       />
 
       {contract?.fidelity?.team_structured &&

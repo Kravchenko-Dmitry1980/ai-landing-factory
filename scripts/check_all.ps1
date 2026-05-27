@@ -21,9 +21,12 @@ param(
     [switch]$SkipCorpusSmoke,
     [switch]$SkipFrontendBuild,
     [switch]$SkipVisualSmoke,
+    [switch]$SkipVisualClassifierSmoke,
+    [switch]$SkipVlmContractSmoke,
     [switch]$SkipPublicExportSmoke,
     [switch]$SkipLiveMultifileSmoke,
-    [switch]$SkipOcrSmoke,
+    [switch]$RunOcrSmoke,
+    [switch]$Simple,
     [switch]$FailFast,
     [switch]$VerboseOutput
 )
@@ -337,6 +340,17 @@ if (-not (Test-Path $PythonExe)) {
 
 $script:FinalExitCode = 1
 
+if ($Simple) {
+    $SkipVisualClassifierSmoke = $true
+    $SkipVlmContractSmoke = $true
+    $SkipVisualSmoke = $true
+    $SkipLiveMultifileSmoke = $true
+    $SkipFrontendBuild = $true
+    $SkipBackendTests = $true
+    $RunOcrSmoke = $false
+    Write-Log "Mode: Simple (skip OCR/VLM/visual/live multifile/full pytest)"
+}
+
 $backendPrivacyUrl = "$BackendUrl/api/v1/projects/privacy"
 Write-Log ""
 Write-Log "=== Server availability ==="
@@ -437,9 +451,32 @@ $frontendDownMsg = "Frontend unavailable - run npm run dev on $FrontendUrl"
 Write-Log ""
 Write-Log "=== QA pipeline ==="
 
+Invoke-QACommand -Name "PS1 syntax" `
+    -WorkingDirectory $RootDir `
+    -Command @(
+        "powershell.exe",
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $RootDir "scripts\test_ps1_syntax.ps1")
+    )
+
+Invoke-QACommand -Name "Simple product smoke" `
+    -WorkingDirectory $BackendDir `
+    -Command @($PythonExe, "scripts\smoke_simple_product_mode.py") `
+    -Skip:(-not $Simple) `
+    -SkipReason "Use -Simple to run product smoke"
+
+Invoke-QACommand -Name "Product mode tests" `
+    -WorkingDirectory $BackendDir `
+    -Command @($PythonExe, "-m", "pytest", "tests\test_product_mode_simple.py", "-q") `
+    -Skip:(-not $Simple) `
+    -SkipReason "Use -Simple to run product mode tests"
+
 Invoke-QACommand -Name "PII env" `
     -WorkingDirectory $BackendDir `
-    -Command @($PythonExe, "scripts\check_pii_env.py")
+    -Command @($PythonExe, "scripts\check_pii_env.py") `
+    -Skip:$Simple `
+    -SkipReason "Simple mode"
 
 Invoke-QACommand -Name "Backend tests" `
     -WorkingDirectory $BackendDir `
@@ -460,18 +497,36 @@ Invoke-QACommand -Name "Team group blocks smoke" `
     -Skip:$SkipCorpusSmoke `
     -SkipReason "SkipCorpusSmoke"
 
-if (-not $SkipOcrSmoke) {
-    Invoke-QACommand -Name "PPTX OCR team smoke (optional)" `
+Invoke-QACommand -Name "Visual classifier smoke" `
+    -WorkingDirectory $BackendDir `
+    -Command @($PythonExe, "scripts\smoke_visual_classifier.py") `
+    -Skip:$SkipVisualClassifierSmoke `
+    -SkipReason "SkipVisualClassifierSmoke"
+
+Invoke-QACommand -Name "VLM adapter contract smoke" `
+    -WorkingDirectory $BackendDir `
+    -Command @($PythonExe, "scripts\smoke_vlm_adapter_contract.py") `
+    -Skip:$SkipVlmContractSmoke `
+    -SkipReason "SkipVlmContractSmoke"
+
+if ($RunOcrSmoke) {
+    Invoke-QACommand -Name "OCR env check" `
         -WorkingDirectory $BackendDir `
-        -Command @($PythonExe, "scripts\smoke_pptx_ocr_team.py")
+        -Command @($PythonExe, "scripts\check_ocr_env.py", "--require-ocr")
+
+    Invoke-QACommand -Name "PPTX OCR team smoke" `
+        -WorkingDirectory $BackendDir `
+        -Command @($PythonExe, "scripts\smoke_pptx_ocr_team.py", "--require-ocr")
 }
 else {
-    Write-Log "SKIP: PPTX OCR team smoke (SkipOcrSmoke)"
+    Write-Log "SKIP: OCR smoke (pass -RunOcrSmoke to enable)"
 }
 
 Invoke-QACommand -Name "Endocrinology acceptance" `
     -WorkingDirectory $BackendDir `
     -Command @($PythonExe, "scripts\smoke_endocrinology_acceptance.py", "--project-id", $ProjectId) `
+    -Skip:$Simple `
+    -SkipReason "Simple mode" `
     -RequireBackend `
     -BackendUnavailableMessage $backendDownMsg
 
@@ -484,8 +539,8 @@ Invoke-QACommand -Name "University export smoke" `
 Invoke-QACommand -Name "Export polish smoke" `
     -WorkingDirectory $BackendDir `
     -Command @($PythonExe, "scripts\smoke_public_export.py", "--project-id", $ProjectId, "--backend-url", $BackendUrl) `
-    -Skip:$SkipPublicExportSmoke `
-    -SkipReason "SkipPublicExportSmoke" `
+    -Skip:($SkipPublicExportSmoke -or $Simple) `
+    -SkipReason "SkipPublicExportSmoke or Simple" `
     -RequireBackend `
     -BackendUnavailableMessage $backendDownMsg
 
@@ -499,7 +554,9 @@ Invoke-QACommand -Name "Live multifile smoke" `
 
 Invoke-QACommand -Name "Frontend tests" `
     -WorkingDirectory $FrontendDir `
-    -Command @($NpmExe, "test")
+    -Command @($NpmExe, "test") `
+    -Skip:$Simple `
+    -SkipReason "Simple mode"
 
 Invoke-QACommand -Name "Frontend build" `
     -WorkingDirectory $FrontendDir `

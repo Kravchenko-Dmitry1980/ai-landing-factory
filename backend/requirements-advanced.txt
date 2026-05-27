@@ -1,0 +1,7 @@
+# Optional advanced stack (OCR helpers, benchmarks) — not installed by run.ps1
+-r requirements.txt
+
+Pillow>=10.0.0
+pymupdf>=1.24.0
+pytesseract>=0.3.10
+PySocks>=1.7.0

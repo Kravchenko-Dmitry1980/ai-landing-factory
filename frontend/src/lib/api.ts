@@ -16,6 +16,8 @@ import type {
   SourceStructureReport,
   ContractCompletenessReport,
   EvidenceVisibility,
+  TeamReviewData,
+  TeamReviewActionResult,
   UnifiedGenerateResponse,
   UploadResponse,
 } from "./types";
@@ -236,6 +238,38 @@ export async function getEvidenceReport(
   projectId: string,
 ): Promise<EvidenceVisibility> {
   return request<EvidenceVisibility>(`/projects/${projectId}/evidence-report`);
+}
+
+export async function getTeamReview(projectId: string): Promise<TeamReviewData> {
+  return request<TeamReviewData>(`/projects/${projectId}/team-review`);
+}
+
+export async function teamReviewBulkAction(
+  projectId: string,
+  action: "accept_all" | "keep_verified_only" | "reset_to_auto",
+): Promise<TeamReviewActionResult> {
+  return request<TeamReviewActionResult>(
+    `/projects/${projectId}/team-review/bulk-action`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    },
+  );
+}
+
+export async function teamReviewManualText(
+  projectId: string,
+  text: string,
+): Promise<TeamReviewActionResult> {
+  return request<TeamReviewActionResult>(
+    `/projects/${projectId}/team-review/manual-text`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    },
+  );
 }
 
 export async function reparseStructuredLanding(
