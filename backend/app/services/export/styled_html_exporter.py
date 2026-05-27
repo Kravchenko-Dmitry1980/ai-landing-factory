@@ -10,7 +10,12 @@ from app.schemas.fidelity import FidelityMetadata, LandingModule, TeamMember
 from app.schemas.generation import GeneratedLanding
 from app.schemas.landing_contract import LandingContract, LandingBlock
 from app.schemas.style_config import LandingStyleConfigModel
-from app.services.export.export_interactive_css import CSS_INTERACTIVE
+from app.services.export.export_interactive_css import (
+    CSS_INTERACTIVE,
+    LONG_LIST_ITEMS,
+    LONG_TEXT_CHARS,
+    SECTION_NAV_ITEMS,
+)
 from app.schemas.style_config import effective_style_config
 from app.services.export.export_theme import ExportTheme
 from app.services.export.export_theme_css import build_export_css
@@ -95,10 +100,24 @@ class StyledHtmlExporter:
             f"· v{contract.version}</p></footer>"
         )
 
+        present_ids = {
+            sid
+            for sid, html in (
+                ("modules", modules),
+                ("essence", essence),
+                ("tasks", tasks),
+                ("stack", stack),
+                ("team", team),
+                ("outlook", outlook),
+            )
+            if html
+        }
+        nav = self._section_nav(present_ids)
+
         title_fallback = contract.title or "Проект"
         title = escape(title_fallback)
         body = (
-            f"{incomplete}{hero}{modules}{essence}{tasks}{purpose}{io}"
+            f"{incomplete}{hero}{nav}{modules}{essence}{tasks}{purpose}{io}"
             f"{results}{stack}{team}{outlook}{footer}"
         )
         css = build_export_css(theme, style_config) + CSS_INTERACTIVE
@@ -110,6 +129,21 @@ class StyledHtmlExporter:
             f"<meta name='viewport' content='width=device-width, initial-scale=1'>"
             f"<title>{title}</title><style>{css}</style></head>"
             f"<body class='{body_class}'><div class='container'>{body}</div></body></html>"
+        )
+
+    @staticmethod
+    def _section_nav(present_ids: set[str]) -> str:
+        links = []
+        for section_id, label in SECTION_NAV_ITEMS:
+            if section_id in present_ids:
+                links.append(
+                    f"<a href='#{section_id}'>{escape(label)}</a>"
+                )
+        if not links:
+            return ""
+        return (
+            f"<nav class='section-nav alf-section-nav' "
+            f"aria-label='Навигация по разделам'>{''.join(links)}</nav>"
         )
 
     @staticmethod
@@ -184,7 +218,7 @@ class StyledHtmlExporter:
         cards = []
         for mod in modules:
             cards.append(
-                f"<div class='card module-card'>"
+                f"<div class='card module-card alf-card--interactive'>"
                 f"<h3>{escape(mod.name)}</h3>"
                 f"<p>{escape(mod.description[:500])}</p>"
                 f"<p style='font-size:0.75rem;margin-top:0.5rem;color:var(--muted)'>"
@@ -199,9 +233,18 @@ class StyledHtmlExporter:
     def _block_section(self, block: LandingBlock | None, section_id: str) -> str:
         if not block or not block.content.strip():
             return ""
+        content = block.content.strip()
+        if len(content) > LONG_TEXT_CHARS:
+            body = (
+                f"<details class='collapsible-section'>"
+                f"<summary>Показать полностью</summary>"
+                f"<p>{escape(content)}</p></details>"
+            )
+        else:
+            body = f"<p>{escape(content)}</p>"
         return (
             f"<section id='{section_id}'><h2>{escape(block.title)}</h2>"
-            f"<p>{escape(block.content)}</p></section>"
+            f"{body}</section>"
         )
 
     def _normalize_items(self, items: list[str]) -> list[str]:
@@ -221,11 +264,18 @@ class StyledHtmlExporter:
         items = self._normalize_items(raw_items)
         if not items:
             return ""
-        lis = "".join(f"<li>{escape(item)}</li>" for item in items)
-        return (
-            f"<section id='{section_id}'><h2>{escape(block.title or fallback_title)}</h2>"
-            f"<ul class='bullets'>{lis}</ul></section>"
-        )
+        title = escape(block.title or fallback_title)
+        if len(items) > LONG_LIST_ITEMS:
+            lis = "".join(f"<li>{escape(item)}</li>" for item in items)
+            body = (
+                f"<details class='collapsible-section'>"
+                f"<summary>Показать все ({len(items)})</summary>"
+                f"<ul class='bullets'>{lis}</ul></details>"
+            )
+        else:
+            lis = "".join(f"<li>{escape(item)}</li>" for item in items)
+            body = f"<ul class='bullets'>{lis}</ul>"
+        return f"<section id='{section_id}'><h2>{title}</h2>{body}</section>"
 
     def _io_section(self, blocks: dict[str, LandingBlock]) -> str:
         inputs = blocks.get("inputs")
@@ -307,7 +357,7 @@ class StyledHtmlExporter:
                     f"<p class='area'>{escape(m.project_area)}</p>" if m.project_area else ""
                 )
                 cards.append(
-                    f"<div class='card team-card'>"
+                    f"<div class='card team-card alf-card--interactive'>"
                     f"<h3>{escape(m.name)}</h3>"
                     f"<p class='role'>{escape(m.role)}</p>"
                     f"{area_html}{ul}</div>"

@@ -6,7 +6,7 @@ import type { SectionData } from "@/rendering/types";
 import { testRenderPlan } from "@/rendering/testPlan";
 
 const section: SectionData = {
-  id: "modules-tasks",
+  id: "modules",
   type: "modules",
   title: "Ключевые системы",
   body: "",

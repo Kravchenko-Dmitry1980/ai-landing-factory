@@ -36,6 +36,7 @@ import type {
   SectionData,
   SectionType,
 } from "./types";
+import { sectionAnchorId } from "./sectionAnchors";
 
 export type { RenderConfig } from "./types";
 
@@ -69,7 +70,7 @@ function blockToSection(block: LandingBlockContent): SectionData | null {
   const hasContent = Boolean(block.body?.trim()) || block.bullets.length > 0;
   if (!hasContent) return null;
   return {
-    id: `${type}-${block.key}`,
+    id: sectionAnchorId(block.key, `${type}-${block.key}`),
     type,
     title: block.title,
     body: block.body ?? "",
@@ -85,7 +86,7 @@ function buildHero(
   const tagline = blocks.find((b) => b.key === "tagline");
   const essence = blocks.find((b) => b.key === "essence");
   return {
-    id: "hero-main",
+    id: "hero",
     type: "hero",
     title: meta.title ?? tagline?.title ?? "Project overview",
     body:
@@ -191,15 +192,22 @@ export function buildRenderPlan(
 
   const enrichedSections = rawSections.map((section) => {
     if (section.type === "modules" && fidelity.modules.length > 0) {
-      return {
-        ...section,
-        title: "Ключевые системы",
-        meta: { ...section.meta, dataSource: fidelity.diagnostics.modulesSource },
-      };
+      const hasStructuredModules = (contract?.fidelity?.modules?.length ?? 0) > 0;
+      const isModulesBlock = section.sourceKeys.includes("modules");
+      if (hasStructuredModules || isModulesBlock) {
+        return {
+          ...section,
+          id: "modules",
+          title: "Ключевые системы",
+          meta: { ...section.meta, dataSource: fidelity.diagnostics.modulesSource },
+        };
+      }
+      return section;
     }
     if (section.type === "team" && fidelity.team.length > 0) {
       return {
         ...section,
+        id: "team",
         title: "Команда проекта",
         meta: { ...section.meta, dataSource: fidelity.diagnostics.teamSource },
       };
@@ -207,6 +215,7 @@ export function buildRenderPlan(
     if (section.type === "stack" && fidelity.diagnostics.stackCategoriesCount > 0) {
       return {
         ...section,
+        id: "stack",
         title: "Используемый технологический стек",
         meta: { ...section.meta, dataSource: fidelity.diagnostics.stackSource },
       };

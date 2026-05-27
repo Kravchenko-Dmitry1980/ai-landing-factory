@@ -45,11 +45,12 @@ describe("TeamSection fidelity", () => {
     expect(html).toContain("Backend Lead");
   });
 
-  it("limits contributions and shows expand hint", () => {
+  it("collapses long contributions in details", () => {
     const html = renderToStaticMarkup(
       <TeamSection section={section} index={0} plan={planWithTeam()} />,
     );
-    expect(html).toContain("+ ещё 2 пункта");
-    expect(html).toContain("Показать больше");
+    expect(html).toContain("Вклад участника");
+    expect(html).toContain("<details");
+    expect(html).toContain("Contribution 6");
   });
 });

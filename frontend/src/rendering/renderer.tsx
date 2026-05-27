@@ -11,6 +11,7 @@ import { createSectionTree } from "./section_factory";
 import type { RenderPlan } from "./types";
 import { DevRenderPanel } from "@/components/dev/DevRenderPanel";
 import { FidelityDebugPanel } from "@/components/fidelity/FidelityDebugPanel";
+import { SectionAnchorNav } from "@/components/preview/SectionAnchorNav";
 
 interface Props {
   landing: GeneratedLanding;
@@ -71,31 +72,59 @@ export function InteractiveRenderer({
       data-hero-mode={plan.normalizedTokens.heroMode}
     >
       <style>{`
-        .alf-interactive .alf-card-lift {
-          transition: transform var(--alf-motion-duration, 0.25s) ease,
-            box-shadow var(--alf-motion-duration, 0.25s) ease;
+        @media (prefers-reduced-motion: reduce) {
+          .alf-interactive .alf-card-lift,
+          .alf-interactive .alf-card--interactive,
+          .alf-interactive .alf-stack-tag {
+            transition: none !important;
+          }
+          .alf-interactive .alf-card-lift:hover,
+          .alf-interactive .alf-card--interactive:hover {
+            transform: none !important;
+            box-shadow: none !important;
+          }
+          .alf-hero--future-3d .alf-hero-inner::before,
+          .alf-hero--future-3d .alf-hero-inner::after {
+            transform: none !important;
+          }
         }
-        .alf-interactive .alf-card-lift:hover {
-          transform: translateY(-4px);
+        .alf-interactive .alf-card-lift,
+        .alf-interactive .alf-card--interactive {
+          transition: transform var(--alf-motion-duration, 0.25s) ease,
+            box-shadow var(--alf-motion-duration, 0.25s) ease,
+            border-color var(--alf-motion-duration, 0.25s) ease;
+        }
+        .alf-interactive .alf-card-lift:hover,
+        .alf-interactive .alf-card--interactive:hover {
+          transform: var(--alf-card-transform, translateY(-4px));
           box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
         }
-        .alf-cards--flat .alf-card-lift {
+        .alf-cards--flat .alf-card-lift,
+        .alf-cards--flat .alf-card--interactive {
           box-shadow: none;
           border-color: var(--alf-border);
         }
-        .alf-cards--flat .alf-card-lift:hover {
+        .alf-cards--flat .alf-card-lift:hover,
+        .alf-cards--flat .alf-card--interactive:hover {
           transform: none;
           box-shadow: none;
         }
-        .alf-cards--outlined .alf-card-lift {
+        .alf-cards--outlined .alf-card-lift,
+        .alf-cards--outlined .alf-card--interactive {
           border-width: 2px;
           box-shadow: none;
         }
-        .alf-cards--glass .alf-card-lift {
+        .alf-cards--glass .alf-card-lift,
+        .alf-cards--glass .alf-card--interactive {
           background: color-mix(in srgb, var(--alf-surface) 85%, transparent);
           backdrop-filter: blur(8px);
         }
-        .alf-cards--soft .alf-card-lift {
+        .alf-cards--glass .alf-card-lift:hover,
+        .alf-cards--glass .alf-card--interactive:hover {
+          box-shadow: 0 16px 32px rgba(15, 23, 42, 0.25);
+        }
+        .alf-cards--soft .alf-card-lift,
+        .alf-cards--soft .alf-card--interactive {
           box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
         }
         .alf-interactive .alf-stack-tag {
@@ -103,6 +132,15 @@ export function InteractiveRenderer({
         }
         .alf-interactive .alf-stack-tag:hover {
           background: var(--alf-accent-muted);
+        }
+        .alf-collapsible summary {
+          cursor: pointer;
+          color: var(--alf-accent);
+          font-weight: 500;
+          list-style: none;
+        }
+        .alf-collapsible summary::-webkit-details-marker {
+          display: none;
         }
         .alf-hero--gradient header,
         .alf-hero--gradient .alf-hero-inner {
@@ -125,11 +163,36 @@ export function InteractiveRenderer({
           position: absolute;
           inset: -12% -8% auto;
           height: 70%;
-          background: linear-gradient(120deg, var(--alf-accent-muted), transparent 70%);
+          background: var(--alf-hero-gradient);
           transform: perspective(800px) rotateX(8deg);
           opacity: 0.85;
           z-index: -1;
           border-radius: var(--alf-radius, 8px);
+        }
+        .alf-hero--future-3d .alf-hero-inner::after {
+          content: "";
+          position: absolute;
+          inset: 14% 10% auto;
+          height: 38%;
+          background: radial-gradient(ellipse at center, var(--alf-accent-muted), transparent 72%);
+          transform: perspective(600px) rotateX(-4deg) translateZ(-20px);
+          opacity: 0.45;
+          z-index: -2;
+          border-radius: var(--alf-radius, 8px);
+          pointer-events: none;
+        }
+        .alf-motion--none .alf-card-lift,
+        .alf-motion--none .alf-card--interactive,
+        .alf-motion--none .alf-stack-tag {
+          transition: none !important;
+        }
+        .alf-motion--none .alf-card-lift:hover,
+        .alf-motion--none .alf-card--interactive:hover {
+          transform: none !important;
+          box-shadow: none !important;
+        }
+        .alf-interactive[data-profile="bold"] .alf-card--interactive {
+          border-left: 4px solid var(--alf-accent);
         }
         /* future 3D hook — replace with WebGL/Three when enabled */
       `}</style>
@@ -138,6 +201,7 @@ export function InteractiveRenderer({
           <FidelityDebugPanel diagnostics={plan.fidelityDiagnostics} />
         </div>
       )}
+      <SectionAnchorNav plan={plan} />
       <article className="pb-16 print:shadow-none">{sections}</article>
       {showDevPanel && (
         <DevRenderPanel

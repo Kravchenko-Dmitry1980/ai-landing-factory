@@ -41,7 +41,7 @@ export function ModulesSection({ section, plan, index }: SectionRenderProps) {
         {modules.map((mod) => (
           <article
             key={mod.name}
-            className={`alf-card-lift ${cardPad} rounded-lg border border-[var(--alf-border)] bg-[var(--alf-surface)] ${
+            className={`alf-card-lift alf-card--interactive ${cardPad} rounded-lg border border-[var(--alf-border)] bg-[var(--alf-surface)] ${
               isUniversity ? "shadow-none" : ""
             }`}
             style={{ borderRadius: "var(--alf-radius, 0.5rem)" }}
