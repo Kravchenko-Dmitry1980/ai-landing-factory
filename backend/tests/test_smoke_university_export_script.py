@@ -30,31 +30,33 @@ def test_script_file_exists() -> None:
     assert SCRIPT_PATH.is_file()
 
 
-def test_validate_passes_university_sample(smoke_mod) -> None:
+def test_validate_offline_passes_university_sample(smoke_mod) -> None:
     html = """
-    <!DOCTYPE html><html lang="ru"><head><title>Эндокринология+</title><style>
+    <!DOCTYPE html><html lang="ru"><head><title>Fixture</title><style>
     :root {
-      --bg: #ffffff;
-      --text: #111111;
-      --accent: #7C3AED;
+      --alf-bg: #ffffff;
+      --alf-text: #111111;
+      --alf-accent: #7C3AED;
+      --bg: var(--alf-bg);
     }
     body { background: #ffffff; color: #111111; }
     .container { max-width: 1200px; margin: 0 auto; }
     section h2 { border-bottom: 1px solid #e5e7eb; }
-    </style></head><body>
-    <h1>Эндокринология+</h1>
+    </style></head><body class='theme-university_platform'>
+    <nav class='alf-section-nav'><a href='#team'>Команда</a></nav>
     <section><h2>Ключевые системы</h2>
-      <div>GlaucoLogic</div><div>Copilot врача</div><div>VitaCalc</div>
+      <div class="module-card">Module</div>
     </section>
     <section><h2>Используемый технологический стек</h2>
       <span class="stack-tag">Python</span>
     </section>
+    <section id='essence'><details class='collapsible-section'><summary>More</summary></details></section>
     <section><h2>Команда проекта</h2>
       <div class="team-card">Member</div>
     </section>
     </body></html>
     """
-    results = smoke_mod.validate_university_export_html(html)
+    results = smoke_mod.validate_offline_university_export(html, expect_collapsible=True)
     failed = [r for r in results if not r.ok]
     assert not failed, [r.label for r in failed]
 
@@ -71,22 +73,21 @@ def test_validate_fails_dark_enterprise_sample(smoke_mod) -> None:
     .tagline { max-width: 720px; }
     .container { max-width: 1200px; }
     </style></head><body>
-    <h1>Эндокринология+</h1>
-    GlaucoLogic Copilot врача VitaCalc
+    <h1>Fixture</h1>
     Используемый технологический стек
     Команда проекта
     <span class="stack-tag">x</span><div class="team-card">y</div>
     </body></html>
     """
-    results = smoke_mod.validate_university_export_html(html)
+    results = smoke_mod.validate_offline_university_export(html, expect_collapsible=False)
     failed_labels = [r.label for r in results if not r.ok]
     assert any("dark" in label.lower() or "720px" in label or "Project Landing" in label for label in failed_labels)
     assert not all(r.ok for r in results)
 
 
-def test_check_required_content_missing_token(smoke_mod) -> None:
+def test_check_live_endo_markers_missing_token(smoke_mod) -> None:
     html = "<html><body><h1>Test</h1></body></html>"
-    results = smoke_mod.check_required_content(html)
+    results = smoke_mod.validate_live_endo_export(html)
     assert all(not r.ok for r in results)
     assert any("GlaucoLogic" in r.label for r in results)
 

@@ -40,6 +40,26 @@ foreach ($path in $scripts) {
     }
 }
 
+$checkAllPath = Join-Path $RootDir "scripts\check_all.ps1"
+if (Test-Path $checkAllPath) {
+    $checkAllText = Get-Content -Path $checkAllPath -Raw -Encoding UTF8
+    $contractChecks = @(
+        @{ Name = "check_all defines -Simple switch"; Pattern = '\[switch\]\$Simple' },
+        @{ Name = "Simple skips OCR smoke by default"; Pattern = '\$RunOcrSmoke = \$false' },
+        @{ Name = "Simple skips VLM contract smoke"; Pattern = '\$SkipVlmContractSmoke = \$true' },
+        @{ Name = "University export uses offline smoke"; Pattern = 'scripts\\smoke_university_export\.py", "--offline"' }
+    )
+    foreach ($check in $contractChecks) {
+        if ($checkAllText -match $check.Pattern) {
+            Write-Host ("OK: {0}" -f $check.Name)
+        }
+        else {
+            Write-Host ("FAIL: {0}" -f $check.Name)
+            $failed++
+        }
+    }
+}
+
 if ($failed -gt 0) {
     exit 1
 }

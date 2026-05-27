@@ -543,9 +543,7 @@ Invoke-QACommand -Name "Endocrinology acceptance" `
 
 Invoke-QACommand -Name "University export smoke" `
     -WorkingDirectory $BackendDir `
-    -Command @($PythonExe, "scripts\smoke_university_export.py", "--project-id", $ProjectId, "--backend-url", $BackendUrl) `
-    -RequireBackend `
-    -BackendUnavailableMessage $backendDownMsg
+    -Command @($PythonExe, "scripts\smoke_university_export.py", "--offline")
 
 Invoke-QACommand -Name "Export polish smoke" `
     -WorkingDirectory $BackendDir `
