@@ -62,6 +62,31 @@ if (Test-Path $checkAllPath) {
     }
 }
 
+$runPs1Path = Join-Path $RootDir "run.ps1"
+if (Test-Path $runPs1Path) {
+    $runPs1Text = Get-Content -Path $runPs1Path -Raw -Encoding UTF8
+    $runChecks = @(
+        @{ Name = "run.ps1 defines Clear-ProxyEnv"; Pattern = 'function Clear-ProxyEnv' },
+        @{ Name = "run.ps1 defines Invoke-PipSafe"; Pattern = 'function Invoke-PipSafe' },
+        @{ Name = "run.ps1 pip uses --no-cache-dir"; Pattern = '--no-cache-dir' },
+        @{ Name = "run.ps1 pip uses pypi index"; Pattern = 'https://pypi\.org/simple' },
+        @{ Name = "run.ps1 avoids --proxy empty string"; Pattern = '--proxy ""'; ShouldNotMatch = $true },
+        @{ Name = "run.ps1 avoids --isolated"; Pattern = '--isolated'; ShouldNotMatch = $true }
+    )
+    foreach ($check in $runChecks) {
+        $matched = $runPs1Text -match $check.Pattern
+        $invert = $check.ContainsKey("ShouldNotMatch") -and $check.ShouldNotMatch
+        $ok = if ($invert) { -not $matched } else { $matched }
+        if ($ok) {
+            Write-Host ("OK: {0}" -f $check.Name)
+        }
+        else {
+            Write-Host ("FAIL: {0}" -f $check.Name)
+            $failed++
+        }
+    }
+}
+
 if ($failed -gt 0) {
     exit 1
 }

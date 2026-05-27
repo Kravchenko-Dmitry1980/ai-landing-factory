@@ -29,6 +29,39 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function Clear-ProxyEnv {
+    $env:NO_PROXY = "*"
+    $env:no_proxy = "*"
+    $env:PIP_NO_PROXY = "*"
+
+    Remove-Item Env:HTTP_PROXY -ErrorAction SilentlyContinue
+    Remove-Item Env:HTTPS_PROXY -ErrorAction SilentlyContinue
+    Remove-Item Env:ALL_PROXY -ErrorAction SilentlyContinue
+    Remove-Item Env:http_proxy -ErrorAction SilentlyContinue
+    Remove-Item Env:https_proxy -ErrorAction SilentlyContinue
+    Remove-Item Env:all_proxy -ErrorAction SilentlyContinue
+}
+
+function Invoke-PipSafe {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]] $PipArgs
+    )
+
+    Clear-ProxyEnv
+
+    & $PythonExe -m pip @PipArgs
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "pip command failed." -ForegroundColor Red
+        Write-Host "Possible cause: Windows system proxy/SOCKS settings." -ForegroundColor Yellow
+        Write-Host "run.ps1 clears proxy env, but pip may still see system proxy." -ForegroundColor Yellow
+        Write-Host "Try disabling system proxy/VPN temporarily or run:" -ForegroundColor Yellow
+        Write-Host '$env:NO_PROXY="*"; $env:PIP_NO_PROXY="*"' -ForegroundColor Yellow
+        exit $LASTEXITCODE
+    }
+}
+
 function Write-Info([string]$Message) {
     Write-Host $Message
 }
@@ -56,12 +89,13 @@ if ($Help) {
     exit 0
 }
 
+Clear-ProxyEnv
+
 $RootDir = $PSScriptRoot
 $BackendDir = Join-Path $RootDir "backend"
 $FrontendDir = Join-Path $RootDir "frontend"
 $VenvDir = Join-Path $RootDir ".venv"
 $PythonExe = Join-Path $VenvDir "Scripts\python.exe"
-$PipExe = Join-Path $VenvDir "Scripts\pip.exe"
 $EnvPath = Join-Path $BackendDir ".env"
 $EnvExample = Join-Path $BackendDir ".env.example"
 $StartDev = Join-Path $RootDir "scripts\start_dev.ps1"
@@ -115,6 +149,8 @@ if ($Clean) {
     Write-Info ""
 }
 
+Clear-ProxyEnv
+
 if (-not (Test-Path $VenvDir)) {
     Write-Info "Creating virtual environment..."
     if ($pyCmd.Name -eq "py") {
@@ -131,25 +167,21 @@ if (-not (Test-Path $PythonExe)) {
 }
 
 if (-not $SkipInstall) {
-    # Avoid broken SOCKS proxy autodetection on fresh Windows venvs (pip 24.x).
-    $env:HTTP_PROXY = $null
-    $env:HTTPS_PROXY = $null
-    $env:ALL_PROXY = $null
-    $env:PIP_PROXY = $null
+    Write-Info "Checking Python proxy settings..."
+    $proxyOutput = & $PythonExe -c "import os, urllib.request; os.environ['NO_PROXY']='*'; print(urllib.request.getproxies())" 2>&1
+    Write-Info $proxyOutput
+    if ($proxyOutput -match 'socks|http|https') {
+        Write-Host "Warning: Python reports system proxy settings (SOCKS/HTTP)." -ForegroundColor Yellow
+        Write-Host "Continuing with cleared env vars and direct PyPI index." -ForegroundColor Yellow
+    }
 
+    Clear-ProxyEnv
     Write-Info "Upgrading pip..."
-    & $PythonExe -m pip install --upgrade pip
-    if ($LASTEXITCODE -ne 0) {
-        Write-Err "pip upgrade failed."
-        exit 1
-    }
+    Invoke-PipSafe @("install", "--upgrade", "pip", "--no-cache-dir", "-i", "https://pypi.org/simple")
 
+    Clear-ProxyEnv
     Write-Info "Installing backend requirements..."
-    & $PipExe install -r (Join-Path $BackendDir "requirements.txt")
-    if ($LASTEXITCODE -ne 0) {
-        Write-Err "pip install failed."
-        exit 1
-    }
+    Invoke-PipSafe @("install", "-r", "backend\requirements.txt", "--no-cache-dir", "-i", "https://pypi.org/simple")
 
     $nodeModules = Join-Path $FrontendDir "node_modules"
     if (-not (Test-Path $nodeModules)) {
@@ -210,6 +242,8 @@ if ($appended.Count -gt 0) {
     Add-Content -Path $EnvPath -Value ($block -join "`n") -Encoding UTF8
     Write-Info "Appended product mode defaults to backend\.env"
 }
+
+Clear-ProxyEnv
 
 Write-Info ""
 Write-Info "Starting dev servers..."
