@@ -128,6 +128,7 @@ async def update_contract(
         client=body.client,
         goals=body.goals,
         presentation_style=body.presentation_style,
+        style_config=body.style_config,
     )
     if not updated:
         raise HTTPException(404, "LandingContract not found")

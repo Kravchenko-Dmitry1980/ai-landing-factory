@@ -17,6 +17,12 @@ import {
   regenerateLanding,
   updateContract,
 } from "@/lib/api";
+import {
+  DEFAULT_STYLE_CONFIG,
+  parseStyleConfigFromContract,
+  profileToStyleProfileId as mapProfileToRender,
+  styleConfigToPresentationStyle,
+} from "@/lib/styleConfig";
 import type {
   ContractCompletenessReport,
   EnrichmentMetadata,
@@ -24,6 +30,7 @@ import type {
   GeneratedSemanticLanding,
   LandingBlock,
   LandingContract,
+  LandingStyleConfig,
   LandingStylePreset,
   EvidenceVisibility,
   SourceStructureReport,
@@ -33,6 +40,7 @@ import { ProjectSourceStatusPanel } from "@/components/editor/ProjectSourceStatu
 import { SourceStructurePanel } from "@/components/editor/SourceStructurePanel";
 import { TeamCardsPanel } from "@/components/editor/TeamCardsPanel";
 import { TeamReviewPanel } from "@/components/editor/TeamReviewPanel";
+import { VisualStylePanel } from "@/components/editor/VisualStylePanel";
 import { DomainDebugPanel } from "@/components/domain/DomainDebugPanel";
 import { SemanticDebugPanel } from "@/components/semantic/SemanticDebugPanel";
 import { ArchitectureDebugPanel } from "@/components/architecture/ArchitectureDebugPanel";
@@ -43,16 +51,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-const STYLES: { value: LandingStylePreset; label: string }[] = [
-  { value: "minimal", label: "Minimal" },
-  { value: "corporate", label: "Corporate" },
-  { value: "tech", label: "Tech" },
-  { value: "bold", label: "Bold" },
-];
-
-const PRESENTATION_PROFILES: { value: string; label: string }[] = [
-  { value: "", label: "Auto (по стилю ленда)" },
-  { value: "university_platform", label: "University / Платформа УИИ" },
+const LEGACY_STYLES: { value: LandingStylePreset; label: string }[] = [
+  { value: "minimal", label: "Minimal (контракт)" },
+  { value: "corporate", label: "Corporate (контракт)" },
+  { value: "tech", label: "Tech (контракт)" },
+  { value: "bold", label: "Bold (контракт)" },
 ];
 
 interface Props {
@@ -63,8 +66,10 @@ export function LandingEditor({ projectId }: Props) {
   const router = useRouter();
   const [contract, setContract] = useState<LandingContract | null>(null);
   const [blocks, setBlocks] = useState<LandingBlock[]>([]);
-  const [style, setStyle] = useState<LandingStylePreset>("minimal");
-  const [presentationStyle, setPresentationStyle] = useState<string>("");
+  const [style, setStyle] = useState<LandingStylePreset>("corporate");
+  const [styleConfig, setStyleConfig] = useState<LandingStyleConfig>(
+    DEFAULT_STYLE_CONFIG,
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [enriching, setEnriching] = useState(false);
@@ -83,6 +88,8 @@ export function LandingEditor({ projectId }: Props) {
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [reparsing, setReparsing] = useState(false);
 
+  const previewProfileId = mapProfileToRender(styleConfig.profile);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -91,10 +98,8 @@ export function LandingEditor({ projectId }: Props) {
       setContract(data);
       setBlocks(data.blocks);
       setStyle(data.style);
-      setPresentationStyle(
-        data.presentation_style && !data.presentation_style.startsWith("layout:")
-          ? data.presentation_style
-          : "",
+      setStyleConfig(
+        parseStyleConfigFromContract(data.style_config, data.presentation_style),
       );
       setEnrichmentInfo(data.enrichment ?? null);
       setEvidenceLoading(true);
@@ -136,6 +141,28 @@ export function LandingEditor({ projectId }: Props) {
     );
   }
 
+  async function persistStyleConfig(config: LandingStyleConfig) {
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await updateContract(projectId, {
+        blocks,
+        style,
+        presentation_style: styleConfigToPresentationStyle(config),
+        style_config: config,
+      });
+      setContract(updated);
+      setStyleConfig(
+        parseStyleConfigFromContract(updated.style_config, updated.presentation_style),
+      );
+      await regenerateLanding(projectId);
+    } catch (err) {
+      setError(formatApiError(err, "Ошибка сохранения стиля"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleGenerateLanding() {
     setGenerating(true);
     setError(null);
@@ -145,7 +172,7 @@ export function LandingEditor({ projectId }: Props) {
       setSemanticInfo(result.semantic);
       setSemanticMessage(result.message);
       setContract(await getContract(projectId));
-      router.push(buildPreviewHref(projectId, presentationStyle || undefined));
+      router.push(buildPreviewHref(projectId, previewProfileId));
     } catch (err) {
       setError(formatApiError(err, "Не удалось сформировать ленд"));
     } finally {
@@ -212,7 +239,8 @@ export function LandingEditor({ projectId }: Props) {
       const updated = await updateContract(projectId, {
         blocks,
         style,
-        presentation_style: presentationStyle || null,
+        presentation_style: styleConfigToPresentationStyle(styleConfig),
+        style_config: styleConfig,
       });
       setContract(updated);
       await regenerateLanding(projectId);
@@ -235,6 +263,9 @@ export function LandingEditor({ projectId }: Props) {
             <span>
               Проект {projectId.slice(0, 8)}… · v{contract?.version ?? 1}
             </span>
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs text-primary">
+              Стиль: {styleConfig.profile === "university_platform" ? "University / УИИ" : styleConfig.profile}
+            </span>
             <PiiBadge
               hasPii={enrichmentInfo?.pii_detected ?? false}
               count={enrichmentInfo?.pii_redaction_count}
@@ -245,7 +276,7 @@ export function LandingEditor({ projectId }: Props) {
           <Button onClick={handleGenerateLanding} disabled={generating}>
             {generating ? "Формирование…" : "Сформировать ленд"}
           </Button>
-          <Link href={buildPreviewHref(projectId, presentationStyle || undefined)}>
+          <Link href={buildPreviewHref(projectId, previewProfileId)}>
             <Button variant="outline" type="button">
               Preview
             </Button>
@@ -267,6 +298,12 @@ export function LandingEditor({ projectId }: Props) {
       </div>
 
       <PiiDashboard projectId={projectId} />
+
+      <VisualStylePanel
+        value={styleConfig}
+        onChange={setStyleConfig}
+        onApply={persistStyleConfig}
+      />
 
       <ContractQualityPanel
         fidelity={contract?.fidelity}
@@ -368,37 +405,20 @@ export function LandingEditor({ projectId }: Props) {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Стиль</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {STYLES.map((s) => (
-              <button
-                key={s.value}
-                type="button"
-                onClick={() => setStyle(s.value)}
-                className={`rounded-md border px-3 py-1.5 text-sm ${
-                  style === s.value
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-input hover:bg-muted"
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-          <div>
-            <p className="mb-2 text-sm text-muted-foreground">Preview / export profile</p>
+      {showAdvanced && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Стиль контракта (legacy)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-2">
-              {PRESENTATION_PROFILES.map((s) => (
+              {LEGACY_STYLES.map((s) => (
                 <button
-                  key={s.value || "auto"}
+                  key={s.value}
                   type="button"
-                  onClick={() => setPresentationStyle(s.value)}
+                  onClick={() => setStyle(s.value)}
                   className={`rounded-md border px-3 py-1.5 text-sm ${
-                    presentationStyle === s.value
+                    style === s.value
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-input hover:bg-muted"
                   }`}
@@ -407,9 +427,9 @@ export function LandingEditor({ projectId }: Props) {
                 </button>
               ))}
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

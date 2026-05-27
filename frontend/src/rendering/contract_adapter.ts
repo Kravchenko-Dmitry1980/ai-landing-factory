@@ -6,14 +6,23 @@ import {
   type LayoutPresetId,
 } from "@/design/layout_presets";
 import { runHallmarkQualityGate, runArchitectureHallmarkGate } from "@/design/hallmark_rules";
-import { getStyleProfile, legacyStyleToProfile, STYLE_PROFILES } from "@/design/style_profiles";
+import { applyThemeTokenOverrides } from "@/design/applyThemeTokens";
+import { getStyleProfile, STYLE_PROFILES } from "@/design/style_profiles";
 import type { StyleProfileId } from "@/design/style_profiles";
+import {
+  DEFAULT_STYLE_CONFIG,
+  parseStyleConfigFromContract,
+  profileToStyleProfileId,
+  resolveThemeTokens,
+  styleConfigToExportTheme,
+} from "@/lib/styleConfig";
 import { buildFidelityData } from "./fidelity_resolver";
 import type {
   GeneratedLanding,
   GeneratedSemanticLanding,
   LandingBlockContent,
   LandingContract,
+  LandingStyleConfig,
 } from "@/lib/types";
 import type {
   RenderConfig,
@@ -146,6 +155,9 @@ export function buildRenderPlan(
 ): RenderPlan {
   const profileId = config.profileId;
   const layoutId = config.layoutId;
+  const styleConfig = config.styleConfig ?? DEFAULT_STYLE_CONFIG;
+  const themeTokens = resolveThemeTokens(styleConfig);
+  const cssVars = applyThemeTokenOverrides(profileId, themeTokens);
   const profile = getStyleProfile(profileId);
   const layout = getLayoutPreset(layoutId);
 
@@ -200,6 +212,8 @@ export function buildRenderPlan(
     layout,
     profileId,
     layoutId,
+    themeTokens,
+    cssVars,
     sections: ordered,
     architecture: semantic?.architecture ?? null,
     modules: fidelity.modules,
@@ -220,17 +234,25 @@ export function defaultRenderConfig(
   landing: GeneratedLanding,
   contract: LandingContract | null,
 ): RenderConfig {
-  const profileId = legacyStyleToProfile(
-    landing.style,
+  const styleConfig = parseStyleConfigFromContract(
+    contract?.style_config,
     contract?.presentation_style,
   );
+  const profileId = profileToStyleProfileId(styleConfig.profile);
   let layoutId: LayoutPresetId = DEFAULT_LAYOUT_PRESET;
   const ps = contract?.presentation_style ?? "";
   if (ps.startsWith("layout:")) {
     const id = ps.replace("layout:", "") as LayoutPresetId;
     if (id in LAYOUT_PRESETS) layoutId = id;
   }
-  return { profileId, layoutId };
+  if (!contract?.style_config && !contract?.presentation_style) {
+    return {
+      profileId: "university_platform",
+      layoutId,
+      styleConfig: DEFAULT_STYLE_CONFIG,
+    };
+  }
+  return { profileId, layoutId, styleConfig };
 }
 
 export const RENDER_CONFIG_STORAGE_KEY = "alf_render_config";
@@ -249,6 +271,7 @@ export function loadRenderConfig(
     return {
       profileId: parsed.profileId ?? base.profileId,
       layoutId: parsed.layoutId ?? base.layoutId,
+      styleConfig: parsed.styleConfig ?? base.styleConfig,
       showDevPanel: parsed.showDevPanel ?? false,
     };
   } catch {
@@ -305,7 +328,7 @@ export function resolveActiveProfileId(
   if (landing) {
     return defaultRenderConfig(landing, contract ?? null).profileId;
   }
-  return "enterprise";
+  return "university_platform";
 }
 
 /** Backend export theme query for the active preview profile. */
@@ -314,14 +337,40 @@ export function resolveExportTheme(
   contract: LandingContract | null | undefined,
   urlStyle?: string | null,
   landing?: GeneratedLanding | null,
-): string | undefined {
+): string {
+  if (renderConfig?.styleConfig) {
+    return styleConfigToExportTheme(renderConfig.styleConfig);
+  }
+  const fromContract = parseStyleConfigFromContract(
+    contract?.style_config,
+    contract?.presentation_style,
+  );
+  if (contract?.style_config || contract?.presentation_style) {
+    return styleConfigToExportTheme(fromContract);
+  }
   const profileId = resolveActiveProfileId(
     renderConfig,
     contract,
     urlStyle,
     landing,
   );
-  return profileId === "university_platform" ? "university_platform" : undefined;
+  if (profileId === "university_platform") {
+    return "university_platform";
+  }
+  return "enterprise_dark";
+}
+
+export function resolveExportStyleConfig(
+  renderConfig: RenderConfig | null | undefined,
+  contract: LandingContract | null | undefined,
+): LandingStyleConfig {
+  if (renderConfig?.styleConfig) {
+    return renderConfig.styleConfig;
+  }
+  return parseStyleConfigFromContract(
+    contract?.style_config,
+    contract?.presentation_style,
+  );
 }
 
 export function buildPreviewHref(

@@ -1,5 +1,30 @@
 export type LandingStylePreset = "minimal" | "corporate" | "tech" | "bold";
 
+export type LandingStyleProfile =
+  | "university_platform"
+  | "minimal"
+  | "corporate"
+  | "tech"
+  | "bold"
+  | "custom";
+
+export interface LandingThemeTokens {
+  color_scheme?: "light" | "dark" | "auto";
+  accent?: "blue" | "violet" | "green";
+  background?: string;
+  surface?: string;
+  radius?: "sharp" | "soft" | "rounded";
+  density?: "compact" | "normal" | "spacious";
+  motion?: "none" | "subtle" | "expressive";
+  hero_mode?: "classic" | "gradient" | "cards" | "future_3d";
+}
+
+export interface LandingStyleConfig {
+  profile: LandingStyleProfile;
+  custom_style_prompt?: string;
+  theme_tokens?: LandingThemeTokens;
+}
+
 export interface LandingBlock {
   key: string;
   title: string;
@@ -324,6 +349,7 @@ export interface LandingContract {
   quote?: string | null;
   goals: string[];
   presentation_style: string | null;
+  style_config?: LandingStyleConfig | null;
   visual_assets: string[];
   blocks: LandingBlock[];
   enrichment?: EnrichmentMetadata | null;

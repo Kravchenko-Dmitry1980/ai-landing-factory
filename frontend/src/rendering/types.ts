@@ -1,7 +1,14 @@
+import type { ExtendedThemeVars } from "@/design/applyThemeTokens";
 import type { LayoutPreset, LayoutPresetId } from "@/design/layout_presets";
 import type { StyleProfile, StyleProfileId } from "@/design/style_profiles";
 import type { HallmarkViolation } from "@/design/hallmark_rules";
-import type { ArchitectureTopology, LandingModule, TeamMember } from "@/lib/types";
+import type {
+  ArchitectureTopology,
+  LandingModule,
+  LandingStyleConfig,
+  TeamMember,
+} from "@/lib/types";
+import type { ThemeTokens } from "@/lib/styleIntent";
 
 export type FidelityDataSource = "fidelity" | "semantic" | "blocks" | "fallback";
 
@@ -51,6 +58,8 @@ export interface RenderPlan {
   layout: LayoutPreset;
   profileId: StyleProfileId;
   layoutId: LayoutPresetId;
+  themeTokens: ThemeTokens;
+  cssVars: ExtendedThemeVars;
   sections: SectionData[];
   architecture?: ArchitectureTopology | null;
   modules: LandingModule[];
@@ -70,5 +79,6 @@ export interface SectionRenderProps {
 export interface RenderConfig {
   profileId: StyleProfileId;
   layoutId: LayoutPresetId;
+  styleConfig?: LandingStyleConfig;
   showDevPanel?: boolean;
 }

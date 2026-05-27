@@ -100,10 +100,15 @@ async def get_landing(project_id: UUID) -> GeneratedLanding:
 async def export_html(
     project_id: UUID,
     theme: str | None = None,
+    style_config: str | None = None,
 ) -> dict[str, str]:
+    from app.schemas.style_config import parse_style_config_query
+
     export_theme = ExportTheme.from_query(theme)
+    parsed_style = parse_style_config_query(style_config)
     html = await StyledHtmlExporter(get_contract_repository()).to_html(
         project_id,
         theme=export_theme,
+        style_config=parsed_style,
     )
     return {"html": html}

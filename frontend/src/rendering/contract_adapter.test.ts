@@ -54,9 +54,9 @@ describe("buildRenderPlan", () => {
     expect(types.indexOf("architecture")).toBeLessThan(types.indexOf("footer"));
   });
 
-  it("maps corporate style to enterprise profile", () => {
+  it("defaults to university_platform when no style saved", () => {
     const cfg = defaultRenderConfig(landing, contract);
-    expect(cfg.profileId).toBe("enterprise");
+    expect(cfg.profileId).toBe("university_platform");
   });
 
   it("runs hallmark gate", () => {
@@ -86,15 +86,23 @@ describe("resolveExportTheme", () => {
     );
   });
 
-  it("returns undefined for enterprise profile", () => {
+  it("returns enterprise_dark for enterprise render profile", () => {
     expect(
       resolveExportTheme(
-        { profileId: "enterprise", layoutId: "technical_system" },
+        {
+          profileId: "enterprise",
+          layoutId: "technical_system",
+          styleConfig: { profile: "minimal" },
+        },
         contract,
         null,
         landing,
       ),
-    ).toBeUndefined();
+    ).toBe("enterprise_dark");
+  });
+
+  it("export defaults to university_platform", () => {
+    expect(resolveExportTheme(null, contract, null, landing)).toBe("university_platform");
   });
 
   it("buildPreviewHref includes style query", () => {

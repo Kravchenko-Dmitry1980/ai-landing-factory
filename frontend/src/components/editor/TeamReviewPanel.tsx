@@ -151,7 +151,7 @@ export function TeamReviewPanelView({
             <Button
               type="button"
               size="sm"
-              variant="secondary"
+              variant="outline"
               disabled={acting}
               onClick={onStartEdit}
             >
@@ -255,7 +255,7 @@ export function TeamReviewPanel({
           <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-amber-900">
             {SIMPLE_TEAM_WARNING}
           </p>
-          <Button type="button" size="sm" variant="secondary" onClick={() => setEditing(true)}>
+          <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)}>
             Редактировать текстом
           </Button>
           {editing && (

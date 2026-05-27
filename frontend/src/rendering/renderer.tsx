@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { heroModeClass, motionClass } from "@/design/applyThemeTokens";
 import { themeStyleObject } from "@/design/themes";
 import { logHallmarkViolations } from "@/design/hallmark_rules";
 import type { GeneratedLanding, GeneratedSemanticLanding, LandingContract } from "@/lib/types";
@@ -56,13 +57,53 @@ export function InteractiveRenderer({
         ? ""
         : "";
 
+  const motionCls = motionClass(plan.themeTokens.motion);
+  const heroWrapperClass = heroModeClass(plan.themeTokens.hero_mode);
+
   return (
     <div
-      className={`alf-landing min-h-screen bg-[var(--alf-bg)] text-[var(--alf-text)] print:bg-white ${gridClass}`}
-      style={themeStyleObject(plan.profile.tokens)}
+      className={`alf-landing alf-interactive ${heroWrapperClass} min-h-screen scroll-smooth bg-[var(--alf-bg)] text-[var(--alf-text)] print:bg-white ${gridClass} ${motionCls}`}
+      style={themeStyleObject(plan.cssVars)}
       data-profile={plan.profileId}
       data-layout={plan.layoutId}
+      data-hero-mode={plan.themeTokens.hero_mode ?? "classic"}
     >
+      <style>{`
+        .alf-interactive .alf-card-lift {
+          transition: transform var(--alf-motion-duration, 0.25s) ease,
+            box-shadow var(--alf-motion-duration, 0.25s) ease;
+        }
+        .alf-interactive .alf-card-lift:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+        }
+        .alf-interactive .alf-stack-tag {
+          transition: background var(--alf-motion-duration, 0.25s) ease;
+        }
+        .alf-interactive .alf-stack-tag:hover {
+          background: var(--alf-accent-muted);
+        }
+        .alf-hero--gradient header,
+        .alf-hero--gradient .alf-hero-inner {
+          background: linear-gradient(135deg, var(--alf-accent-muted) 0%, transparent 55%);
+        }
+        .alf-hero--future-3d .alf-hero-inner {
+          position: relative;
+          isolation: isolate;
+        }
+        .alf-hero--future-3d .alf-hero-inner::before {
+          content: "";
+          position: absolute;
+          inset: -12% -8% auto;
+          height: 70%;
+          background: linear-gradient(120deg, var(--alf-accent-muted), transparent 70%);
+          transform: perspective(800px) rotateX(8deg);
+          opacity: 0.85;
+          z-index: -1;
+          border-radius: var(--alf-radius, 8px);
+        }
+        /* future 3D hook — replace with WebGL/Three when enabled */
+      `}</style>
       {showFidelityDebug && (
         <div className="mx-auto max-w-6xl px-4 pt-6 md:px-8">
           <FidelityDebugPanel diagnostics={plan.fidelityDiagnostics} />

@@ -20,6 +20,7 @@ import type { GeneratedLanding, LandingContract } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { InteractiveRenderer } from "@/rendering/renderer";
 import {
+  resolveExportStyleConfig,
   resolveExportTheme,
   resolveRenderConfig,
   saveRenderConfig,
@@ -107,7 +108,8 @@ export function LandingPreview({ projectId }: Props) {
 
   async function handleExport() {
     const theme = resolveExportTheme(renderConfig, contract, urlStyle, landing);
-    const html = await exportHtml(projectId, theme);
+    const styleConfig = resolveExportStyleConfig(renderConfig, contract);
+    const html = await exportHtml(projectId, { theme, styleConfig });
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

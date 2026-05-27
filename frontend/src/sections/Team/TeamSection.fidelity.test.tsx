@@ -2,9 +2,8 @@ import React from "react";
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { TeamSection } from "./TeamSection";
-import type { RenderPlan, SectionData } from "@/rendering/types";
-import { getLayoutPreset } from "@/design/layout_presets";
-import { getStyleProfile } from "@/design/style_profiles";
+import type { SectionData } from "@/rendering/types";
+import { testRenderPlan } from "@/rendering/testPlan";
 
 const section: SectionData = {
   id: "team-main",
@@ -15,24 +14,9 @@ const section: SectionData = {
   sourceKeys: ["team"],
 };
 
-function planWithTeam(): RenderPlan {
+function planWithTeam() {
   const contributions = Array.from({ length: 6 }, (_, i) => `Contribution ${i + 1}`);
-  return {
-    meta: {
-      projectId: "p1",
-      title: "Test",
-      client: null,
-      timeline: null,
-      lead: null,
-      version: 1,
-      updatedAt: null,
-    },
-    profile: getStyleProfile("university_platform"),
-    layout: getLayoutPreset("architecture_first"),
-    profileId: "university_platform",
-    layoutId: "architecture_first",
-    sections: [],
-    modules: [],
+  return testRenderPlan({
     team: [
       {
         name: "Alice Dev",
@@ -41,7 +25,6 @@ function planWithTeam(): RenderPlan {
         contributions,
       },
     ],
-    stackGrouped: {},
     fidelityDiagnostics: {
       modulesSource: "fallback",
       teamSource: "fidelity",
@@ -50,9 +33,7 @@ function planWithTeam(): RenderPlan {
       teamCount: 1,
       stackCategoriesCount: 0,
     },
-    hallmarkViolations: [],
-    builtAt: Date.now(),
-  };
+  });
 }
 
 describe("TeamSection fidelity", () => {

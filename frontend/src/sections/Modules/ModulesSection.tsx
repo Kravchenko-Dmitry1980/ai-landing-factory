@@ -41,9 +41,10 @@ export function ModulesSection({ section, plan, index }: SectionRenderProps) {
         {modules.map((mod) => (
           <article
             key={mod.name}
-            className={`${cardPad} rounded-lg border border-[var(--alf-border)] bg-[var(--alf-surface)] ${
+            className={`alf-card-lift ${cardPad} rounded-lg border border-[var(--alf-border)] bg-[var(--alf-surface)] ${
               isUniversity ? "shadow-none" : ""
             }`}
+            style={{ borderRadius: "var(--alf-radius, 0.5rem)" }}
           >
             <h3 className={`${h3} text-[var(--alf-text)]`}>{mod.name}</h3>
             {mod.description && (

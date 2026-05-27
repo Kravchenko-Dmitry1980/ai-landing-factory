@@ -17,7 +17,13 @@ Then:
 1. Upload PPTX / DOCX / TXT / PDF
 2. Review the generated landing
 3. Edit sections if something was missed
-4. Export HTML
+4. Export HTML (default visual style: **University / Платформа УИИ**)
+
+### Landing visual style
+
+- Default preview/export profile: `university_platform`
+- Editor: presets (Minimal, Corporate, Tech, Bold) or **Custom** text intent → safe theme tokens
+- Details: [docs/FRONTEND_STYLE_SYSTEM_P3.md](docs/FRONTEND_STYLE_SYSTEM_P3.md)
 
 **Advanced OCR/VLM is optional and disabled by default.** You do not need Tesseract, EasyOCR, PaddleOCR, Ollama, or local models for the default path.
 

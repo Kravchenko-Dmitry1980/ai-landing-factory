@@ -11,6 +11,8 @@ class ExportTheme(StrEnum):
 
     @classmethod
     def from_query(cls, theme: str | None) -> ExportTheme:
-        if theme == cls.UNIVERSITY_PLATFORM:
+        if theme in (cls.UNIVERSITY_PLATFORM, None, ""):
             return cls.UNIVERSITY_PLATFORM
-        return cls.ENTERPRISE_DARK
+        if theme == cls.ENTERPRISE_DARK:
+            return cls.ENTERPRISE_DARK
+        return cls.UNIVERSITY_PLATFORM

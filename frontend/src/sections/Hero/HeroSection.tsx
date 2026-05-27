@@ -1,3 +1,4 @@
+import { heroModeClass } from "@/design/applyThemeTokens";
 import { SectionShell } from "@/components/grids/SectionShell";
 import { NodeBlock } from "@/components/diagrams/NodeBlock";
 import type { SectionRenderProps } from "@/rendering/types";
@@ -8,9 +9,10 @@ export function HeroSection({ section, plan, index }: SectionRenderProps) {
   const heroBorder = isUniversity
     ? "border-b border-[#111111] pb-8 md:pb-10"
     : "border-b border-[var(--alf-border)] pb-8 md:pb-10";
+  const heroMode = heroModeClass(plan.themeTokens.hero_mode);
   return (
     <SectionShell plan={plan} sectionId={section.id} sectionType="hero" index={index}>
-      <div className={heroBorder}>
+      <div id="hero" className={`alf-hero-inner ${heroBorder} ${heroMode}`}>
         <p className={caption}>
           {isUniversity ? "Платформа УИИ · проектный лендинг" : "Enterprise project landing"}
         </p>

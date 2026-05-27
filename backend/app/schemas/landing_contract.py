@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.schemas.enrichment import EnrichmentMetadata
 from app.schemas.fidelity import FidelityMetadata
+from app.schemas.style_config import LandingStyleConfigModel
 
 
 class ContractStatus(str, Enum):
@@ -49,6 +50,7 @@ class LandingContract(BaseModel):
     quote: str | None = None
     goals: list[str] = Field(default_factory=list)
     presentation_style: str | None = None
+    style_config: LandingStyleConfigModel | None = None
     visual_assets: list[str] = Field(default_factory=list)
 
     blocks: list[LandingBlock] = Field(default_factory=list)
@@ -65,3 +67,4 @@ class LandingContractUpdate(BaseModel):
     client: str | None = None
     goals: list[str] | None = None
     presentation_style: str | None = None
+    style_config: LandingStyleConfigModel | None = None

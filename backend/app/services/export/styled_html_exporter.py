@@ -9,6 +9,13 @@ from app.repositories.contract_repository import ContractRepository
 from app.schemas.fidelity import FidelityMetadata, LandingModule, TeamMember
 from app.schemas.generation import GeneratedLanding
 from app.schemas.landing_contract import LandingContract, LandingBlock
+from app.schemas.style_config import LandingStyleConfigModel, ThemeTokensModel
+from app.services.export.export_interactive_css import (
+    ACCENT_HEX,
+    CSS_INTERACTIVE,
+    GAP_MAP,
+    RADIUS_MAP,
+)
 from app.services.export.export_theme import ExportTheme
 from app.services.export.export_tagline import resolve_tagline
 from app.services.export.html_bullet_utils import (
@@ -251,7 +258,8 @@ class StyledHtmlExporter:
     async def to_html(
         self,
         project_id: UUID,
-        theme: ExportTheme = ExportTheme.ENTERPRISE_DARK,
+        theme: ExportTheme = ExportTheme.UNIVERSITY_PLATFORM,
+        style_config: LandingStyleConfigModel | None = None,
     ) -> str:
         contract = await self._repo.get_contract(project_id)
         landing = await self._repo.get_landing(project_id)
@@ -260,7 +268,8 @@ class StyledHtmlExporter:
             return "<html><body><p>Landing not generated yet.</p></body></html>"
 
         if contract:
-            return self._render_from_contract(contract, landing, theme)
+            merged_style = style_config or contract.style_config
+            return self._render_from_contract(contract, landing, theme, merged_style)
 
         return await self._legacy.to_html(project_id)
 
@@ -269,6 +278,7 @@ class StyledHtmlExporter:
         contract: LandingContract,
         landing: GeneratedLanding | None,
         theme: ExportTheme,
+        style_config: LandingStyleConfigModel | None = None,
     ) -> str:
         blocks = {b.key: b for b in contract.blocks}
         fidelity: FidelityMetadata | None = contract.fidelity
@@ -283,7 +293,7 @@ class StyledHtmlExporter:
                 f"</div>"
             )
 
-        hero = self._hero(contract, blocks)
+        hero = self._hero(contract, blocks, style_config)
         modules = self._modules_section(fidelity)
         essence = self._block_section(blocks.get("essence"), "essence")
         tasks = self._list_section(blocks.get("tasks"), "tasks", "Задачи проекта")
@@ -304,7 +314,8 @@ class StyledHtmlExporter:
             f"{incomplete}{hero}{modules}{essence}{tasks}{purpose}{io}"
             f"{results}{stack}{team}{outlook}{footer}"
         )
-        css = THEME_CSS[theme]
+        css = THEME_CSS[theme] + CSS_INTERACTIVE
+        css = self._apply_token_overrides(css, style_config)
         body_class = (
             "theme-university_platform"
             if theme == ExportTheme.UNIVERSITY_PLATFORM
@@ -319,7 +330,47 @@ class StyledHtmlExporter:
             f"<body class='{body_class}'><div class='container'>{body}</div></body></html>"
         )
 
-    def _hero(self, contract: LandingContract, blocks: dict[str, LandingBlock]) -> str:
+    @staticmethod
+    def _apply_token_overrides(
+        css: str,
+        style_config: LandingStyleConfigModel | None,
+    ) -> str:
+        if not style_config or not style_config.theme_tokens:
+            return css
+        tokens: ThemeTokensModel = style_config.theme_tokens
+        overrides: list[str] = []
+        if tokens.background:
+            overrides.append(f"  --bg: {tokens.background};")
+        if tokens.surface:
+            overrides.append(f"  --surface: {tokens.surface};")
+            overrides.append(f"  --surface-2: {tokens.surface};")
+        if tokens.accent and tokens.accent in ACCENT_HEX:
+            hex_val = ACCENT_HEX[tokens.accent]
+            overrides.append(f"  --accent: {hex_val};")
+        if tokens.radius and tokens.radius in RADIUS_MAP:
+            overrides.append(f"  --radius: {RADIUS_MAP[tokens.radius]};")
+        if tokens.density and tokens.density in GAP_MAP:
+            overrides.append(f"  --gap: {GAP_MAP[tokens.density]};")
+        if tokens.color_scheme == "dark":
+            overrides.extend(
+                [
+                    "  --bg: #0f1419;",
+                    "  --surface: #1a2332;",
+                    "  --text: #e8edf4;",
+                    "  --muted: #94a3b8;",
+                ]
+            )
+        if not overrides:
+            return css
+        block = ":root {\n" + "\n".join(overrides) + "\n}\n"
+        return block + css
+
+    def _hero(
+        self,
+        contract: LandingContract,
+        blocks: dict[str, LandingBlock],
+        style_config: LandingStyleConfigModel | None = None,
+    ) -> str:
         tagline_block = blocks.get("tagline")
         essence_block = blocks.get("essence")
         tagline_raw = tagline_block.content if tagline_block else ""
@@ -339,8 +390,17 @@ class StyledHtmlExporter:
         if contract.lead:
             meta_parts.append(f"<span>Тимлид: {escape(contract.lead)}</span>")
         meta_html = "".join(meta_parts)
+        hero_mode = ""
+        if style_config and style_config.theme_tokens:
+            mode = style_config.theme_tokens.hero_mode or ""
+            if mode == "gradient":
+                hero_mode = " hero--gradient"
+            elif mode == "future_3d":
+                hero_mode = " hero--future-3d"
+            elif mode == "cards":
+                hero_mode = " hero--cards"
         return (
-            f"<header class='hero' id='hero'>"
+            f"<header class='hero{hero_mode}' id='hero'>"
             f"<h1>{escape(contract.title or 'Проект')}</h1>"
             f"<div class='meta'>{meta_html}</div>"
             f"<p class='tagline'>{escape(tagline_text)}</p>"
@@ -483,7 +543,13 @@ class StyledHtmlExporter:
             cards = []
             for m in members:
                 contribs = self._team_contributions_html(m.contributions)
-                ul = f"<ul>{contribs}</ul>" if contribs else ""
+                ul = ""
+                if contribs:
+                    ul = (
+                        f"<div class='team-contrib'><details>"
+                        f"<summary>Вклад участника</summary><ul>{contribs}</ul>"
+                        f"</details></div>"
+                    )
                 area_html = (
                     f"<p class='area'>{escape(m.project_area)}</p>" if m.project_area else ""
                 )

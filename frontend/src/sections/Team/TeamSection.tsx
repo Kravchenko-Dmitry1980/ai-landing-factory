@@ -49,9 +49,10 @@ function TeamMemberCard({
 
   return (
     <article
-      className={`${cardPad} rounded-lg border border-[var(--alf-border)] bg-[var(--alf-surface)] text-left ${
+      className={`alf-card-lift ${cardPad} rounded-lg border border-[var(--alf-border)] bg-[var(--alf-surface)] text-left ${
         isUniversity ? "shadow-none" : ""
       }`}
+      style={{ borderRadius: "var(--alf-radius, 0.5rem)" }}
     >
       <h3 className={`${h3} text-[var(--alf-text)]`}>{member.name}</h3>
       {member.role && (

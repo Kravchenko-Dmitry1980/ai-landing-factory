@@ -5,6 +5,7 @@ import type {
   GeneratedLanding,
   GeneratedSemanticLanding,
   LandingContract,
+  LandingStyleConfig,
   PIIReportPublic,
   PiiCleanupResponse,
   PrivacyStatusResponse,
@@ -92,7 +93,10 @@ export async function getContract(projectId: string): Promise<LandingContract> {
 export async function updateContract(
   projectId: string,
   payload: Partial<
-    Pick<LandingContract, "style" | "blocks" | "client" | "goals" | "presentation_style">
+    Pick<
+      LandingContract,
+      "style" | "blocks" | "client" | "goals" | "presentation_style" | "style_config"
+    >
   >,
 ): Promise<LandingContract> {
   return request<LandingContract>(`/projects/${projectId}/contract`, {
@@ -209,11 +213,17 @@ export async function runPiiCleanup(): Promise<PiiCleanupResponse> {
 
 export async function exportHtml(
   projectId: string,
-  theme?: string,
+  options?: { theme?: string; styleConfig?: LandingStyleConfig },
 ): Promise<string> {
-  const query = theme ? `?theme=${encodeURIComponent(theme)}` : "";
+  const params = new URLSearchParams();
+  const theme = options?.theme ?? "university_platform";
+  if (theme) params.set("theme", theme);
+  if (options?.styleConfig) {
+    params.set("style_config", JSON.stringify(options.styleConfig));
+  }
+  const qs = params.toString();
   const data = await request<{ html: string }>(
-    `/projects/${projectId}/export/html${query}`,
+    `/projects/${projectId}/export/html${qs ? `?${qs}` : ""}`,
   );
   return data.html;
 }

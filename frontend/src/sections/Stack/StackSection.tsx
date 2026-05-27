@@ -31,7 +31,7 @@ export function StackSection({ section, plan, index }: SectionRenderProps) {
                 {grouped[category].map((item) => (
                   <span
                     key={item}
-                    className={`rounded-full border px-3 py-1 text-sm ${
+                    className={`alf-stack-tag rounded-full border px-3 py-1 text-sm ${
                       isUniversity
                         ? "border-[var(--alf-border)] bg-[var(--alf-accent-muted)] text-[var(--alf-accent)] font-medium"
                         : "border-[var(--alf-border)] bg-[var(--alf-surface)] text-[var(--alf-text)]"
