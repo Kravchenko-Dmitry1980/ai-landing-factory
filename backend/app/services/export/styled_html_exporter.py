@@ -9,23 +9,12 @@ from app.repositories.contract_repository import ContractRepository
 from app.schemas.fidelity import FidelityMetadata, LandingModule, TeamMember
 from app.schemas.generation import GeneratedLanding
 from app.schemas.landing_contract import LandingContract, LandingBlock
-from app.schemas.style_config import LandingStyleConfigModel, ThemeTokensModel
-from app.services.export.export_interactive_css import (
-    ACCENT_HEX,
-    CSS_INTERACTIVE,
-    GAP_MAP,
-    RADIUS_MAP,
-)
+from app.schemas.style_config import LandingStyleConfigModel
+from app.services.export.export_interactive_css import CSS_INTERACTIVE
 from app.schemas.style_config import effective_style_config
 from app.services.export.export_theme import ExportTheme
-from app.services.export.export_theme_css import (
-    CSS_BOLD,
-    CSS_CORPORATE,
-    CSS_CUSTOM_BASE,
-    CSS_MINIMAL,
-    CSS_SHARED_LAYOUT,
-    CSS_TECH,
-)
+from app.services.export.export_theme_css import build_export_css
+from app.services.export.theme_tokens import normalize_theme_tokens
 from app.services.export.export_tagline import resolve_tagline
 from app.services.export.html_bullet_utils import (
     MAX_TEAM_BULLET_CHARS,
@@ -36,235 +25,6 @@ from app.services.export.html_bullet_utils import (
 )
 from app.services.export.html_exporter import HtmlExporter
 from app.services.contract_fidelity.team_candidate_validator import filter_team_members
-
-CSS_ENTERPRISE_DARK = """
-:root {
-  --bg: #0f1419;
-  --surface: #1a2332;
-  --surface-2: #243044;
-  --text: #e8edf4;
-  --muted: #94a3b8;
-  --accent: #3b82f6;
-  --accent-muted: rgba(59,130,246,0.15);
-  --border: rgba(148,163,184,0.2);
-  --radius: 12px;
-  --gap: 1.5rem;
-  --font: "Segoe UI", system-ui, -apple-system, sans-serif;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: var(--font);
-  background: var(--bg);
-  color: var(--text);
-  line-height: 1.6;
-  min-height: 100vh;
-}
-.container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
-.hero {
-  padding: 3rem 0 2rem;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: var(--gap);
-}
-.hero h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; margin-bottom: 0.5rem; }
-.hero .meta { color: var(--muted); font-size: 0.95rem; display: flex; flex-wrap: wrap; gap: 1rem; }
-.hero .tagline { font-size: 1.15rem; color: var(--muted); margin-top: 1rem; max-width: 720px; }
-section { margin: 2.5rem 0; }
-section h2 {
-  font-size: 1.35rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid var(--accent-muted);
-}
-.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--gap); }
-.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--gap); }
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.25rem;
-}
-.card h3 { font-size: 1.05rem; margin-bottom: 0.5rem; color: var(--accent); }
-.card p, .card li { color: var(--muted); font-size: 0.92rem; }
-.card ul { list-style: none; padding: 0; }
-.card ul li { padding: 0.25rem 0; padding-left: 1rem; position: relative; }
-.card ul li::before { content: "·"; position: absolute; left: 0; color: var(--accent); }
-.card ul li.more { color: var(--muted); font-style: italic; }
-.card ul li.more::before { content: "+"; }
-ul.bullets { list-style: none; padding: 0; }
-ul.bullets li {
-  padding: 0.5rem 0 0.5rem 1.25rem;
-  position: relative;
-  border-bottom: 1px solid var(--border);
-}
-ul.bullets li::before { content: "▸"; position: absolute; left: 0; color: var(--accent); }
-.stack-group { margin-bottom: 1rem; }
-.stack-group h4 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin-bottom: 0.5rem; }
-.stack-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-.stack-tag {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.82rem;
-  color: var(--text);
-}
-.team-card .role { color: var(--accent); font-size: 0.85rem; margin-bottom: 0.25rem; }
-.team-card .area { color: var(--muted); font-size: 0.8rem; margin-bottom: 0.5rem; }
-.incomplete-banner {
-  background: rgba(234,179,8,0.15);
-  border: 1px solid rgba(234,179,8,0.4);
-  color: #fcd34d;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius);
-  margin-bottom: var(--gap);
-  font-size: 0.9rem;
-}
-footer {
-  margin-top: 3rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border);
-  color: var(--muted);
-  font-size: 0.85rem;
-  text-align: center;
-}
-@media (max-width: 640px) {
-  .container { padding: 1rem; }
-  .hero { padding: 2rem 0 1.5rem; }
-}
-"""
-
-CSS_UNIVERSITY_PLATFORM = """
-:root {
-  --bg: #ffffff;
-  --surface: #F1F4F7;
-  --surface-2: #EEF2F5;
-  --text: #111111;
-  --muted: #7A8799;
-  --line: #111111;
-  --accent: #7C3AED;
-  --accent-hover: #6D28D9;
-  --accent-light: #EDE9FE;
-  --border: #E5E7EB;
-  --radius: 8px;
-  --gap: 1.5rem;
-  --font: "Segoe UI", system-ui, Inter, -apple-system, sans-serif;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: var(--font);
-  background: #ffffff;
-  color: var(--text);
-  line-height: 1.65;
-  min-height: 100vh;
-  font-size: 16px;
-}
-.container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
-.hero {
-  padding: 3rem 0 2rem;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 3rem;
-}
-.hero h1 {
-  font-size: clamp(2rem, 5vw, 3rem);
-  font-weight: 700;
-  margin-bottom: 0.75rem;
-  color: #111111;
-  line-height: 1.2;
-}
-.hero .meta { color: var(--muted); font-size: 0.95rem; display: flex; flex-wrap: wrap; gap: 1rem; }
-.hero .tagline { font-size: 1.05rem; color: var(--muted); margin-top: 1rem; max-width: 100%; }
-section { margin: 3rem 0; }
-section h2 {
-  font-size: clamp(1.5rem, 3vw, 2rem);
-  font-weight: 700;
-  margin-bottom: 1.25rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--line);
-  color: #111111;
-}
-.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--gap); }
-.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--gap); }
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.25rem;
-}
-.card h3 { font-size: 1.15rem; margin-bottom: 0.5rem; color: #111111; font-weight: 600; }
-.card p, .card li { color: var(--text); font-size: 0.9375rem; line-height: 1.55; }
-.card ul { list-style: none; padding: 0; }
-.card ul li { padding: 0.35rem 0; padding-left: 1rem; position: relative; }
-.card ul li::before { content: "·"; position: absolute; left: 0; color: var(--accent); }
-.card ul li.more { color: var(--muted); font-style: italic; }
-.card ul li.more::before { content: "+"; }
-ul.bullets { list-style: none; padding: 0; }
-ul.bullets li {
-  padding: 0.65rem 0 0.65rem 1.25rem;
-  position: relative;
-  border-bottom: 1px solid var(--border);
-}
-ul.bullets li::before { content: "▸"; position: absolute; left: 0; color: var(--accent); }
-.stack-group { margin-bottom: 1.25rem; }
-.stack-group h4 {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-}
-.stack-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.stack-tag {
-  background: var(--accent-light);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.3rem 0.85rem;
-  font-size: 0.82rem;
-  color: var(--accent);
-  font-weight: 500;
-}
-.team-card .role { color: var(--accent); font-size: 0.85rem; margin-bottom: 0.25rem; font-weight: 500; }
-.team-card .area { color: var(--muted); font-size: 0.8rem; margin-bottom: 0.5rem; }
-.team-intro { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.25rem; max-width: 100%; line-height: 1.55; }
-.incomplete-banner {
-  background: #FEF3C7;
-  border: 1px solid #F59E0B;
-  color: #92400E;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius);
-  margin-bottom: var(--gap);
-  font-size: 0.9rem;
-}
-footer {
-  margin-top: 4rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border);
-  color: var(--muted);
-  font-size: 0.85rem;
-  text-align: center;
-}
-@media (max-width: 640px) {
-  .container { padding: 1rem; }
-  .hero { padding: 2rem 0 1.5rem; }
-  section { margin: 2rem 0; }
-}
-"""
-
-def _bundle_css(base: str) -> str:
-    return base + CSS_SHARED_LAYOUT
-
-
-THEME_CSS: dict[ExportTheme, str] = {
-    ExportTheme.ENTERPRISE_DARK: CSS_ENTERPRISE_DARK,
-    ExportTheme.UNIVERSITY_PLATFORM: _bundle_css(CSS_UNIVERSITY_PLATFORM),
-    ExportTheme.MINIMAL: _bundle_css(CSS_MINIMAL),
-    ExportTheme.CORPORATE: _bundle_css(CSS_CORPORATE),
-    ExportTheme.TECH: _bundle_css(CSS_TECH),
-    ExportTheme.BOLD: _bundle_css(CSS_BOLD),
-    ExportTheme.CUSTOM: _bundle_css(CSS_CUSTOM_BASE),
-}
-
 
 class StyledHtmlExporter:
     """Export contract + landing as styled responsive HTML."""
@@ -341,8 +101,7 @@ class StyledHtmlExporter:
             f"{incomplete}{hero}{modules}{essence}{tasks}{purpose}{io}"
             f"{results}{stack}{team}{outlook}{footer}"
         )
-        css = THEME_CSS.get(theme, THEME_CSS[ExportTheme.UNIVERSITY_PLATFORM]) + CSS_INTERACTIVE
-        css = self._apply_token_overrides(css, style_config)
+        css = build_export_css(theme, style_config) + CSS_INTERACTIVE
         body_class = theme.body_class()
 
         return (
@@ -354,39 +113,18 @@ class StyledHtmlExporter:
         )
 
     @staticmethod
-    def _apply_token_overrides(
-        css: str,
-        style_config: LandingStyleConfigModel | None,
-    ) -> str:
-        if not style_config or not style_config.theme_tokens:
-            return css
-        tokens: ThemeTokensModel = style_config.theme_tokens
-        overrides: list[str] = []
-        if tokens.background:
-            overrides.append(f"  --bg: {tokens.background};")
-        if tokens.surface:
-            overrides.append(f"  --surface: {tokens.surface};")
-            overrides.append(f"  --surface-2: {tokens.surface};")
-        if tokens.accent and tokens.accent in ACCENT_HEX:
-            hex_val = ACCENT_HEX[tokens.accent]
-            overrides.append(f"  --accent: {hex_val};")
-        if tokens.radius and tokens.radius in RADIUS_MAP:
-            overrides.append(f"  --radius: {RADIUS_MAP[tokens.radius]};")
-        if tokens.density and tokens.density in GAP_MAP:
-            overrides.append(f"  --gap: {GAP_MAP[tokens.density]};")
-        if tokens.color_scheme == "dark":
-            overrides.extend(
-                [
-                    "  --bg: #0f1419;",
-                    "  --surface: #1a2332;",
-                    "  --text: #e8edf4;",
-                    "  --muted: #94a3b8;",
-                ]
-            )
-        if not overrides:
-            return css
-        block = ":root {\n" + "\n".join(overrides) + "\n}\n"
-        return block + css
+    def _hero_class(style_config: LandingStyleConfigModel | None) -> str:
+        if not style_config:
+            return ""
+        tokens = normalize_theme_tokens(style_config)
+        mode = tokens.heroMode
+        if mode == "gradient":
+            return " hero--gradient"
+        if mode == "future_3d":
+            return " hero--future-3d"
+        if mode in ("bold",):
+            return " hero--cards"
+        return ""
 
     def _hero(
         self,
@@ -413,15 +151,7 @@ class StyledHtmlExporter:
         if contract.lead:
             meta_parts.append(f"<span>Тимлид: {escape(contract.lead)}</span>")
         meta_html = "".join(meta_parts)
-        hero_mode = ""
-        if style_config and style_config.theme_tokens:
-            mode = style_config.theme_tokens.hero_mode or ""
-            if mode == "gradient":
-                hero_mode = " hero--gradient"
-            elif mode == "future_3d":
-                hero_mode = " hero--future-3d"
-            elif mode == "cards":
-                hero_mode = " hero--cards"
+        hero_mode = self._hero_class(style_config)
         return (
             f"<header class='hero{hero_mode}' id='hero'>"
             f"<h1>{escape(contract.title or 'Проект')}</h1>"

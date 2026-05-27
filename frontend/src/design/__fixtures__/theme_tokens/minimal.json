@@ -1,0 +1,13 @@
+{
+  "id": "minimal",
+  "styleConfig": { "profile": "minimal" },
+  "expected": {
+    "colorScheme": "light",
+    "accent": "#525252",
+    "radiusPx": 4,
+    "density": "spacious",
+    "motion": "none",
+    "heroMode": "classic",
+    "cardStyle": "flat"
+  }
+}

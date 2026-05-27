@@ -1,0 +1,13 @@
+{
+  "id": "bold",
+  "styleConfig": { "profile": "bold" },
+  "expected": {
+    "colorScheme": "light",
+    "accent": "#ea580c",
+    "radiusPx": 16,
+    "density": "compact",
+    "motion": "expressive",
+    "heroMode": "bold",
+    "cardStyle": "soft"
+  }
+}

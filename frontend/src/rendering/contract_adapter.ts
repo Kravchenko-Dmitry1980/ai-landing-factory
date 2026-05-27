@@ -7,6 +7,7 @@ import {
 } from "@/design/layout_presets";
 import { runHallmarkQualityGate, runArchitectureHallmarkGate } from "@/design/hallmark_rules";
 import { applyThemeTokenOverrides } from "@/design/applyThemeTokens";
+import { normalizeThemeTokens } from "@/design/themeTokens";
 import { getStyleProfile } from "@/design/style_profiles";
 import type { StyleProfileId } from "@/design/style_profiles";
 import { isStyleProfileId as isExportProfileId } from "@/design/styleProfiles";
@@ -167,7 +168,8 @@ export function buildRenderPlan(
   const profileId = resolvePreviewProfileId(styleConfig);
   const layoutId = config.layoutId;
   const themeTokens = resolveThemeTokens(styleConfig);
-  const cssVars = applyThemeTokenOverrides(profileId, themeTokens);
+  const normalized = normalizeThemeTokens(styleConfig);
+  const cssVars = applyThemeTokenOverrides(styleConfig);
   const profile = getStyleProfile(profileId);
   const layout = getLayoutPreset(layoutId);
 
@@ -223,6 +225,7 @@ export function buildRenderPlan(
     profileId,
     layoutId,
     themeTokens,
+    normalizedTokens: normalized,
     cssVars,
     sections: ordered,
     architecture: semantic?.architecture ?? null,

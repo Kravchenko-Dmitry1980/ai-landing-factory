@@ -57,9 +57,9 @@ export function InteractiveRenderer({
         ? ""
         : "";
 
-  const motionCls = motionClass(plan.themeTokens.motion);
-  const heroWrapperClass = heroModeClass(plan.themeTokens.hero_mode);
-  const cardsCls = cardStyleClass(plan.profile.cardStyle);
+  const motionCls = motionClass(plan.normalizedTokens.motion);
+  const heroWrapperClass = heroModeClass(plan.normalizedTokens.heroMode);
+  const cardsCls = cardStyleClass(plan.normalizedTokens.cardStyle);
 
   return (
     <div
@@ -68,7 +68,7 @@ export function InteractiveRenderer({
       data-profile={plan.profileId}
       data-layout={plan.layoutId}
       data-card-style={plan.profile.cardStyle}
-      data-hero-mode={plan.themeTokens.hero_mode ?? "classic"}
+      data-hero-mode={plan.normalizedTokens.heroMode}
     >
       <style>{`
         .alf-interactive .alf-card-lift {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import sys
 from pathlib import Path
@@ -55,12 +56,22 @@ async def _offline_checks() -> list[str]:
             errors.append(f"{label}: missing {expected_class}")
         if "<script>" in html:
             errors.append(f"{label}: script leaked")
+        if "--alf-bg:" not in html:
+            errors.append(f"{label}: missing --alf-bg")
+        if "--bg: var(--alf-bg)" not in html:
+            errors.append(f"{label}: missing compatibility alias --bg")
+        if label == "tech" and "--alf-bg: #0f172a" not in html:
+            errors.append(f"{label}: tech dark bg missing")
+        if label == "bold" and "--alf-motion-duration: 0.45s" not in html:
+            errors.append(f"{label}: bold expressive motion missing")
         if label == "custom" and "alert(1)" in html:
             errors.append(f"{label}: prompt leaked")
         if label == "custom" and "hero--future-3d" not in html:
             errors.append(f"{label}: missing hero--future-3d")
-        if label == "custom" and "--accent: #2563eb" not in html:
-            errors.append(f"{label}: missing accent override")
+        if label == "custom" and (
+            "--alf-hero-gradient:" not in html or "gradient" not in html
+        ):
+            errors.append(f"{label}: missing hero gradient token")
 
     return errors
 
@@ -81,6 +92,8 @@ def _http_checks(base_url: str, project_id: str) -> list[str]:
         html = fetch()
         if "theme-university_platform" not in html:
             errors.append("HTTP default: missing theme-university_platform")
+        if "--alf-bg:" not in html:
+            errors.append("HTTP default: missing --alf-bg")
     except (urllib.error.URLError, TimeoutError, KeyError) as exc:
         errors.append(f"HTTP default skipped: {exc}")
         return errors
@@ -89,6 +102,8 @@ def _http_checks(base_url: str, project_id: str) -> list[str]:
         html = fetch("?theme=tech")
         if "theme-tech" not in html:
             errors.append("HTTP tech: missing theme-tech")
+        if "--bg: var(--alf-bg)" not in html:
+            errors.append("HTTP tech: missing alias")
     except Exception as exc:
         errors.append(f"HTTP tech: {exc}")
 
@@ -100,8 +115,6 @@ async def main() -> int:
     parser.add_argument("--backend-url", default="")
     parser.add_argument("--project-id", default="")
     args = parser.parse_args()
-
-    import asyncio
 
     errors = await _offline_checks()
     if args.backend_url and args.project_id:
@@ -119,6 +132,4 @@ async def main() -> int:
 
 
 if __name__ == "__main__":
-    import asyncio
-
     raise SystemExit(asyncio.run(main()))

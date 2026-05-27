@@ -26,7 +26,9 @@ REQUIRED_CONTENT = (
 )
 
 LIGHT_BG_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"--alf-bg\s*:\s*#(?:fff(?:fff)?|ffffff)\b", re.I),
     re.compile(r"--bg\s*:\s*#(?:fff(?:fff)?|ffffff)\b", re.I),
+    re.compile(r"--bg\s*:\s*var\s*\(\s*--alf-bg\s*\)", re.I),
     re.compile(r"background(?:-color)?\s*:\s*#(?:fff(?:fff)?|ffffff)\b", re.I),
     re.compile(r"background(?:-color)?\s*:\s*white\b", re.I),
     re.compile(r"#ffffff\b", re.I),
@@ -35,13 +37,16 @@ LIGHT_BG_PATTERNS: tuple[re.Pattern[str], ...] = (
 PURPLE_ACCENT_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"#7[Cc]3[Aa][Ee][Dd]\b"),
     re.compile(r"#8[Bb]5[Cc][Ff]6\b"),
+    re.compile(r"--alf-accent\s*:\s*#(?:7[Cc]3[Aa][Ee][Dd]|8[Bb]5[Cc][Ff]6)\b"),
     re.compile(r"--accent\s*:\s*#(?:7[Cc]3[Aa][Ee][Dd]|8[Bb]5[Cc][Ff]6)\b"),
 )
 
 DARK_TEXT_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"#111111\b"),
     re.compile(r"#0[Bb]1220\b"),
+    re.compile(r"--alf-text\s*:\s*#(?:111111|0[Bb]1220)\b"),
     re.compile(r"--text\s*:\s*#(?:111111|0[Bb]1220)\b"),
+    re.compile(r"--text\s*:\s*var\s*\(\s*--alf-text\s*\)", re.I),
 )
 
 SECTION_SEPARATOR_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -91,12 +96,12 @@ def check_required_content(html: str) -> list[CheckResult]:
 
 def check_university_style_markers(html: str) -> list[CheckResult]:
     checks = (
-        ("light background marker (#ffffff / white / --bg: #ffffff)", _any_match(LIGHT_BG_PATTERNS, html)),
+        ("light background marker (#ffffff / --alf-bg / --bg alias)", _any_match(LIGHT_BG_PATTERNS, html)),
         (
-            "purple accent marker (#7C3AED / #8B5CF6 / --accent)",
+            "purple accent marker (#7C3AED / --alf-accent)",
             _any_match(PURPLE_ACCENT_PATTERNS, html),
         ),
-        ("dark text marker (#111111 / #0b1220 / --text)", _any_match(DARK_TEXT_PATTERNS, html)),
+        ("dark text marker (#111111 / --alf-text)", _any_match(DARK_TEXT_PATTERNS, html)),
         (
             "section border-bottom / separator marker",
             _any_match(SECTION_SEPARATOR_PATTERNS, html),

@@ -1,4 +1,5 @@
 import type { ExtendedThemeVars } from "@/design/applyThemeTokens";
+import type { ThemeTokens as NormalizedThemeTokens } from "@/design/themeTokens";
 import type { LayoutPreset, LayoutPresetId } from "@/design/layout_presets";
 import type { StyleProfile, StyleProfileId } from "@/design/style_profiles";
 import type { HallmarkViolation } from "@/design/hallmark_rules";
@@ -59,6 +60,7 @@ export interface RenderPlan {
   profileId: StyleProfileId;
   layoutId: LayoutPresetId;
   themeTokens: ThemeTokens;
+  normalizedTokens: NormalizedThemeTokens;
   cssVars: ExtendedThemeVars;
   sections: SectionData[];
   architecture?: ArchitectureTopology | null;

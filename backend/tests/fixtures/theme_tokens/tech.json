@@ -1,0 +1,13 @@
+{
+  "id": "tech",
+  "styleConfig": { "profile": "tech" },
+  "expected": {
+    "colorScheme": "dark",
+    "accent": "#6366f1",
+    "radiusPx": 16,
+    "density": "normal",
+    "motion": "expressive",
+    "heroMode": "gradient",
+    "cardStyle": "glass"
+  }
+}

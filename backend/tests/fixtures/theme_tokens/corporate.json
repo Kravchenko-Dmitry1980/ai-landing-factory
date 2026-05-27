@@ -1,0 +1,13 @@
+{
+  "id": "corporate",
+  "styleConfig": { "profile": "corporate" },
+  "expected": {
+    "colorScheme": "light",
+    "accent": "#2563eb",
+    "radiusPx": 8,
+    "density": "normal",
+    "motion": "subtle",
+    "heroMode": "classic",
+    "cardStyle": "outlined"
+  }
+}

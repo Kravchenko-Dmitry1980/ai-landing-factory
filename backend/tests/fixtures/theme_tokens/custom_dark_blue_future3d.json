@@ -1,0 +1,14 @@
+{
+  "id": "custom_dark_blue_future3d",
+  "styleConfig": {
+    "profile": "custom",
+    "custom_style_prompt": "тёмный технологичный стиль с синим акцентом и 3D карточками"
+  },
+  "expected": {
+    "colorScheme": "dark",
+    "accent": "#2563eb",
+    "heroMode": "future_3d",
+    "motion": "expressive",
+    "cardStyle": "glass"
+  }
+}

@@ -1,9 +1,9 @@
 """Unit tests for export theme defaults and style_config CSS (no live project)."""
 
-from app.services.export.export_interactive_css import ACCENT_HEX
 from app.services.export.export_theme import ExportTheme
-from app.services.export.styled_html_exporter import StyledHtmlExporter
-from app.schemas.style_config import LandingStyleConfigModel, ThemeTokensModel
+from app.services.export.export_theme_css import build_export_css
+from app.services.export.theme_tokens import normalize_theme_tokens
+from app.schemas.style_config import LandingStyleConfigModel, LandingStyleProfile, ThemeTokensModel
 
 
 def test_export_theme_default_is_university():
@@ -18,9 +18,8 @@ def test_export_theme_profiles():
     assert ExportTheme.TECH.body_class() == "theme-tech"
 
 
-def test_token_overrides_inject_accent_and_hero():
-    css = ":root { --bg: #fff; }\n"
-    config = LandingStyleConfigModel(
+def test_token_css_uses_alf_variables():
+    cfg = LandingStyleConfigModel(
         profile="custom",
         theme_tokens=ThemeTokensModel(
             accent="blue",
@@ -28,6 +27,9 @@ def test_token_overrides_inject_accent_and_hero():
             color_scheme="dark",
         ),
     )
-    out = StyledHtmlExporter._apply_token_overrides(css, config)
-    assert f"--accent: {ACCENT_HEX['blue']}" in out
-    assert "--bg: #0f1419" in out
+    css = build_export_css(ExportTheme.CUSTOM, cfg)
+    assert "--alf-accent: #2563eb" in css
+    assert "--alf-bg:" in css
+    assert "--bg: var(--alf-bg)" in css
+    tokens = normalize_theme_tokens(cfg)
+    assert tokens.heroMode == "future_3d"

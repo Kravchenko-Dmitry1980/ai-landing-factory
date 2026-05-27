@@ -45,7 +45,11 @@ describe("style renderer defaults", () => {
 
   it("custom tokens affect CSS variables", () => {
     const tokens = parseStyleIntent("тёмный стиль с синим акцентом");
-    const vars = applyThemeTokenOverrides("university_platform", tokens);
+    const vars = applyThemeTokenOverrides({
+      profile: "custom",
+      custom_style_prompt: "тёмный стиль с синим акцентом",
+      theme_tokens: tokens,
+    });
     expect(vars["--alf-accent"]).toBe("#2563eb");
     expect(vars["--alf-bg"]).toBe("#0f1419");
   });
@@ -61,7 +65,7 @@ describe("style renderer defaults", () => {
         theme_tokens: tokens,
       },
     });
-    expect(plan.themeTokens.hero_mode).toBe("future_3d");
+    expect(plan.normalizedTokens.heroMode).toBe("future_3d");
     expect(plan.cssVars["--alf-hero-mode"]).toBe("future_3d");
   });
 

@@ -1,11 +1,17 @@
 import { applyThemeTokenOverrides } from "@/design/applyThemeTokens";
 import { getLayoutPreset } from "@/design/layout_presets";
 import { getStyleProfile, type StyleProfileId } from "@/design/style_profiles";
+import { normalizeThemeTokens } from "@/design/themeTokens";
 import { UNIVERSITY_DEFAULT_TOKENS } from "@/lib/styleIntent";
+import { DEFAULT_STYLE_CONFIG } from "@/lib/styleConfig";
 import type { RenderPlan } from "./types";
 
 export function testRenderPlan(overrides: Partial<RenderPlan> = {}): RenderPlan {
   const profileId = (overrides.profileId ?? "university_platform") as StyleProfileId;
+  const styleConfig = overrides.normalizedTokens
+    ? { profile: profileId, theme_tokens: UNIVERSITY_DEFAULT_TOKENS }
+    : DEFAULT_STYLE_CONFIG;
+  const normalized = overrides.normalizedTokens ?? normalizeThemeTokens(styleConfig);
   return {
     meta: {
       projectId: "p1",
@@ -21,7 +27,8 @@ export function testRenderPlan(overrides: Partial<RenderPlan> = {}): RenderPlan 
     profileId,
     layoutId: "architecture_first",
     themeTokens: UNIVERSITY_DEFAULT_TOKENS,
-    cssVars: applyThemeTokenOverrides(profileId, UNIVERSITY_DEFAULT_TOKENS),
+    normalizedTokens: normalized,
+    cssVars: applyThemeTokenOverrides({ profile: profileId, theme_tokens: UNIVERSITY_DEFAULT_TOKENS }),
     sections: [],
     modules: [],
     team: [],
