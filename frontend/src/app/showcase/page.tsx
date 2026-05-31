@@ -10,10 +10,9 @@ export default function ShowcasePage() {
       <section>
         <h1 className="text-3xl font-bold tracking-tight">VR/AR витрина</h1>
         <p className="mt-2 max-w-2xl text-muted-foreground">
-          Создавайте витрины из сгенерированных лендингов и демо-проектов
-          (например, из AI Google Studio). Экспорт создаёт self-contained HTML
-          с 3D-стендом A-Frame и доступным 2D-фолбэком, либо портативный ZIP
-          для офлайн-демо.
+          Demo-ready конструктор выставочного стенда: соберите витрину из
+          сгенерированных лендингов, добавьте demo-ссылки AI Google Studio и
+          экспортируйте portable ZIP для офлайн-показа руководству.
         </p>
       </section>
       <ShowcaseList />

@@ -22,9 +22,10 @@ afterEach(() => {
 });
 
 describe("ShowcaseBuilder UI", () => {
-  it("renders an empty state hint when there are no projects", () => {
+  it("renders an improved empty state when there are no projects", () => {
     const builder = source("ShowcaseBuilder.tsx");
-    expect(builder).toMatch(/Пока в витрине нет проектов/);
+    expect(builder).toMatch(/В витрине пока нет проектов/);
+    expect(builder).toMatch(/Добавить из готовых лендов/);
   });
 
   it("exposes manual add and add-from-landing entry points", () => {
@@ -83,9 +84,11 @@ describe("ShowcaseBuilder UI", () => {
     expect(request.demo_url).toBeUndefined();
   });
 
-  it("shows landing autofill helper in the project form", () => {
+  it("shows landing autofill badge in the project form", () => {
     const form = source("ShowcaseProjectForm.tsx");
-    expect(form).toMatch(/подставлена автоматически/i);
+    expect(form).toMatch(/Подставлено автоматически/i);
+    expect(form).toMatch(/Ссылка на ленд/);
+    expect(form).toMatch(/Ссылка на демо/);
   });
 
   it("candidate pick opens the add form instead of immediate submit", () => {
@@ -110,5 +113,30 @@ describe("ShowcaseBuilder UI", () => {
     const actions = source("ShowcaseExportActions.tsx");
     expect(actions).toMatch(/exportShowcaseZip/);
     expect(actions).toMatch(/Экспорт ZIP для офлайн-демо/);
+    expect(actions).toMatch(/showcase\.html и локальный A-Frame runtime/);
+  });
+
+  it("list page exposes quick-create template button", () => {
+    const list = source("ShowcaseList.tsx");
+    expect(list).toMatch(/Создать витрину AI-проектов УИИ/);
+    expect(list).toMatch(/createDefaultShowcaseTemplate/);
+  });
+
+  it("builder includes readiness panel", () => {
+    const builder = source("ShowcaseBuilder.tsx");
+    expect(builder).toMatch(/ShowcaseReadinessPanel/);
+    const panel = readFileSync(
+      join(HERE, "ShowcaseReadinessPanel.tsx"),
+      "utf-8",
+    );
+    expect(panel).toMatch(/Готовность к демонстрации/);
+  });
+
+  it("project card shows landing and demo status", () => {
+    const card = source("ShowcaseProjectCard.tsx");
+    expect(card).toMatch(/Ленд:/);
+    expect(card).toMatch(/Demo-ссылка не добавлена/);
+    expect(card).toMatch(/Открыть ленд/);
+    expect(card).toMatch(/noopener noreferrer/);
   });
 });

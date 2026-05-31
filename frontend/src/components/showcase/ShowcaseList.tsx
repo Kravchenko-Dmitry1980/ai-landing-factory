@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   createShowcase,
@@ -9,6 +10,10 @@ import {
   listShowcases,
 } from "@/lib/showcaseApi";
 import type { ShowcaseSummary } from "@/lib/showcase";
+import {
+  createDefaultShowcaseTemplate,
+  createEmptyShowcaseRequest,
+} from "@/lib/showcaseTemplates";
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -22,10 +27,10 @@ function downloadBlob(blob: Blob, filename: string) {
 }
 
 export function ShowcaseList() {
+  const router = useRouter();
   const [items, setItems] = useState<ShowcaseSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [newTitle, setNewTitle] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function refresh() {
@@ -44,23 +49,24 @@ export function ShowcaseList() {
     void refresh();
   }, []);
 
-  async function handleCreate() {
-    const title = newTitle.trim();
-    if (!title) {
-      setError("Укажите название витрины.");
-      return;
-    }
+  async function handleCreate(body: Parameters<typeof createShowcase>[0]) {
     setBusy(true);
     setError(null);
     try {
-      await createShowcase({ title });
-      setNewTitle("");
-      await refresh();
+      const created = await createShowcase(body);
+      router.push(`/showcase/${created.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось создать витрину.");
-    } finally {
       setBusy(false);
     }
+  }
+
+  async function handleCreateTemplate() {
+    await handleCreate(createDefaultShowcaseTemplate("uii_ai_projects"));
+  }
+
+  async function handleCreateEmpty() {
+    await handleCreate(createEmptyShowcaseRequest());
   }
 
   async function handleDelete(id: string) {
@@ -91,22 +97,30 @@ export function ShowcaseList() {
 
   return (
     <div className="space-y-6">
-      <section className="space-y-3 rounded-lg border p-4">
-        <h2 className="text-lg font-semibold">Создать витрину</h2>
+      <section className="space-y-4 rounded-lg border bg-muted/30 p-5">
+        <div>
+          <h2 className="text-xl font-semibold">VR/AR витрина проектов</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Соберите интерактивный выставочный стенд из лендингов и ссылок на
+            demo-проекты.
+          </p>
+        </div>
         <div className="flex flex-wrap gap-3">
-          <input
-            className="min-w-[16rem] flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-            placeholder="Название витрины"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-          />
           <button
             type="button"
-            onClick={handleCreate}
+            onClick={handleCreateTemplate}
             disabled={busy}
             className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:opacity-50"
           >
-            Создать витрину
+            Создать витрину AI-проектов УИИ
+          </button>
+          <button
+            type="button"
+            onClick={handleCreateEmpty}
+            disabled={busy}
+            className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
+          >
+            Создать пустую витрину
           </button>
         </div>
       </section>
@@ -120,9 +134,30 @@ export function ShowcaseList() {
       {loading ? (
         <p className="text-sm text-muted-foreground">Загрузка…</p>
       ) : items.length === 0 ? (
-        <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-          Пока нет витрин. Создайте первую витрину выше.
-        </p>
+        <div className="space-y-4 rounded-lg border border-dashed p-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            Пока витрин нет. Создайте витрину AI-проектов УИИ и добавьте ленды с
+            demo-ссылками.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <button
+              type="button"
+              onClick={handleCreateTemplate}
+              disabled={busy}
+              className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:opacity-50"
+            >
+              Создать витрину AI-проектов УИИ
+            </button>
+            <button
+              type="button"
+              onClick={handleCreateEmpty}
+              disabled={busy}
+              className="rounded-md border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+            >
+              Создать пустую витрину
+            </button>
+          </div>
+        </div>
       ) : (
         <ul className="space-y-3">
           {items.map((item) => (

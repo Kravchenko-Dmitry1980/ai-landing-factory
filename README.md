@@ -91,6 +91,12 @@ cd backend
 
 Подробности: [docs/SHOWCASE_REGISTRY_P6.md](docs/SHOWCASE_REGISTRY_P6.md)
 
+#### Demo-ready VR/AR showcase (P.6.3)
+
+На `/showcase` — кнопка **Создать витрину AI-проектов УИИ** (шаблон УИИ с
+prefilled title/layout/theme). В редакторе — панель готовности к демо,
+разделение landing/demo URL и экспорт ZIP с локальным A-Frame runtime.
+
 ## Operator guide (Russian)
 
 See [docs/USER_QUICKSTART.md](docs/USER_QUICKSTART.md).

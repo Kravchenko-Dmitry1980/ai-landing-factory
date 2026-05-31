@@ -14,12 +14,23 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export function ShowcaseExportActions({ showcaseId }: { showcaseId: string }) {
+export function ShowcaseExportActions({
+  showcaseId,
+  projectCount,
+}: {
+  showcaseId: string;
+  projectCount: number;
+}) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const emptyShowcase = projectCount === 0;
 
   async function handleHtml() {
+    if (emptyShowcase) {
+      setError("Витрина пустая. Добавьте проекты перед демонстрацией.");
+      return;
+    }
     setBusy(true);
     setStatus(null);
     setError(null);
@@ -40,6 +51,10 @@ export function ShowcaseExportActions({ showcaseId }: { showcaseId: string }) {
   }
 
   async function handleZip() {
+    if (emptyShowcase) {
+      setError("Витрина пустая. Добавьте проекты перед демонстрацией.");
+      return;
+    }
     setBusy(true);
     setStatus(null);
     setError(null);
@@ -55,7 +70,12 @@ export function ShowcaseExportActions({ showcaseId }: { showcaseId: string }) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {emptyShowcase && (
+        <p className="rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900">
+          Витрина пустая. Добавьте проекты перед демонстрацией.
+        </p>
+      )}
       <div className="flex flex-wrap gap-3">
         <button
           type="button"
@@ -74,6 +94,11 @@ export function ShowcaseExportActions({ showcaseId }: { showcaseId: string }) {
           {busy ? "Экспорт…" : "Экспорт ZIP для офлайн-демо"}
         </button>
       </div>
+      <p className="text-xs text-muted-foreground">
+        ZIP содержит showcase.html и локальный A-Frame runtime. После распаковки
+        откройте showcase.html. 3D-стенд работает офлайн; demo-ссылки требуют
+        интернет.
+      </p>
       {status && (
         <p className="rounded-md border border-green-300 bg-green-50 p-2 text-sm text-green-700">
           {status}

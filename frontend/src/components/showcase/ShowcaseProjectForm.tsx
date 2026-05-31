@@ -54,12 +54,13 @@ export function ShowcaseProjectForm({
 
   const demoUnsafe = !isSafeShowcaseUrl(draft.demo_url);
   const landingUnsafe = !isSafeShowcaseUrl(draft.landing_url);
+  const demoEmpty = !draft.demo_url?.trim();
 
   return (
-    <div className="space-y-3 rounded-lg border border-dashed p-4">
+    <div className="space-y-4 rounded-lg border border-dashed bg-muted/20 p-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="space-y-1 text-sm">
-          <span className="text-muted-foreground">Название</span>
+        <label className="space-y-1 text-sm sm:col-span-2 sm:grid-cols-1">
+          <span className="font-medium">Название</span>
           <input
             className={inputClass}
             value={draft.title}
@@ -67,7 +68,7 @@ export function ShowcaseProjectForm({
           />
         </label>
         <label className="space-y-1 text-sm">
-          <span className="text-muted-foreground">Категория</span>
+          <span className="font-medium">Категория</span>
           <input
             className={inputClass}
             value={draft.category ?? ""}
@@ -75,7 +76,7 @@ export function ShowcaseProjectForm({
           />
         </label>
         <label className="space-y-1 text-sm sm:col-span-2">
-          <span className="text-muted-foreground">Описание</span>
+          <span className="font-medium">Описание</span>
           <textarea
             className={inputClass}
             rows={2}
@@ -83,8 +84,39 @@ export function ShowcaseProjectForm({
             onChange={(e) => update({ description: e.target.value })}
           />
         </label>
-        <label className="space-y-1 text-sm">
-          <span className="text-muted-foreground">Ссылка на демо</span>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <fieldset className="space-y-2 rounded-md border bg-background p-3">
+          <legend className="px-1 text-sm font-semibold">Ссылка на ленд</legend>
+          <p className="text-xs text-muted-foreground">
+            Ссылка на страницу лендинга. При добавлении из готовых лендов
+            подставляется автоматически.
+          </p>
+          {landingAutofillHint && !landingUnsafe && (
+            <span className="inline-block rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-800">
+              Подставлено автоматически
+            </span>
+          )}
+          <input
+            className={inputClass}
+            value={draft.landing_url ?? ""}
+            placeholder="/preview/id или https://..."
+            onChange={(e) => update({ landing_url: e.target.value })}
+          />
+          {landingUnsafe && (
+            <span className="text-xs text-red-600">
+              Недопустимый URL (только http/https или путь).
+            </span>
+          )}
+        </fieldset>
+
+        <fieldset className="space-y-2 rounded-md border bg-background p-3">
+          <legend className="px-1 text-sm font-semibold">Ссылка на демо</legend>
+          <p className="text-xs text-muted-foreground">
+            Ссылка на рабочее демо проекта, например AI Google Studio. Для
+            открытия демо нужен интернет.
+          </p>
           <input
             className={inputClass}
             value={draft.demo_url ?? ""}
@@ -96,27 +128,12 @@ export function ShowcaseProjectForm({
               Недопустимый URL (только http/https или путь).
             </span>
           )}
-        </label>
-        <label className="space-y-1 text-sm">
-          <span className="text-muted-foreground">Ссылка на ленд</span>
-          <input
-            className={inputClass}
-            value={draft.landing_url ?? ""}
-            placeholder="https://... или /preview/id"
-            onChange={(e) => update({ landing_url: e.target.value })}
-          />
-          {landingAutofillHint && !landingUnsafe && (
+          {demoEmpty && !demoUnsafe && (
             <span className="text-xs text-muted-foreground">
-              Ссылка на ленд подставлена автоматически. Demo-ссылку AI Google
-              Studio добавьте отдельно.
+              Demo-ссылку можно добавить позже.
             </span>
           )}
-          {landingUnsafe && (
-            <span className="text-xs text-red-600">
-              Недопустимый URL (только http/https или путь).
-            </span>
-          )}
-        </label>
+        </fieldset>
       </div>
 
       {errors.length > 0 && (
@@ -126,10 +143,6 @@ export function ShowcaseProjectForm({
           ))}
         </ul>
       )}
-
-      <p className="text-xs text-muted-foreground">
-        Demo-ссылку можно добавить позже.
-      </p>
 
       <div className="flex gap-2">
         <button

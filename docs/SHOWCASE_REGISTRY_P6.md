@@ -180,7 +180,31 @@ cd C:\Dima\Projects\CURSOR\_uat\ai-landing-factory-fresh\backend
 ..\.venv\Scripts\python.exe scripts\smoke_showcase_registry.py
 ```
 
-## 9. Limitations
+## 9. Demo-ready workflow (P.6.3)
+
+Шаблон `uii_ai_projects` (`showcase_templates.py` / `showcaseTemplates.ts`):
+
+- title: «Витрина AI-проектов УИИ»;
+- subtitle, organization, layout `gallery_arc`, mode `vr_ready`, theme `tech`.
+
+**Сценарий для демо руководству:**
+
+1. Открыть `/showcase`.
+2. Нажать **Создать витрину AI-проектов УИИ**.
+3. Добавить проекты из готовых лендов (**Добавить из лендов**).
+4. Проверить автоподстановку `landing_url` (`/preview/{id}`).
+5. Вручную добавить `demo_url` (AI Google Studio) — требует интернет.
+6. Проверить панель **Готовность к демонстрации**.
+7. **Экспорт ZIP для офлайн-демо**.
+8. Распаковать ZIP и открыть `showcase.html` (3D runtime офлайн).
+
+UI подсказки:
+
+- landing preview — относительные ссылки, работают на том же frontend-origin;
+- demo-ссылки — внешние, требуют интернет;
+- ZIP содержит vendored A-Frame runtime.
+
+## 10. Limitations
 
 - Хранилище — JSON-файлы, без БД, без конкурентных транзакций (атомарная
   запись на файл, но без блокировок между процессами).

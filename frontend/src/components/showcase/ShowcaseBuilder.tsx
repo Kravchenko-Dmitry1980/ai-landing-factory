@@ -22,6 +22,7 @@ import { ShowcaseProjectCard } from "@/components/showcase/ShowcaseProjectCard";
 import { ShowcaseProjectForm } from "@/components/showcase/ShowcaseProjectForm";
 import { LandingCandidatePicker } from "@/components/showcase/LandingCandidatePicker";
 import { ShowcaseExportActions } from "@/components/showcase/ShowcaseExportActions";
+import { ShowcaseReadinessPanel } from "@/components/showcase/ShowcaseReadinessPanel";
 
 function projectToRequest(project: ShowcaseProject): ShowcaseProjectRequest {
   return {
@@ -108,6 +109,13 @@ export function ShowcaseBuilder({ showcaseId }: { showcaseId: string }) {
     setLandingAutofillHint(Boolean(request.landing_url?.trim()));
   }
 
+  function openPicker() {
+    setShowPicker(true);
+    setShowAddForm(false);
+    setAddFormInitial(undefined);
+    setLandingAutofillHint(false);
+  }
+
   function openManualAddForm() {
     setShowAddForm((v) => !v);
     setShowPicker(false);
@@ -156,6 +164,8 @@ export function ShowcaseBuilder({ showcaseId }: { showcaseId: string }) {
         disabled={busy}
       />
 
+      <ShowcaseReadinessPanel config={config} />
+
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">Проекты витрины</h2>
@@ -169,10 +179,7 @@ export function ShowcaseBuilder({ showcaseId }: { showcaseId: string }) {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setShowPicker((v) => !v);
-                setShowAddForm(false);
-              }}
+              onClick={openPicker}
               className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
             >
               Добавить из лендов
@@ -209,10 +216,28 @@ export function ShowcaseBuilder({ showcaseId }: { showcaseId: string }) {
         )}
 
         {config.projects.length === 0 ? (
-          <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-            Пока в витрине нет проектов. Добавьте проект вручную или выберите
-            готовый ленд.
-          </p>
+          <div className="space-y-4 rounded-lg border border-dashed p-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              В витрине пока нет проектов. Добавьте готовый ленд или создайте
+              карточку проекта вручную.
+            </p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={openPicker}
+                className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background"
+              >
+                Добавить из готовых лендов
+              </button>
+              <button
+                type="button"
+                onClick={openManualAddForm}
+                className="rounded-md border px-4 py-2 text-sm hover:bg-muted"
+              >
+                Добавить проект вручную
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="space-y-3">
             {config.projects.map((project, index) =>
@@ -245,7 +270,10 @@ export function ShowcaseBuilder({ showcaseId }: { showcaseId: string }) {
 
       <section className="space-y-3 rounded-lg border p-4">
         <h2 className="text-lg font-semibold">Экспорт</h2>
-        <ShowcaseExportActions showcaseId={showcaseId} />
+        <ShowcaseExportActions
+          showcaseId={showcaseId}
+          projectCount={config.projects.length}
+        />
       </section>
 
       {error && config && (
