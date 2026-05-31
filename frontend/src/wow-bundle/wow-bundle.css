@@ -1,12 +1,14 @@
-/* Interactive WOW Bundle styles (Stage P.7.2). Self-contained, no external fonts/CDN. */
+/* Interactive WOW Bundle styles — UII Light edition (Stage P.7.2).
+ * Self-contained, no external fonts/CDN. Light, exhibition-grade theme. */
 
 :root {
-  --wow-accent: #7c8bff;
-  --wow-bg: #05060f;
-  --wow-surface: rgba(255, 255, 255, 0.04);
-  --wow-border: rgba(255, 255, 255, 0.1);
-  --wow-text: #e6e9ff;
-  --wow-muted: #9aa3d0;
+  --wow-accent: #7c4dff;
+  --wow-bg: #f4f6fd;
+  --wow-bg-2: #eef1fb;
+  --wow-surface: rgba(255, 255, 255, 0.78);
+  --wow-border: rgba(124, 77, 255, 0.16);
+  --wow-text: #1b1f3b;
+  --wow-muted: #5b6474;
 }
 
 * {
@@ -26,6 +28,10 @@ body {
 .wow-bundle {
   width: 100%;
   overflow-x: hidden;
+  background:
+    radial-gradient(120% 80% at 80% 0%, rgba(124, 77, 255, 0.08), transparent 55%),
+    radial-gradient(90% 70% at 5% 100%, rgba(93, 214, 255, 0.08), transparent 55%),
+    linear-gradient(180deg, #fbfcff 0%, var(--wow-bg) 40%, var(--wow-bg-2) 100%);
 }
 
 /* ---------- Hero ---------- */
@@ -53,9 +59,9 @@ body {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--wow-accent) 55%, transparent), transparent 60%),
-    radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.25), transparent 55%),
-    linear-gradient(160deg, #05060f, #0b0f25 60%, #05060f);
+    radial-gradient(circle at 62% 40%, color-mix(in srgb, var(--wow-accent) 28%, transparent), transparent 60%),
+    radial-gradient(circle at 80% 78%, rgba(93, 214, 255, 0.2), transparent 55%),
+    linear-gradient(160deg, #fbfcff, #eef1fb 60%, #f4f6fd);
 }
 
 .wow-hero__static::after {
@@ -63,8 +69,8 @@ body {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(124, 139, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(124, 139, 255, 0.08) 1px, transparent 1px);
+    linear-gradient(rgba(124, 77, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 77, 255, 0.07) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent);
 }
@@ -72,7 +78,7 @@ body {
 .wow-hero__overlay {
   position: relative;
   z-index: 1;
-  max-width: 920px;
+  max-width: 760px;
   padding: clamp(24px, 6vw, 88px);
   pointer-events: none;
 }
@@ -93,21 +99,25 @@ body {
   padding: 6px 14px;
   margin-bottom: 20px;
   background: var(--wow-surface);
+  box-shadow: 0 8px 24px -16px rgba(124, 77, 255, 0.6);
 }
 
 .wow-hero__title {
   font-size: clamp(2.2rem, 6vw, 4.4rem);
-  line-height: 1.04;
+  line-height: 1.05;
   margin: 0 0 18px;
   font-weight: 800;
   letter-spacing: -0.02em;
-  text-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);
+  background: linear-gradient(120deg, #1b1f3b 0%, #4b3aa8 55%, #7c4dff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .wow-hero__subtitle {
   font-size: clamp(1rem, 2.2vw, 1.35rem);
   color: var(--wow-muted);
-  max-width: 640px;
+  max-width: 600px;
   margin: 0 0 26px;
   line-height: 1.5;
 }
@@ -128,6 +138,7 @@ body {
   border: 1px solid var(--wow-border);
   border-radius: 12px;
   padding: 8px 14px;
+  backdrop-filter: blur(8px);
 }
 
 .wow-chip__label {
@@ -139,7 +150,7 @@ body {
 
 .wow-chip__value {
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .wow-hero__metrics {
@@ -156,6 +167,7 @@ body {
   padding: 14px 18px;
   min-width: 130px;
   backdrop-filter: blur(6px);
+  box-shadow: 0 18px 40px -28px rgba(80, 70, 160, 0.9);
 }
 
 .wow-metric {
@@ -173,7 +185,7 @@ body {
 
 .wow-metric__label {
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .wow-metric__hint {
@@ -210,14 +222,14 @@ body {
 }
 
 .wow-btn--primary {
-  background: var(--wow-accent);
-  color: #05060f;
-  box-shadow: 0 10px 40px color-mix(in srgb, var(--wow-accent) 45%, transparent);
+  background: linear-gradient(120deg, #8b5cff, #7c4dff 55%, #5dd6ff);
+  color: #ffffff;
+  box-shadow: 0 14px 40px -14px rgba(124, 77, 255, 0.8);
 }
 
 .wow-btn--ghost {
   background: var(--wow-surface);
-  color: var(--wow-text);
+  color: var(--wow-accent);
   border-color: var(--wow-border);
 }
 
@@ -273,6 +285,7 @@ body {
   border: 1px solid var(--wow-border);
   border-radius: 18px;
   padding: 26px;
+  box-shadow: 0 18px 40px -30px rgba(80, 70, 160, 0.9);
 }
 
 /* Pipeline */
@@ -304,7 +317,7 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 9px;
-  background: color-mix(in srgb, var(--wow-accent) 25%, transparent);
+  background: color-mix(in srgb, var(--wow-accent) 18%, transparent);
   color: var(--wow-accent);
   font-weight: 800;
   font-size: 0.85rem;
@@ -325,7 +338,7 @@ body {
   font-size: 0.72rem;
   padding: 4px 9px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(124, 77, 255, 0.08);
   border: 1px solid var(--wow-border);
   color: var(--wow-muted);
 }
@@ -348,12 +361,14 @@ body {
   border: 1px solid var(--wow-border);
   border-radius: 18px;
   padding: 24px;
-  transition: transform 0.18s ease, border-color 0.18s ease;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  box-shadow: 0 18px 40px -32px rgba(80, 70, 160, 0.9);
 }
 
 .wow-card:hover {
   transform: translateY(-4px);
-  border-color: color-mix(in srgb, var(--wow-accent) 55%, var(--wow-border));
+  border-color: color-mix(in srgb, var(--wow-accent) 45%, var(--wow-border));
+  box-shadow: 0 24px 50px -30px rgba(124, 77, 255, 0.7);
 }
 
 .wow-card__title {

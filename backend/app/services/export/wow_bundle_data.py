@@ -68,7 +68,7 @@ def _resolve_theme(contract: LandingContract) -> dict[str, Any]:
     if accent is None:
         accent = DEFAULT_ACCENT
 
-    return {"profile": profile, "accent": accent, "mode": "dark"}
+    return {"profile": profile, "accent": accent, "mode": "light"}
 
 
 def _map_metrics(contract: LandingContract) -> list[dict[str, str]]:

@@ -142,7 +142,7 @@ export function WowBundleApp({ data, enable3d, reducedMotion }: Props) {
           )}
         </div>
         <div className="wow-hero__overlay">
-          <span className="wow-hero__eyebrow">Interactive WOW Landing</span>
+          <span className="wow-hero__eyebrow">AI-витрина · 3D-экспонат</span>
           <h1 className="wow-hero__title">{data.project.title}</h1>
           {data.project.subtitle && (
             <p className="wow-hero__subtitle">{data.project.subtitle}</p>

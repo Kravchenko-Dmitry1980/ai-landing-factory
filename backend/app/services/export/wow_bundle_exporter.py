@@ -114,7 +114,7 @@ def _build_index_html(bundle_data: dict[str, Any], *, has_css: bool) -> str:
         '  <meta name="robots" content="noindex" />\n'
         f"{css_link}"
         "  <style>\n"
-        "    html,body{margin:0;padding:0;background:#05060f;color:#e6e9ff;"
+        "    html,body{margin:0;padding:0;background:#f4f6fd;color:#1b1f3b;"
         "font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}\n"
         "    #wow-bundle-root{min-height:100vh;}\n"
         "    .wow-boot-fallback{padding:48px;max-width:760px;margin:0 auto;}\n"

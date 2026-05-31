@@ -24,7 +24,7 @@ export function WowHeroOverlay({ data, mode, contentAnchor = "wow-landing-conten
       <div className="wow-hero-overlay-top">
         <span className="wow-hero-eyebrow">
           <span className="wow-hero-pulse" aria-hidden="true" />
-          AI exhibit · {mode === "wow3d" ? "immersive 3D" : "premium"}
+          AI-витрина · {mode === "wow3d" ? "3D-экспонат" : "premium"}
         </span>
 
         <h1 className="wow-hero-title">{data.title}</h1>
