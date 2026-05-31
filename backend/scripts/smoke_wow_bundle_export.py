@@ -28,14 +28,21 @@ sys.path.insert(0, str(BACKEND))
 from app.services.export import wow_bundle_exporter  # noqa: E402
 from app.services.export.wow_bundle_exporter import (  # noqa: E402
     build_wow_bundle_zip_with_meta,
+    validate_cat_mascot_png,
 )
 from tests.fixtures.export_contract_fixture import make_wow_indlab_fixture  # noqa: E402
 
 BUILD_INSTRUCTION = "cd frontend && npm run build:wow-bundle"
 
+FORBIDDEN_ASSET_PARTS = (
+    "landing-preview",
+    "screenshot",
+    "hero-preview",
+    "mockup",
+)
 
-def _is_image_asset(data: bytes) -> bool:
-    return data.startswith(b"\x89PNG\r\n\x1a\n") or data.startswith(b"\xff\xd8\xff")
+
+def _fail(message: str) -> None:
     print(f"FAIL: {message}")
     sys.exit(1)
 
@@ -70,13 +77,25 @@ def main() -> None:
         js = zf.read("assets/wow-app.js").decode("utf-8")
         cat_png = zf.read("assets/wow/cat-assistant.png")
 
-    for marker in ("cat-assistant", "wow-hero-mascot", "wow-bundle-cat-mascot-v1"):
+    for marker in ("cat-assistant", "wow-hero-mascot", "wow-hero-mascot-rig", "wow-bundle-cat-mascot-v2"):
         if marker not in js:
             _fail(f"wow-app.js missing cat mascot marker: {marker!r}")
     if "PhoneStage" in js or "function Assistant" in js:
         _fail("wow-app.js still contains stale robot scene markers")
-    if not _is_image_asset(cat_png):
-        _fail("assets/wow/cat-assistant.png is not a valid image asset")
+    if "wow-hero-mascot-image" not in js and "wow-hero-mascot-img" not in js:
+        _fail("wow-app.js missing wow-hero-mascot-image marker")
+    try:
+        validate_cat_mascot_png(cat_png)
+    except ValueError as exc:
+        _fail(str(exc))
+
+    for name in names:
+        lowered = name.lower()
+        if lowered == "assets/wow/cat-assistant.png":
+            continue
+        for part in FORBIDDEN_ASSET_PARTS:
+            if part in lowered:
+                _fail(f"ZIP contains forbidden preview/mockup asset: {name!r}")
 
     if 'id="wow-data"' not in index_html:
         _fail("index.html does not embed the wow-data JSON")

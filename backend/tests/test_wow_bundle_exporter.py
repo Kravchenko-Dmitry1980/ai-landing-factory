@@ -19,6 +19,7 @@ from app.services.export.wow_bundle_exporter import (
     WowBundleExportOptions,
     build_wow_bundle_zip,
     build_wow_bundle_zip_with_meta,
+    validate_cat_mascot_png,
 )
 from tests.fixtures.export_contract_fixture import (
     make_wow_indlab_fixture,
@@ -33,7 +34,7 @@ def fake_assets(tmp_path: Path) -> Path:
     assets.mkdir(parents=True)
     (assets / "wow-app.js").write_text(
         "/*wow*/console.log('wow'); "
-        "cat-assistant wow-hero-mascot wow-bundle-cat-mascot-v1",
+        "cat-assistant wow-hero-mascot wow-hero-mascot-rig wow-bundle-cat-mascot-v2",
         encoding="utf-8",
     )
     (assets / "wow-app.css").write_text(".wow{color:#fff}", encoding="utf-8")
@@ -82,14 +83,41 @@ def test_zip_js_contains_cat_mascot_markers(fake_assets: Path) -> None:
     js = _zip_read(data, "assets/wow-app.js")
     assert "cat-assistant" in js
     assert "wow-hero-mascot" in js
-    assert "wow-bundle-cat-mascot-v1" in js
+    assert "wow-bundle-cat-mascot-v2" in js
+    assert "wow-hero-mascot-rig" in js
+    assert "PhoneStage" not in js
+    assert "function Assistant" not in js
+
+
+def test_zip_has_no_preview_mockup_assets(fake_assets: Path) -> None:
+    _, contract, _ = make_wow_indlab_fixture()
+    data = build_wow_bundle_zip(contract, assets_dir=fake_assets)
+    for name in _zip_names(data):
+        lowered = name.lower()
+        if lowered == "assets/wow/cat-assistant.png":
+            continue
+        for part in ("landing-preview", "screenshot", "hero-preview", "mockup"):
+            assert part not in lowered, f"unexpected preview asset in ZIP: {name!r}"
+
+
+def test_wide_landing_screenshot_png_is_rejected() -> None:
+    # IHDR chunk with 1920x1080 dimensions inside a minimal PNG shell.
+    wide_png = (
+        b"\x89PNG\r\n\x1a\n"
+        b"\x00\x00\x00\rIHDR"
+        + (1920).to_bytes(4, "big")
+        + (1080).to_bytes(4, "big")
+        + b"\x08\x06\x00\x00\x00"
+    )
+    with pytest.raises(ValueError, match="landing screenshot"):
+        validate_cat_mascot_png(wide_png)
 
 
 def test_stale_robot_bundle_is_rejected(tmp_path: Path) -> None:
     assets = tmp_path / "assets"
     assets.mkdir(parents=True)
     (assets / "wow-app.js").write_text(
-        "PhoneStage function Assistant cat-assistant wow-hero-mascot wow-bundle-cat-mascot-v1",
+        "PhoneStage function Assistant cat-assistant wow-hero-mascot wow-hero-mascot-rig wow-bundle-cat-mascot-v2",
         encoding="utf-8",
     )
     wow_dir = assets / "wow"
@@ -104,7 +132,7 @@ def test_missing_cat_asset_fails(tmp_path: Path, monkeypatch) -> None:
     assets = tmp_path / "assets"
     assets.mkdir(parents=True)
     (assets / "wow-app.js").write_text(
-        "cat-assistant wow-hero-mascot wow-bundle-cat-mascot-v1",
+        "cat-assistant wow-hero-mascot wow-hero-mascot-rig wow-bundle-cat-mascot-v2",
         encoding="utf-8",
     )
     monkeypatch.setattr(
@@ -127,7 +155,7 @@ def test_zip_omits_css_when_missing(tmp_path: Path) -> None:
     assets = tmp_path / "assets"
     assets.mkdir(parents=True)
     (assets / "wow-app.js").write_text(
-        "cat-assistant wow-hero-mascot wow-bundle-cat-mascot-v1",
+        "cat-assistant wow-hero-mascot wow-hero-mascot-rig wow-bundle-cat-mascot-v2",
         encoding="utf-8",
     )
     wow_dir = assets / "wow"

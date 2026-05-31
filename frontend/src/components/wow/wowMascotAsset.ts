@@ -5,4 +5,4 @@ export const WOW_CAT_MASCOT_SRC = "/assets/wow/cat-assistant.png";
 export const WOW_BUNDLE_CAT_MASCOT_SRC = "assets/wow/cat-assistant.png";
 
 /** Embedded in wow-app.js so backend export can reject stale bundles. */
-export const WOW_BUNDLE_BUILD_MARKER = "wow-bundle-cat-mascot-v1";
+export const WOW_BUNDLE_BUILD_MARKER = "wow-bundle-cat-mascot-v2";

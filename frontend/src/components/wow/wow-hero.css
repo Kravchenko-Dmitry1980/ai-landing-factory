@@ -1,6 +1,8 @@
-/* WOW hero styles — UII Light edition (Stage P.7.6).
+/* WOW hero styles — UII Light edition (Stage P.7.7).
  * "2D landing + one 3D mascot": light lavender background, crisp HTML overlay,
  * cat PNG on the right with glass UI cards. No portal rings or heavy 3D scene. */
+
+@import "./wow-mascot-motion.css";
 
 .wow-hero-stage {
   --wow-accent: #7c4dff;
@@ -107,7 +109,6 @@
   height: auto;
   object-fit: contain;
   filter: drop-shadow(0 22px 34px rgba(80, 70, 160, 0.28));
-  animation: wow-mascot-float 6.5s ease-in-out infinite;
 }
 
 /* ---- floating 2D UI cards around mascot ---- */
@@ -120,7 +121,6 @@
   border: 1px solid rgba(124, 77, 255, 0.16);
   backdrop-filter: blur(10px);
   box-shadow: 0 14px 36px -22px rgba(80, 70, 160, 0.65);
-  animation: wow-mascot-float 5.5s ease-in-out infinite;
 }
 
 .wow-hero-ui-card {
@@ -137,7 +137,6 @@
   align-items: flex-end;
   justify-content: center;
   gap: 4px;
-  animation-delay: -1.4s;
 }
 
 .wow-hero-ui-bar {
@@ -156,7 +155,6 @@
   right: -4%;
   top: 22%;
   width: 88px;
-  animation-delay: -2.6s;
 }
 
 .wow-hero-ui-line {
@@ -188,7 +186,6 @@
   justify-content: center;
   color: #229ed9;
   border-radius: 50%;
-  animation-delay: -0.8s;
 }
 
 .wow-hero-ui-card--pie {
@@ -199,7 +196,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  animation-delay: -3.2s;
 }
 
 .wow-hero-ui-pie {
@@ -213,11 +209,6 @@
   );
   mask: radial-gradient(circle, transparent 42%, black 43%);
   -webkit-mask: radial-gradient(circle, transparent 42%, black 43%);
-}
-
-@keyframes wow-mascot-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
 }
 
 @keyframes wow-mascot-glow {
@@ -481,9 +472,6 @@
 @media (prefers-reduced-motion: reduce) {
   .wow-hero-aurora,
   .wow-hero-pulse,
-  .wow-hero-mascot-image,
-  .wow-hero-ui-card,
-  .wow-hero-ui-icon,
   .wow-hero-mascot-glow {
     animation: none !important;
   }

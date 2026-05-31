@@ -1,27 +1,49 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { prefersReducedMotion } from "@/lib/wowHeroMode";
 import { WOW_CAT_MASCOT_SRC } from "./wowMascotAsset";
 
 interface Props {
   /** Override image src (bundle export uses a relative path). */
   src?: string;
   className?: string;
+  /** Disable motion (tests / explicit override). */
+  reducedMotion?: boolean;
 }
 
 /**
- * Exhibition-grade hero mascot layer (Stage P.7.6).
+ * Exhibition-grade hero mascot layer (Stage P.7.7).
  *
- * "2D landing + one 3D mascot": the cat PNG sits on the right with a soft
- * platform glow and lightweight glass UI cards. No portal rings or heavy 3D
- * decor — works in preview, bundle and static export.
+ * "2D landing + one 3D mascot" with soft 2.5D motion: blink, head sway, typing
+ * shim, medallion pulse and drifting UI cards — pure CSS, no WebGL rig.
  */
-export function WowHeroMascot({ src = WOW_CAT_MASCOT_SRC, className }: Props) {
+export function WowHeroMascot({
+  src = WOW_CAT_MASCOT_SRC,
+  className,
+  reducedMotion,
+}: Props) {
+  const [reduce, setReduce] = useState(reducedMotion ?? false);
+
+  useEffect(() => {
+    if (reducedMotion !== undefined) {
+      setReduce(reducedMotion);
+      return;
+    }
+    setReduce(prefersReducedMotion());
+  }, [reducedMotion]);
+
   return (
     <div
-      className={["wow-hero-mascot", className].filter(Boolean).join(" ")}
+      className={[
+        "wow-hero-mascot",
+        reduce ? "wow-hero-mascot--static" : "",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       aria-hidden="true"
     >
-      {/* Floating 2D UI decor around the mascot */}
       <div className="wow-hero-ui-card wow-hero-ui-card--chart">
         <span className="wow-hero-ui-bar wow-hero-ui-bar--1" />
         <span className="wow-hero-ui-bar wow-hero-ui-bar--2" />
@@ -51,17 +73,27 @@ export function WowHeroMascot({ src = WOW_CAT_MASCOT_SRC, className }: Props) {
       <div className="wow-hero-mascot-glow" />
       <div className="wow-hero-mascot-platform" />
 
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        className="wow-hero-mascot-image"
-        src={src}
-        alt=""
-        width={480}
-        height={480}
-        loading="eager"
-        decoding="async"
-        draggable={false}
-      />
+      <div className="wow-hero-mascot-rig">
+        <div className="wow-hero-mascot-pose">
+          <div className="wow-hero-mascot-figure">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className="wow-hero-mascot-image"
+              src={src}
+              alt=""
+              width={480}
+              height={480}
+              loading="eager"
+              decoding="async"
+              draggable={false}
+            />
+            <span className="wow-hero-mascot-eyelid wow-hero-mascot-eyelid--left" />
+            <span className="wow-hero-mascot-eyelid wow-hero-mascot-eyelid--right" />
+            <span className="wow-hero-mascot-medallion" />
+            <span className="wow-hero-mascot-typing-glow" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -72,7 +72,9 @@ describe("WowBundleApp", () => {
     expect(html).toContain("wow-hero-mascot");
     expect(html).toContain("wow-hero-mascot-image");
     expect(html).toContain('src="assets/wow/cat-assistant.png"');
-    expect(html).toContain("wow-bundle-cat-mascot-v1");
+    expect(html).toContain("wow-hero-mascot-rig");
+    expect(html).toContain("wow-hero-mascot-medallion");
+    expect(html).toContain("wow-bundle-cat-mascot-v2");
   });
 
   it("bundle renderer source has no portal arch or procedural robot", () => {
@@ -91,5 +93,12 @@ describe("WowBundleApp", () => {
     );
     expect(html).toContain("X");
     expect(html).toContain("Демо-ссылка появится");
+  });
+
+  it("does not render landing screenshot or mockup hero as mascot", () => {
+    const html = render();
+    expect(html).not.toMatch(/screenshot|mockup|preview-card|landing-preview|hero-preview/i);
+    expect(html).not.toContain("wow-hero-mascot-ring");
+    expect(html).not.toContain("wow-hero-mascot-portal");
   });
 });

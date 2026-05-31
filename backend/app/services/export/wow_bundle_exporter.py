@@ -23,6 +23,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import struct
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -54,16 +55,25 @@ _SOURCE_CSS_NAME = "wow-app.css"
 
 _BUILD_INSTRUCTION = "cd frontend && npm run build:wow-bundle"
 
-WOW_BUNDLE_BUILD_MARKER = b"wow-bundle-cat-mascot-v1"
+WOW_BUNDLE_BUILD_MARKER = b"wow-bundle-cat-mascot-v2"
 WOW_BUNDLE_MASCOT_MARKERS = (
     b"cat-assistant",
     b"wow-hero-mascot",
+    b"wow-hero-mascot-rig",
     WOW_BUNDLE_BUILD_MARKER,
 )
 WOW_BUNDLE_STALE_ROBOT_MARKERS = (
     b"PhoneStage",
     b"function Assistant",
 )
+WOW_BUNDLE_FORBIDDEN_ASSET_PARTS = (
+    "landing-preview",
+    "screenshot",
+    "hero-preview",
+    "mockup",
+)
+# Wide landscape PNGs are landing screenshots, not standalone mascot art.
+_CAT_MASCOT_MAX_WIDTH_TO_HEIGHT = 1.35
 
 
 @dataclass(frozen=True)
@@ -104,24 +114,54 @@ def _validate_wow_app_js(js_bytes: bytes) -> None:
             )
 
 
+def _read_png_dimensions(data: bytes) -> tuple[int, int] | None:
+    """Return PNG width/height from IHDR, or None if not a readable PNG."""
+
+    if not data.startswith(b"\x89PNG\r\n\x1a\n") or len(data) < 24:
+        return None
+    width, height = struct.unpack(">II", data[16:24])
+    if width <= 0 or height <= 0:
+        return None
+    return width, height
+
+
+def validate_cat_mascot_png(data: bytes) -> None:
+    """Reject landing-screenshot PNGs masquerading as the standalone cat mascot."""
+
+    if not (data.startswith(b"\x89PNG\r\n\x1a\n") or data.startswith(b"\xff\xd8\xff")):
+        raise ValueError("cat-assistant.png is not a valid PNG/JPEG image")
+    dims = _read_png_dimensions(data)
+    if dims is None:
+        return
+    width, height = dims
+    if width > height * _CAT_MASCOT_MAX_WIDTH_TO_HEIGHT:
+        raise ValueError(
+            "cat-assistant.png looks like a wide landing screenshot "
+            f"({width}x{height}); expected standalone square/portrait mascot art"
+        )
+
+
 def _read_cat_mascot(assets_dir: Path) -> bytes:
     """Load the cat PNG from the built dist-wow copy, falling back to public/."""
 
     built = assets_dir / "wow" / "cat-assistant.png"
     if built.is_file():
-        return built.read_bytes()
-    if CAT_MASCOT_SOURCE.is_file():
+        data = built.read_bytes()
+    elif CAT_MASCOT_SOURCE.is_file():
         logger.warning(
             "WOW bundle cat mascot not found in %s; using public source %s",
             built,
             CAT_MASCOT_SOURCE,
         )
-        return CAT_MASCOT_SOURCE.read_bytes()
-    raise FileNotFoundError(
-        "WOW bundle cat mascot asset missing. Expected "
-        f"{built} or {CAT_MASCOT_SOURCE}. "
-        f"Build the frontend bundle first: {_BUILD_INSTRUCTION}"
-    )
+        data = CAT_MASCOT_SOURCE.read_bytes()
+    else:
+        raise FileNotFoundError(
+            "WOW bundle cat mascot asset missing. Expected "
+            f"{built} or {CAT_MASCOT_SOURCE}. "
+            f"Build the frontend bundle first: {_BUILD_INSTRUCTION}"
+        )
+    validate_cat_mascot_png(data)
+    return data
 
 
 def _validate_zip_entry_name(name: str) -> None:

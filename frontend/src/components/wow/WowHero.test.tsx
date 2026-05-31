@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { WowHeroCanvas } from "./WowHeroCanvas";
 import { WowHeroFallback } from "./WowHeroFallback";
@@ -54,10 +55,33 @@ describe("WOW hero components", () => {
     expect(source("wowMascotAsset.ts")).toContain("/assets/wow/cat-assistant.png");
   });
 
+  it("mascot uses 2.5D motion rig layers (Stage P.7.7)", () => {
+    const mascot = source("WowHeroMascot.tsx");
+    const motion = source("wow-mascot-motion.css");
+    expect(mascot).toContain("wow-hero-mascot-rig");
+    expect(mascot).toContain("wow-hero-mascot-eyelid");
+    expect(mascot).toContain("wow-hero-mascot-medallion");
+    expect(mascot).toContain("wow-hero-mascot-typing-glow");
+    expect(mascot).toContain("prefersReducedMotion");
+    expect(motion).toContain("wow-cat-blink");
+    expect(motion).toContain("wow-cat-head-sway");
+    expect(motion).toContain("wow-cat-typing");
+    expect(motion).toContain("wow-cat-medallion-pulse");
+    expect(motion).toContain("wow-ui-drift-a");
+  });
+
   it("UII light scene has no portal arch or 3D floating cards", () => {
     const scene = source("WowHeroSceneUiiLight.tsx");
     expect(scene).not.toContain("WowPortalArch");
     expect(scene).not.toContain("WowFloatingCards");
     expect(scene).toContain("WowAmbientDecor");
+  });
+
+  it("WowHeroMascot renders standalone cat img, not preview screenshot", () => {
+    const html = renderToStaticMarkup(<WowHeroMascot reducedMotion />);
+    expect(html).toContain("wow-hero-mascot-image");
+    expect(html).toContain("/assets/wow/cat-assistant.png");
+    expect(html).toContain("wow-hero-mascot-rig");
+    expect(html).not.toMatch(/screenshot|mockup|preview-card|landing-preview|hero-preview/i);
   });
 });

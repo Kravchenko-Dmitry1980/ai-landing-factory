@@ -1,0 +1,199 @@
+/* WOW cat mascot 2.5D motion (Stage P.7.7).
+ * Layered CSS animation — no WebGL rig. Works in preview, bundle and static export. */
+
+.wow-hero-mascot-rig {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  animation: wow-cat-float 6.8s ease-in-out infinite;
+}
+
+.wow-hero-mascot-pose {
+  transform-origin: 50% 42%;
+  animation: wow-cat-head-sway 9.5s ease-in-out infinite;
+}
+
+.wow-hero-mascot-figure {
+  position: relative;
+  width: 100%;
+  animation: wow-cat-typing 4.2s ease-in-out infinite;
+}
+
+.wow-hero-mascot-image {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 22px 34px rgba(80, 70, 160, 0.28));
+}
+
+.wow-hero-mascot-eyelid {
+  position: absolute;
+  z-index: 4;
+  width: 10.5%;
+  height: 4.2%;
+  border-radius: 50%;
+  background: rgba(108, 118, 132, 0.82);
+  transform-origin: center 20%;
+  transform: scaleY(0);
+  opacity: 0;
+  pointer-events: none;
+  animation: wow-cat-blink 7.2s ease-in-out infinite;
+}
+
+.wow-hero-mascot-eyelid--left {
+  top: 28.5%;
+  left: 34%;
+  animation-delay: 0.35s;
+}
+
+.wow-hero-mascot-eyelid--right {
+  top: 28.5%;
+  right: 34%;
+  animation-delay: 0.85s;
+}
+
+.wow-hero-mascot-medallion {
+  position: absolute;
+  z-index: 3;
+  top: 49.5%;
+  left: 50%;
+  width: 10%;
+  height: 10%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    circle,
+    rgba(93, 214, 255, 0.75) 0%,
+    rgba(124, 77, 255, 0.35) 45%,
+    transparent 72%
+  );
+  box-shadow: 0 0 18px 4px rgba(93, 214, 255, 0.35);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: wow-cat-medallion-pulse 3.4s ease-in-out infinite;
+}
+
+.wow-hero-mascot-typing-glow {
+  position: absolute;
+  z-index: 1;
+  left: 38%;
+  bottom: 22%;
+  width: 28%;
+  height: 8%;
+  border-radius: 8px;
+  background: radial-gradient(circle, rgba(93, 214, 255, 0.18), transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+  animation: wow-cat-typing-glow 4.2s ease-in-out infinite;
+}
+
+.wow-hero-stage[data-mode="wow3d"] .wow-hero-mascot-medallion {
+  animation-duration: 2.8s;
+}
+
+.wow-hero-stage[data-mode="wow3d"] .wow-hero-mascot-pose {
+  animation-duration: 8s;
+}
+
+.wow-hero-mascot--static .wow-hero-mascot-rig,
+.wow-hero-mascot--static .wow-hero-mascot-pose,
+.wow-hero-mascot--static .wow-hero-mascot-figure,
+.wow-hero-mascot--static .wow-hero-mascot-eyelid,
+.wow-hero-mascot--static .wow-hero-mascot-medallion,
+.wow-hero-mascot--static .wow-hero-mascot-typing-glow,
+.wow-hero-mascot--static .wow-hero-ui-card,
+.wow-hero-mascot--static .wow-hero-ui-icon {
+  animation: none !important;
+}
+
+.wow-hero-ui-card--chart {
+  animation: wow-ui-drift-a 7.2s ease-in-out infinite;
+}
+
+.wow-hero-ui-card--news {
+  animation: wow-ui-drift-b 8.6s ease-in-out infinite;
+}
+
+.wow-hero-ui-icon--telegram {
+  animation: wow-ui-drift-c 6.4s ease-in-out infinite;
+}
+
+.wow-hero-ui-card--pie {
+  animation: wow-ui-drift-d 9.1s ease-in-out infinite;
+}
+
+@keyframes wow-cat-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes wow-cat-head-sway {
+  0%, 100% { transform: rotate(0deg); }
+  32% { transform: rotate(0.65deg); }
+  68% { transform: rotate(-0.55deg); }
+}
+
+@keyframes wow-cat-typing {
+  0%, 68%, 100% { transform: translateY(0); }
+  70% { transform: translateY(1.2px); }
+  71% { transform: translateY(0); }
+  72% { transform: translateY(1px); }
+  73% { transform: translateY(0); }
+  74% { transform: translateY(1.2px); }
+  75% { transform: translateY(0); }
+  76% { transform: translateY(0.8px); }
+  77% { transform: translateY(0); }
+}
+
+@keyframes wow-cat-typing-glow {
+  0%, 66%, 100% { opacity: 0; }
+  70%, 78% { opacity: 0.55; }
+}
+
+@keyframes wow-cat-blink {
+  0%, 90%, 100% { transform: scaleY(0); opacity: 0; }
+  92% { transform: scaleY(1); opacity: 0.92; }
+  94% { transform: scaleY(0.15); opacity: 0.4; }
+  96% { transform: scaleY(0); opacity: 0; }
+}
+
+@keyframes wow-cat-medallion-pulse {
+  0%, 100% { opacity: 0.42; transform: translate(-50%, -50%) scale(0.9); }
+  50% { opacity: 0.92; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+@keyframes wow-ui-drift-a {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-3px, -5px); }
+}
+
+@keyframes wow-ui-drift-b {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(4px, -4px); }
+}
+
+@keyframes wow-ui-drift-c {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-2px, 3px); }
+}
+
+@keyframes wow-ui-drift-d {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(3px, 4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wow-hero-mascot-rig,
+  .wow-hero-mascot-pose,
+  .wow-hero-mascot-figure,
+  .wow-hero-mascot-eyelid,
+  .wow-hero-mascot-medallion,
+  .wow-hero-mascot-typing-glow,
+  .wow-hero-ui-card,
+  .wow-hero-ui-icon {
+    animation: none !important;
+  }
+}

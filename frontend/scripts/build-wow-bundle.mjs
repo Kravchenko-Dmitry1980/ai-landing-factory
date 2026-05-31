@@ -26,13 +26,34 @@ const frontendRoot = resolve(__dirname, "..");
 const entry = join(frontendRoot, "src", "wow-bundle", "main.tsx");
 const outdir = join(frontendRoot, "dist-wow", "assets");
 
-const BUILD_MARKER = "wow-bundle-cat-mascot-v1";
-const MASCOT_MARKERS = ["cat-assistant", "wow-hero-mascot", BUILD_MARKER];
+const BUILD_MARKER = "wow-bundle-cat-mascot-v2";
+const MASCOT_MARKERS = ["cat-assistant", "wow-hero-mascot", "wow-hero-mascot-rig", BUILD_MARKER];
 const STALE_ROBOT_MARKERS = ["PhoneStage", "function Assistant"];
 
 function fail(message) {
   console.error(`FAIL: ${message}`);
   process.exit(1);
+}
+
+function readPngDimensions(buffer) {
+  if (buffer.length < 24 || buffer.readUInt32BE(0) !== 0x89504e47) {
+    return null;
+  }
+  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+}
+
+function validateCatMascotPng(catPath) {
+  const data = readFileSync(catPath);
+  const dims = readPngDimensions(data);
+  if (!dims || dims.width <= 0 || dims.height <= 0) {
+    fail(`cat mascot PNG has unreadable dimensions: ${catPath}`);
+  }
+  if (dims.width > dims.height * 1.35) {
+    fail(
+      `cat-assistant.png looks like a wide landing screenshot (${dims.width}x${dims.height}); ` +
+        "expected standalone square/portrait mascot art",
+    );
+  }
 }
 
 function validateBundleJs(jsPath) {
@@ -58,6 +79,7 @@ async function main() {
   if (!existsSync(catSrc)) {
     fail(`cat mascot asset missing: ${catSrc}`);
   }
+  validateCatMascotPng(catSrc);
 
   // Clean previous output so stale chunks never ship inside a ZIP.
   rmSync(join(frontendRoot, "dist-wow"), { recursive: true, force: true });
@@ -101,6 +123,7 @@ async function main() {
   if (!existsSync(catOut)) {
     fail(`failed to copy cat mascot to ${catOut}`);
   }
+  validateCatMascotPng(catOut);
 
   console.log(
     `OK: wow-bundle built in ${Date.now() - started}ms — wow-app.js ${jsKb}KB, wow-app.css ${cssKb}KB`,

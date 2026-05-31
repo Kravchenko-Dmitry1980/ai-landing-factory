@@ -122,10 +122,30 @@ _WOW_RULES = """
   border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,.95) 0%,rgba(238,241,251,.85) 100%);
   box-shadow:0 16px 32px -18px rgba(80,70,160,.45),inset 0 1px 0 rgba(255,255,255,.95);}
 .wow-hero-mascot-image{position:relative;z-index:2;width:100%;height:auto;object-fit:contain;
-  filter:drop-shadow(0 22px 34px rgba(80,70,160,.28));animation:wow-mascot-float 6.5s ease-in-out infinite;}
+  filter:drop-shadow(0 22px 34px rgba(80,70,160,.28));}
+.wow-hero-mascot-rig{position:relative;z-index:2;width:100%;animation:wow-cat-float 6.8s ease-in-out infinite;}
+.wow-hero-mascot-pose{transform-origin:50% 42%;animation:wow-cat-head-sway 9.5s ease-in-out infinite;}
+.wow-hero-mascot-figure{position:relative;width:100%;animation:wow-cat-typing 4.2s ease-in-out infinite;}
+.wow-hero-mascot-eyelid{position:absolute;z-index:4;width:10.5%;height:4.2%;border-radius:50%;
+  background:rgba(108,118,132,.82);transform-origin:center 20%;transform:scaleY(0);opacity:0;
+  animation:wow-cat-blink 7.2s ease-in-out infinite;}
+.wow-hero-mascot-eyelid--left{top:28.5%;left:34%;animation-delay:.35s;}
+.wow-hero-mascot-eyelid--right{top:28.5%;right:34%;animation-delay:.85s;}
+.wow-hero-mascot-medallion{position:absolute;z-index:3;top:49.5%;left:50%;width:10%;height:10%;
+  border-radius:50%;transform:translate(-50%,-50%);
+  background:radial-gradient(circle,rgba(93,214,255,.75) 0%,rgba(124,77,255,.35) 45%,transparent 72%);
+  box-shadow:0 0 18px 4px rgba(93,214,255,.35);mix-blend-mode:screen;
+  animation:wow-cat-medallion-pulse 3.4s ease-in-out infinite;}
+.wow-hero-mascot-typing-glow{position:absolute;z-index:1;left:38%;bottom:22%;width:28%;height:8%;
+  border-radius:8px;background:radial-gradient(circle,rgba(93,214,255,.18),transparent 70%);
+  opacity:0;animation:wow-cat-typing-glow 4.2s ease-in-out infinite;}
 .wow-hero-ui-card,.wow-hero-ui-icon{position:absolute;z-index:3;border-radius:14px;
   background:rgba(255,255,255,.72);border:1px solid rgba(124,77,255,.16);backdrop-filter:blur(10px);
-  box-shadow:0 14px 36px -22px rgba(80,70,160,.65);animation:wow-mascot-float 5.5s ease-in-out infinite;}
+  box-shadow:0 14px 36px -22px rgba(80,70,160,.65);}
+.wow-hero-ui-card--chart{animation:wow-ui-drift-a 7.2s ease-in-out infinite;}
+.wow-hero-ui-card--news{animation:wow-ui-drift-b 8.6s ease-in-out infinite;}
+.wow-hero-ui-icon--telegram{animation:wow-ui-drift-c 6.4s ease-in-out infinite;}
+.wow-hero-ui-card--pie{animation:wow-ui-drift-d 9.1s ease-in-out infinite;}
 .wow-hero-ui-card{padding:10px 12px;opacity:.88;}
 .wow-hero-ui-card--chart{left:-6%;top:8%;width:72px;height:52px;display:flex;align-items:flex-end;
   justify-content:center;gap:4px;animation-delay:-1.4s;}
@@ -145,9 +165,22 @@ _WOW_RULES = """
   justify-content:center;animation-delay:-3.2s;}
 .wow-hero-ui-pie{width:32px;height:32px;border-radius:50%;
   background:conic-gradient(var(--wow-accent) 0deg 130deg,rgba(93,214,255,1) 130deg 220deg,#d9ccff 220deg 360deg);}
-@keyframes wow-mascot-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
 @keyframes wow-mascot-glow{0%{opacity:.75;transform:translate(-50%,-50%) scale(.96);}
   100%{opacity:1;transform:translate(-50%,-50%) scale(1.04);}}
+@keyframes wow-cat-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
+@keyframes wow-cat-head-sway{0%,100%{transform:rotate(0deg);}32%{transform:rotate(.65deg);}68%{transform:rotate(-.55deg);}}
+@keyframes wow-cat-typing{0%,68%,100%{transform:translateY(0);}70%{transform:translateY(1.2px);}71%{transform:translateY(0);}
+  72%{transform:translateY(1px);}73%{transform:translateY(0);}74%{transform:translateY(1.2px);}75%,77%{transform:translateY(0);}
+  76%{transform:translateY(.8px);}}
+@keyframes wow-cat-typing-glow{0%,66%,100%{opacity:0;}70%,78%{opacity:.55;}}
+@keyframes wow-cat-blink{0%,90%,100%{transform:scaleY(0);opacity:0;}92%{transform:scaleY(1);opacity:.92;}
+  94%{transform:scaleY(.15);opacity:.4;}96%{transform:scaleY(0);opacity:0;}}
+@keyframes wow-cat-medallion-pulse{0%,100%{opacity:.42;transform:translate(-50%,-50%) scale(.9);}
+  50%{opacity:.92;transform:translate(-50%,-50%) scale(1.1);}}
+@keyframes wow-ui-drift-a{0%,100%{transform:translate(0,0);}50%{transform:translate(-3px,-5px);}}
+@keyframes wow-ui-drift-b{0%,100%{transform:translate(0,0);}50%{transform:translate(4px,-4px);}}
+@keyframes wow-ui-drift-c{0%,100%{transform:translate(0,0);}50%{transform:translate(-2px,3px);}}
+@keyframes wow-ui-drift-d{0%,100%{transform:translate(0,0);}50%{transform:translate(3px,4px);}}
 
 .wow-kicker{display:inline-flex;align-items:center;gap:.5rem;
   font-size:.72rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;
@@ -272,8 +305,9 @@ _WOW_RULES = """
 
 /* ===== ACCESSIBILITY: reduced motion ===== */
 @media (prefers-reduced-motion:reduce){
-  .wow-bg-grid,.wow-bg-radar,.wow-kicker::before,.wow-hero-mascot-image,.wow-hero-ui-card,.wow-hero-ui-icon,
-  .wow-hero-mascot-glow{animation:none!important;}
+  .wow-bg-grid,.wow-bg-radar,.wow-kicker::before,.wow-hero-mascot-glow,.wow-hero-mascot-rig,
+  .wow-hero-mascot-pose,.wow-hero-mascot-figure,.wow-hero-mascot-eyelid,.wow-hero-mascot-medallion,
+  .wow-hero-mascot-typing-glow,.wow-hero-ui-card,.wow-hero-ui-icon{animation:none!important;}
   .wow-orbit-card,.wow-hologram-card,.wow-btn{transition:none!important;}
 }
 

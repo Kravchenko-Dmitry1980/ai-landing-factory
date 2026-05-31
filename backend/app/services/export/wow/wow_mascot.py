@@ -1,4 +1,4 @@
-"""WOW hero mascot helpers (Stage P.7.6).
+"""WOW hero mascot helpers (Stage P.7.7).
 
 The cat assistant PNG lives in ``frontend/public/assets/wow/``. For the
 self-contained CSS WOW HTML export we inline it as a data URI so the artifact
@@ -44,6 +44,19 @@ _UI_CARDS = (
     "</div>"
 )
 
+_MASCOT_RIG = (
+    "<div class='wow-hero-mascot-rig'>"
+    "<div class='wow-hero-mascot-pose'>"
+    "<div class='wow-hero-mascot-figure'>"
+    "<img class='wow-hero-mascot-image' src='{src}' alt='' "
+    "width='480' height='480' loading='eager' decoding='async' draggable='false' />"
+    "<span class='wow-hero-mascot-eyelid wow-hero-mascot-eyelid--left'></span>"
+    "<span class='wow-hero-mascot-eyelid wow-hero-mascot-eyelid--right'></span>"
+    "<span class='wow-hero-mascot-medallion'></span>"
+    "<span class='wow-hero-mascot-typing-glow'></span>"
+    "</div></div></div>"
+)
+
 
 @lru_cache(maxsize=1)
 def cat_mascot_data_uri() -> str:
@@ -59,19 +72,19 @@ def cat_mascot_data_uri() -> str:
 
 
 def build_wow_hero_mascot_html(*, src: str | None = None) -> str:
-    """Decorative hero mascot block (soft platform + cat image + 2D UI cards)."""
+    """Decorative hero mascot block (2.5D rig + cat image + 2D UI cards)."""
 
     resolved = src if src is not None else cat_mascot_data_uri()
     if not resolved:
         return ""
 
     safe_src = escape_text(resolved)
+    rig = _MASCOT_RIG.format(src=safe_src)
     return (
         "<div class='wow-hero-mascot' aria-hidden='true'>"
         f"{_UI_CARDS}"
         "<div class='wow-hero-mascot-glow'></div>"
         "<div class='wow-hero-mascot-platform'></div>"
-        f"<img class='wow-hero-mascot-image' src='{safe_src}' alt='' "
-        "width='480' height='480' loading='eager' decoding='async' draggable='false' />"
+        f"{rig}"
         "</div>"
     )
