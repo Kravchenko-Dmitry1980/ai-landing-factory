@@ -76,12 +76,45 @@ Report template: [UAT_RELEASE_REPORT.md](../UAT_RELEASE_REPORT.md)
 
 ```powershell
 .\scripts\release_check.ps1 -Full
-# or:
-.\scripts\check_all.ps1 -SkipFrontendBuild -SkipVisualSmoke
-cd frontend && npm test && npm run build
+# faster (skip frontend build):
+.\scripts\release_check.ps1 -Full -SkipFrontendBuild
+# skip showcase checks only (still Full gate otherwise):
+.\scripts\release_check.ps1 -Full -SkipShowcaseSmoke
 ```
 
-Includes corpus smoke, team group blocks, full backend pytest (when not `-Simple`), more regression. Still **no OCR/VLM** unless explicit flags.
+Includes Simple release checks (`check_all -Simple`), frontend tests/build
+(unless skipped), backend targeted pytest, and **VR/AR Showcase** offline checks.
+
+For heavier regression (full backend pytest, live HTTP smokes), run
+`.\scripts\check_all.ps1` separately without `-Simple`.
+
+**Full gate additionally runs:**
+
+- `scripts/smoke_showcase_zip_export.py`
+- `pytest tests/test_showcase_zip_exporter.py tests/test_showcase_exporter.py`
+
+Showcase ZIP is **not** part of the Simple Gate — ordinary landing generation
+must remain lightweight and must not require vendored A-Frame assets.
+
+#### VR/AR Showcase release checks (Full gate only)
+
+| Check | Script / test |
+|-------|----------------|
+| HTML export safety (optional manual) | `scripts/smoke_showcase_export.py` |
+| Portable ZIP bundle smoke | `scripts/smoke_showcase_zip_export.py` |
+| HTML exporter unit tests | `tests/test_showcase_exporter.py` |
+| ZIP exporter unit tests | `tests/test_showcase_zip_exporter.py` |
+
+Direct backend run:
+
+```powershell
+cd backend
+..\.venv\Scripts\python.exe scripts\smoke_showcase_zip_export.py
+..\.venv\Scripts\python.exe -m pytest tests/test_showcase_zip_exporter.py tests/test_showcase_exporter.py -q
+```
+
+Still **no OCR/VLM** unless explicit flags. Showcase checks are covered by
+`release_check.ps1 -Full`, not by `check_all -Simple`.
 
 ### D. Advanced / Research Gate (non-blocking)
 

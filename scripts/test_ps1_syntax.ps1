@@ -87,6 +87,28 @@ if (Test-Path $runPs1Path) {
     }
 }
 
+$releaseCheckPath = Join-Path $RootDir "scripts\release_check.ps1"
+if (Test-Path $releaseCheckPath) {
+    $releaseCheckText = Get-Content -Path $releaseCheckPath -Raw -Encoding UTF8
+    $releaseChecks = @(
+        @{ Name = "release_check defines -Full switch"; Pattern = '\[switch\]\$Full' },
+        @{ Name = "release_check defines -SkipShowcaseSmoke"; Pattern = '\[switch\]\$SkipShowcaseSmoke' },
+        @{ Name = "release_check references showcase ZIP smoke script"; Pattern = 'smoke_showcase_zip_export\.py' },
+        @{ Name = "release_check Full gate guards showcase ZIP smoke"; Pattern = '(?s)if \(\$Full\).*smoke_showcase_zip_export\.py' },
+        @{ Name = "release_check simple skips showcase ZIP smoke"; Pattern = 'Full gate only' }
+    )
+    foreach ($check in $releaseChecks) {
+        $matched = $releaseCheckText -match $check.Pattern
+        if ($matched) {
+            Write-Host ("OK: {0}" -f $check.Name)
+        }
+        else {
+            Write-Host ("FAIL: {0}" -f $check.Name)
+            $failed++
+        }
+    }
+}
+
 if ($failed -gt 0) {
     exit 1
 }

@@ -62,7 +62,8 @@ ZIP содержит `showcase.html`, `vendor/aframe/aframe.min.js`, `LICENSE.tx
 Распакуйте и откройте `showcase.html` без интернета.
 
 Vendored runtime: `frontend/public/vendor/aframe/aframe.min.js`.
-UI `/showcase`: **Export HTML** или **Export ZIP for offline demo**.
+UI `/showcase`: **Export HTML** or **Export ZIP for offline demo**.
+Showcase ZIP is checked by `.\scripts\release_check.ps1 -Full` (not Simple Gate).
 Подробности: [docs/VR_AR_SHOWCASE_P5.md](docs/VR_AR_SHOWCASE_P5.md)
 
 ## Operator guide (Russian)

@@ -14,12 +14,16 @@
 
 .EXAMPLE
   .\scripts\release_check.ps1 -SkipFrontendBuild
+
+.EXAMPLE
+  .\scripts\release_check.ps1 -Full -SkipShowcaseSmoke
 #>
 [CmdletBinding()]
 param(
     [switch]$Fast,
     [switch]$Full,
-    [switch]$SkipFrontendBuild
+    [switch]$SkipFrontendBuild,
+    [switch]$SkipShowcaseSmoke
 )
 
 Set-StrictMode -Version Latest
@@ -57,7 +61,17 @@ function Invoke-Step {
     Write-Host ("    {0}" -f ($Command -join ' '))
     Push-Location $WorkingDirectory
     try {
-        & $Command[0] @($Command[1..($Command.Count - 1)])
+        $prevEap = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        & $Command[0] @($Command[1..($Command.Count - 1)]) 2>&1 | ForEach-Object {
+            if ($_ -is [System.Management.Automation.ErrorRecord]) {
+                Write-Host $_.ToString()
+            }
+            else {
+                Write-Host $_
+            }
+        }
+        $ErrorActionPreference = $prevEap
         $code = $LASTEXITCODE
         if ($null -eq $code) { $code = 0 }
         Add-Result -Name $Name -Ok ($code -eq 0) -Detail ("exit={0}" -f $code)
@@ -131,10 +145,10 @@ Invoke-Step -Name "Simple dependency audit" -WorkingDirectory $BackendDir -Comma
 )
 
 if ($Full) {
-    Invoke-Step -Name "check_all full dev" -WorkingDirectory $RootDir -Command @(
+    Invoke-Step -Name "check_all simple (Full gate base)" -WorkingDirectory $RootDir -Command @(
         "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
         "-File", (Join-Path $RootDir "scripts\check_all.ps1"),
-        "-SkipFrontendBuild", "-SkipVisualSmoke"
+        "-Simple", "-SkipFrontendBuild"
     )
 }
 else {
@@ -166,6 +180,32 @@ else {
     Write-Step "Frontend npm build"
     Write-Host "SKIP: -SkipFrontendBuild or -Fast"
     Add-Result -Name "Frontend npm build" -Ok $true -Detail "skipped"
+}
+
+if ($Full) {
+    if ($SkipShowcaseSmoke) {
+        Write-Step "Showcase ZIP export smoke"
+        Write-Host "SKIP: Showcase smoke skipped by user." -ForegroundColor Yellow
+        Add-Result -Name "Showcase ZIP export smoke" -Ok $true -Detail "skipped by -SkipShowcaseSmoke"
+        Add-Result -Name "Showcase exporter pytest" -Ok $true -Detail "skipped by -SkipShowcaseSmoke"
+    }
+    else {
+        Invoke-Step -Name "Showcase ZIP export smoke" -WorkingDirectory $BackendDir -Command @(
+            $PythonExe, "scripts\smoke_showcase_zip_export.py"
+        )
+        Invoke-Step -Name "Showcase exporter pytest" -WorkingDirectory $BackendDir -Command @(
+            $PythonExe, "-m", "pytest",
+            "tests/test_showcase_zip_exporter.py",
+            "tests/test_showcase_exporter.py",
+            "-q"
+        )
+    }
+}
+else {
+    Write-Step "Showcase ZIP export smoke"
+    Write-Host "SKIP: Showcase ZIP export smoke is Full gate only."
+    Add-Result -Name "Showcase ZIP export smoke" -Ok $true -Detail "Full gate only"
+    Add-Result -Name "Showcase exporter pytest" -Ok $true -Detail "Full gate only"
 }
 
 Write-Step "Git status (informational)"
