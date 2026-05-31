@@ -213,7 +213,7 @@ async def export_wow_bundle(
     options = WowBundleExportOptions(demo_url=demo_url, showcase_url=showcase_url)
     try:
         result = build_wow_bundle_zip_with_meta(contract, options)
-    except FileNotFoundError as exc:
+    except (FileNotFoundError, ValueError) as exc:
         raise HTTPException(503, str(exc)) from exc
 
     filename = f"ai-wow-landing-{project_id}.zip"

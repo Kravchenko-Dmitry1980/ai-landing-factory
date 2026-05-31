@@ -16,6 +16,7 @@ import {
 } from "@/lib/wowHeroMode";
 import { WowHeroOverlay } from "./WowHeroOverlay";
 import { WowHeroFallback } from "./WowHeroFallback";
+import { WowHeroMascot } from "./WowHeroMascot";
 import "./wow-hero.css";
 
 const WowHeroR3F = dynamic(() => import("./WowHeroR3F"), {
@@ -80,6 +81,7 @@ export function WowHeroCanvas({ landing, contract, semantic, mode, accent = "#7c
           accent={accent}
         />
       </div>
+      <WowHeroMascot />
       <WowHeroOverlay data={data} mode={mode} />
     </section>
   );

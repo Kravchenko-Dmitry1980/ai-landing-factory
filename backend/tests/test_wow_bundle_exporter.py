@@ -31,8 +31,15 @@ def fake_assets(tmp_path: Path) -> Path:
     """A fake dist-wow/assets directory with placeholder bundle files."""
     assets = tmp_path / "assets"
     assets.mkdir(parents=True)
-    (assets / "wow-app.js").write_text("/*wow*/console.log('wow');", encoding="utf-8")
+    (assets / "wow-app.js").write_text(
+        "/*wow*/console.log('wow'); "
+        "cat-assistant wow-hero-mascot wow-bundle-cat-mascot-v1",
+        encoding="utf-8",
+    )
     (assets / "wow-app.css").write_text(".wow{color:#fff}", encoding="utf-8")
+    wow_dir = assets / "wow"
+    wow_dir.mkdir(parents=True)
+    (wow_dir / "cat-assistant.png").write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 200)
     return assets
 
 
@@ -58,6 +65,58 @@ def test_zip_contains_wow_app_js(fake_assets: Path) -> None:
     assert "assets/wow-app.js" in _zip_names(data)
 
 
+def test_zip_contains_cat_mascot_png(fake_assets: Path) -> None:
+    _, contract, _ = make_wow_indlab_fixture()
+    data = build_wow_bundle_zip(contract, assets_dir=fake_assets)
+    names = _zip_names(data)
+    assert "assets/wow/cat-assistant.png" in names
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        cat = zf.read("assets/wow/cat-assistant.png")
+        assert len(cat) > 100
+        assert cat.startswith(b"\x89PNG") or cat.startswith(b"\xff\xd8\xff")
+
+
+def test_zip_js_contains_cat_mascot_markers(fake_assets: Path) -> None:
+    _, contract, _ = make_wow_indlab_fixture()
+    data = build_wow_bundle_zip(contract, assets_dir=fake_assets)
+    js = _zip_read(data, "assets/wow-app.js")
+    assert "cat-assistant" in js
+    assert "wow-hero-mascot" in js
+    assert "wow-bundle-cat-mascot-v1" in js
+
+
+def test_stale_robot_bundle_is_rejected(tmp_path: Path) -> None:
+    assets = tmp_path / "assets"
+    assets.mkdir(parents=True)
+    (assets / "wow-app.js").write_text(
+        "PhoneStage function Assistant cat-assistant wow-hero-mascot wow-bundle-cat-mascot-v1",
+        encoding="utf-8",
+    )
+    wow_dir = assets / "wow"
+    wow_dir.mkdir(parents=True)
+    (wow_dir / "cat-assistant.png").write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 200)
+    _, contract, _ = make_wow_indlab_fixture()
+    with pytest.raises(ValueError, match="stale robot"):
+        build_wow_bundle_zip(contract, assets_dir=assets)
+
+
+def test_missing_cat_asset_fails(tmp_path: Path, monkeypatch) -> None:
+    assets = tmp_path / "assets"
+    assets.mkdir(parents=True)
+    (assets / "wow-app.js").write_text(
+        "cat-assistant wow-hero-mascot wow-bundle-cat-mascot-v1",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        wow_bundle_exporter,
+        "CAT_MASCOT_SOURCE",
+        tmp_path / "missing-cat.png",
+    )
+    _, contract, _ = make_wow_indlab_fixture()
+    with pytest.raises(FileNotFoundError, match="cat mascot"):
+        build_wow_bundle_zip(contract, assets_dir=assets)
+
+
 def test_zip_contains_wow_app_css_if_exists(fake_assets: Path) -> None:
     _, contract, _ = make_wow_indlab_fixture()
     data = build_wow_bundle_zip(contract, assets_dir=fake_assets)
@@ -67,7 +126,13 @@ def test_zip_contains_wow_app_css_if_exists(fake_assets: Path) -> None:
 def test_zip_omits_css_when_missing(tmp_path: Path) -> None:
     assets = tmp_path / "assets"
     assets.mkdir(parents=True)
-    (assets / "wow-app.js").write_text("console.log('x');", encoding="utf-8")
+    (assets / "wow-app.js").write_text(
+        "cat-assistant wow-hero-mascot wow-bundle-cat-mascot-v1",
+        encoding="utf-8",
+    )
+    wow_dir = assets / "wow"
+    wow_dir.mkdir(parents=True)
+    (wow_dir / "cat-assistant.png").write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 200)
     _, contract, _ = make_wow_indlab_fixture()
     data = build_wow_bundle_zip(contract, assets_dir=assets)
     names = _zip_names(data)
@@ -169,6 +234,7 @@ def test_export_endpoint_returns_zip(fake_assets: Path, monkeypatch) -> None:
     assert res.status_code == 200
     assert res.headers["content-type"] == "application/zip"
     assert "assets/wow-app.js" in _zip_names(res.content)
+    assert "assets/wow/cat-assistant.png" in _zip_names(res.content)
 
 
 def test_missing_frontend_build_gives_clear_error(tmp_path: Path) -> None:
@@ -186,3 +252,4 @@ def test_meta_reports_metric_and_pipeline_counts(fake_assets: Path) -> None:
     assert result.metric_count >= 4
     assert result.pipeline_count >= 1
     assert result.has_css is True
+    assert result.has_cat_mascot is True

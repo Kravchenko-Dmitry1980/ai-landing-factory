@@ -4,6 +4,7 @@ import type { WowHeroData } from "@/lib/wowHeroMapping";
 import { NODE_KIND_COLOR } from "@/lib/wowHeroMapping";
 import type { WowHeroMode } from "@/lib/wowHeroMode";
 import { WowHeroOverlay } from "./WowHeroOverlay";
+import { WowHeroMascot } from "./WowHeroMascot";
 
 interface Props {
   data: WowHeroData;
@@ -52,6 +53,7 @@ export function WowHeroFallback({ data, mode, reason }: Props) {
           })}
         </ul>
       </div>
+      <WowHeroMascot />
       <WowHeroOverlay data={data} mode={mode} />
     </div>
   );

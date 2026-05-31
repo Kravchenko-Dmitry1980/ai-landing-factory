@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { WowHeroCanvas } from "./WowHeroCanvas";
 import { WowHeroFallback } from "./WowHeroFallback";
+import { WowHeroMascot } from "./WowHeroMascot";
 import { WowHeroOverlay } from "./WowHeroOverlay";
 import { WowMetricStrip } from "./WowMetricStrip";
 
@@ -16,6 +17,7 @@ describe("WOW hero components", () => {
   it("export components", () => {
     expect(typeof WowHeroCanvas).toBe("function");
     expect(typeof WowHeroFallback).toBe("function");
+    expect(typeof WowHeroMascot).toBe("function");
     expect(typeof WowHeroOverlay).toBe("function");
     expect(typeof WowMetricStrip).toBe("function");
   });
@@ -38,6 +40,14 @@ describe("WOW hero components", () => {
     expect(src).toContain("Смотреть лендинг");
     expect(src).toContain('id="wow-metrics"');
     expect(src).toContain("aria-label");
+  });
+
+  it("mounts the cat mascot in live canvas and static fallback", () => {
+    const canvas = source("WowHeroCanvas.tsx");
+    const fallback = source("WowHeroFallback.tsx");
+    expect(canvas).toContain("WowHeroMascot");
+    expect(fallback).toContain("WowHeroMascot");
+    expect(source("wowMascotAsset.ts")).toContain("/assets/wow/cat-assistant.png");
   });
 
   it("supports reduced motion in the scene", () => {

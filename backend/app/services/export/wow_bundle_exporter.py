@@ -37,10 +37,14 @@ logger = logging.getLogger(__name__)
 
 # Resolved relative to the repo root (settings.base_dir == backend dir).
 DEFAULT_ASSETS_DIR: Path = settings.base_dir.parent / "frontend" / "dist-wow" / "assets"
+CAT_MASCOT_SOURCE: Path = (
+    settings.base_dir.parent / "frontend" / "public" / "assets" / "wow" / "cat-assistant.png"
+)
 
 ZIP_INDEX_NAME = "index.html"
 ZIP_JS_ENTRY = "assets/wow-app.js"
 ZIP_CSS_ENTRY = "assets/wow-app.css"
+ZIP_CAT_MASCOT_ENTRY = "assets/wow/cat-assistant.png"
 ZIP_DATA_ENTRY = "data/landing-contract.json"
 ZIP_README_ENTRY = "README_DEMO.txt"
 ZIP_DOWNLOAD_FILENAME = "ai-wow-landing.zip"
@@ -49,6 +53,17 @@ _SOURCE_JS_NAME = "wow-app.js"
 _SOURCE_CSS_NAME = "wow-app.css"
 
 _BUILD_INSTRUCTION = "cd frontend && npm run build:wow-bundle"
+
+WOW_BUNDLE_BUILD_MARKER = b"wow-bundle-cat-mascot-v1"
+WOW_BUNDLE_MASCOT_MARKERS = (
+    b"cat-assistant",
+    b"wow-hero-mascot",
+    WOW_BUNDLE_BUILD_MARKER,
+)
+WOW_BUNDLE_STALE_ROBOT_MARKERS = (
+    b"PhoneStage",
+    b"function Assistant",
+)
 
 
 @dataclass(frozen=True)
@@ -69,6 +84,44 @@ class WowBundleExportResult:
     metric_count: int
     pipeline_count: int
     has_css: bool
+    has_cat_mascot: bool
+
+
+def _validate_wow_app_js(js_bytes: bytes) -> None:
+    """Reject stale dist-wow builds that predate the cat mascot integration."""
+
+    for marker in WOW_BUNDLE_MASCOT_MARKERS:
+        if marker not in js_bytes:
+            raise ValueError(
+                f"WOW bundle wow-app.js is missing cat mascot marker {marker.decode()!r}. "
+                f"Rebuild the frontend bundle: {_BUILD_INSTRUCTION}"
+            )
+    for stale in WOW_BUNDLE_STALE_ROBOT_MARKERS:
+        if stale in js_bytes:
+            raise ValueError(
+                f"WOW bundle wow-app.js still contains stale robot scene ({stale.decode()!r}). "
+                f"Rebuild the frontend bundle: {_BUILD_INSTRUCTION}"
+            )
+
+
+def _read_cat_mascot(assets_dir: Path) -> bytes:
+    """Load the cat PNG from the built dist-wow copy, falling back to public/."""
+
+    built = assets_dir / "wow" / "cat-assistant.png"
+    if built.is_file():
+        return built.read_bytes()
+    if CAT_MASCOT_SOURCE.is_file():
+        logger.warning(
+            "WOW bundle cat mascot not found in %s; using public source %s",
+            built,
+            CAT_MASCOT_SOURCE,
+        )
+        return CAT_MASCOT_SOURCE.read_bytes()
+    raise FileNotFoundError(
+        "WOW bundle cat mascot asset missing. Expected "
+        f"{built} or {CAT_MASCOT_SOURCE}. "
+        f"Build the frontend bundle first: {_BUILD_INSTRUCTION}"
+    )
 
 
 def _validate_zip_entry_name(name: str) -> None:
@@ -158,6 +211,7 @@ def _build_readme(bundle_data: dict[str, Any]) -> str:
         "  index.html                  — точка входа\n"
         "  assets/wow-app.js           — React/R3F runtime (всё встроено)\n"
         "  assets/wow-app.css          — стили (если присутствуют)\n"
+        "  assets/wow/cat-assistant.png — AI-маскот hero\n"
         "  data/landing-contract.json  — данные проекта (для отладки)\n"
         "  README_DEMO.txt             — этот файл\n"
     )
@@ -171,6 +225,7 @@ def _read_assets(assets_dir: Path) -> tuple[bytes, bytes | None]:
             f"{js_path}. Build them first: {_BUILD_INSTRUCTION}"
         )
     js_bytes = js_path.read_bytes()
+    _validate_wow_app_js(js_bytes)
     css_path = assets_dir / _SOURCE_CSS_NAME
     css_bytes = css_path.read_bytes() if css_path.is_file() else None
     return js_bytes, css_bytes
@@ -189,6 +244,7 @@ def build_wow_bundle_zip_with_meta(
 
     js_bytes, css_bytes = _read_assets(resolved_assets)
     has_css = css_bytes is not None
+    cat_bytes = _read_cat_mascot(resolved_assets)
 
     bundle_data = build_wow_bundle_data(
         contract,
@@ -200,7 +256,7 @@ def build_wow_bundle_zip_with_meta(
     readme = _build_readme(bundle_data)
     data_json = json.dumps(bundle_data, ensure_ascii=False, indent=2)
 
-    entries: list[str] = [ZIP_INDEX_NAME, ZIP_JS_ENTRY]
+    entries: list[str] = [ZIP_INDEX_NAME, ZIP_JS_ENTRY, ZIP_CAT_MASCOT_ENTRY]
     if has_css:
         entries.append(ZIP_CSS_ENTRY)
     entries.extend([ZIP_DATA_ENTRY, ZIP_README_ENTRY])
@@ -218,6 +274,7 @@ def build_wow_bundle_zip_with_meta(
         archive.writestr(ZIP_JS_ENTRY, js_bytes)
         if css_bytes is not None:
             archive.writestr(ZIP_CSS_ENTRY, css_bytes)
+        archive.writestr(ZIP_CAT_MASCOT_ENTRY, cat_bytes)
         archive.writestr(ZIP_DATA_ENTRY, data_json.encode("utf-8"))
         archive.writestr(ZIP_README_ENTRY, readme.encode("utf-8"))
 
@@ -227,6 +284,7 @@ def build_wow_bundle_zip_with_meta(
         metric_count=len(bundle_data.get("metrics", [])),
         pipeline_count=len(bundle_data.get("pipeline", [])),
         has_css=has_css,
+        has_cat_mascot=True,
     )
 
 

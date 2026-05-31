@@ -1,13 +1,8 @@
 /**
- * UII Light 3D WOW hero scene for the Interactive WOW Bundle (Stage P.7.2).
+ * UII Light ambient 3D backdrop for the Interactive WOW Bundle (Stage P.7.5).
  *
- * A light, exhibition-grade "AI Learning Portal": a glossy stylized AI assistant
- * standing on a smartphone/device stage, framed by a glowing portal arch, with
- * project-derived floating data cards and soft ambient sparkles on a light
- * pedestal. Replaces the previous dark sci-fi core/orbit/starfield scene.
- *
- * Imports only `three` + `@react-three/fiber` (no drei) so the offline bundle
- * stays small and free of any external font/CDN fetch.
+ * Portal arch + floating cards + sparkles only. The cat mascot is rendered as an
+ * HTML/CSS layer in {@link WowBundleApp} — no procedural robot scene here.
  */
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -31,112 +26,7 @@ const PALETTE = {
   purple: "#a78bfa",
 };
 
-const STAGE_X = 2.4;
-
-function Assistant({ accent, reducedMotion }: { accent: string; reducedMotion: boolean }) {
-  const group = useRef<THREE.Group>(null);
-  const tip = useRef<THREE.Mesh>(null);
-
-  useFrame(({ clock }) => {
-    if (reducedMotion) return;
-    const t = clock.elapsedTime;
-    if (group.current) {
-      group.current.position.y = 0.3 + Math.sin(t * 1.1) * 0.14;
-      group.current.rotation.y = Math.sin(t * 0.4) * 0.2;
-    }
-    if (tip.current) {
-      (tip.current.material as THREE.MeshStandardMaterial).emissiveIntensity =
-        1.4 + Math.sin(t * 3) * 0.6;
-    }
-  });
-
-  return (
-    <group ref={group} position={[STAGE_X, 0.3, 0]}>
-      {/* Body */}
-      <mesh position={[0, -1.0, 0]} castShadow>
-        <boxGeometry args={[1.4, 1.3, 0.9]} />
-        <meshStandardMaterial color={PALETTE.shell} roughness={0.22} metalness={0.12} />
-      </mesh>
-      {/* Chest panel */}
-      <mesh position={[0, -0.95, 0.47]}>
-        <boxGeometry args={[0.7, 0.5, 0.06]} />
-        <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.5} roughness={0.3} metalness={0.4} />
-      </mesh>
-      {/* Head */}
-      <mesh position={[0, 0.45, 0]} castShadow>
-        <boxGeometry args={[1.5, 1.15, 0.95]} />
-        <meshStandardMaterial color={PALETTE.shell} roughness={0.22} metalness={0.12} />
-      </mesh>
-      {/* Face screen */}
-      <mesh position={[0, 0.47, 0.49]}>
-        <boxGeometry args={[1.1, 0.7, 0.06]} />
-        <meshStandardMaterial color={PALETTE.ink} roughness={0.15} metalness={0.5} emissive="#16203a" emissiveIntensity={0.5} />
-      </mesh>
-      {/* Eyes */}
-      {[-0.26, 0.26].map((x) => (
-        <mesh key={x} position={[x, 0.5, 0.54]}>
-          <sphereGeometry args={[0.1, 20, 20]} />
-          <meshStandardMaterial color={PALETTE.cyan} emissive={PALETTE.cyan} emissiveIntensity={2.2} toneMapped={false} />
-        </mesh>
-      ))}
-      {/* Ears */}
-      {[-0.84, 0.84].map((x) => (
-        <mesh key={x} position={[x, 0.45, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.14, 0.14, 0.18, 20]} />
-          <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.4} roughness={0.3} metalness={0.4} />
-        </mesh>
-      ))}
-      {/* Antenna */}
-      <mesh position={[0, 1.1, 0]}>
-        <cylinderGeometry args={[0.03, 0.03, 0.36, 12]} />
-        <meshStandardMaterial color={PALETTE.shell2} roughness={0.3} metalness={0.4} />
-      </mesh>
-      <mesh ref={tip} position={[0, 1.36, 0]}>
-        <sphereGeometry args={[0.12, 20, 20]} />
-        <meshStandardMaterial color={PALETTE.cyan} emissive={PALETTE.cyan} emissiveIntensity={1.8} toneMapped={false} />
-      </mesh>
-    </group>
-  );
-}
-
-function PhoneStage({ accent, reducedMotion }: { accent: string; reducedMotion: boolean }) {
-  const plates = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
-    if (reducedMotion || !plates.current) return;
-    const t = clock.elapsedTime;
-    plates.current.children.forEach((c, i) => {
-      c.position.y = (c.userData.baseY as number) + Math.sin(t * 1.3 + i) * 0.05;
-    });
-  });
-
-  const plateDefs = [
-    { y: 1.4, w: 1.9, c: accent },
-    { y: 0.5, w: 1.5, c: PALETTE.cyan },
-    { y: -0.4, w: 1.8, c: PALETTE.purple },
-    { y: -1.3, w: 1.3, c: PALETTE.cyan },
-  ];
-
-  return (
-    <group position={[STAGE_X, -2.0, 0.3]} rotation={[-0.6, -0.18, 0]}>
-      <mesh castShadow>
-        <boxGeometry args={[2.8, 5.4, 0.3]} />
-        <meshStandardMaterial color={PALETTE.shell} roughness={0.18} metalness={0.3} />
-      </mesh>
-      <mesh position={[0, 0, 0.17]}>
-        <boxGeometry args={[2.5, 5.0, 0.05]} />
-        <meshStandardMaterial color="#eef2ff" roughness={0.1} emissive={PALETTE.lavender} emissiveIntensity={0.3} />
-      </mesh>
-      <group ref={plates} position={[0, 0, 0.24]}>
-        {plateDefs.map((p, i) => (
-          <mesh key={i} position={[i % 2 ? 0.2 : -0.2, p.y, 0]} userData={{ baseY: p.y }}>
-            <boxGeometry args={[p.w, 0.46, 0.06]} />
-            <meshStandardMaterial color={p.c} emissive={p.c} emissiveIntensity={0.6} roughness={0.25} metalness={0.3} transparent opacity={0.92} />
-          </mesh>
-        ))}
-      </group>
-    </group>
-  );
-}
+const STAGE_X = 1.2;
 
 function PortalArch({ accent, reducedMotion }: { accent: string; reducedMotion: boolean }) {
   const ring = useRef<THREE.Mesh>(null);
@@ -245,29 +135,16 @@ function Sparkles({ count, accent, reducedMotion }: { count: number; accent: str
   );
 }
 
-function GroundRings() {
-  return (
-    <group position={[STAGE_X, -2.35, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-      {[2.6, 3.6, 4.6].map((r) => (
-        <mesh key={r}>
-          <ringGeometry args={[r - 0.015, r, 96]} />
-          <meshBasicMaterial color={PALETTE.purple} transparent opacity={0.16} side={THREE.DoubleSide} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
 function Scene({ nodes, accent, reducedMotion }: SceneProps) {
   const { camera } = useThree();
 
   useFrame((state) => {
     if (reducedMotion) return;
-    const targetX = STAGE_X * 0.5 + state.pointer.x * 1.0;
-    const targetY = 0.6 + state.pointer.y * 0.6;
+    const targetX = state.pointer.x * 0.45;
+    const targetY = 0.55 + state.pointer.y * 0.35;
     camera.position.x += (targetX - camera.position.x) * 0.04;
     camera.position.y += (targetY - camera.position.y) * 0.04;
-    camera.lookAt(STAGE_X, 0, 0);
+    camera.lookAt(STAGE_X, 0.1, 0);
   });
 
   return (
@@ -281,10 +158,7 @@ function Scene({ nodes, accent, reducedMotion }: SceneProps) {
       <pointLight position={[STAGE_X + 2, 1.5, 3]} intensity={0.8} color={accent} distance={18} />
 
       <PortalArch accent={accent} reducedMotion={reducedMotion} />
-      <Assistant accent={accent} reducedMotion={reducedMotion} />
-      <PhoneStage accent={accent} reducedMotion={reducedMotion} />
       <FloatingCards nodes={nodes} reducedMotion={reducedMotion} />
-      <GroundRings />
       <Sparkles count={50} accent={accent} reducedMotion={reducedMotion} />
     </>
   );
@@ -295,7 +169,7 @@ export default function WowBundleRenderer({ nodes, accent, reducedMotion }: Scen
     <Canvas
       className="wow-bundle-canvas"
       dpr={[1, 1.8]}
-      camera={{ position: [STAGE_X * 0.5, 0.6, 12], fov: 52 }}
+      camera={{ position: [0.4, 0.55, 12], fov: 52 }}
       frameloop={reducedMotion ? "demand" : "always"}
       gl={{ antialias: true, powerPreference: "high-performance" }}
     >

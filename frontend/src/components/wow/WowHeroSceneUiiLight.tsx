@@ -7,8 +7,6 @@ import type { WowHeroData } from "@/lib/wowHeroMapping";
 import type { WowSceneIntensity } from "@/lib/wowHeroMode";
 import { UII_LIGHT, layoutFloatingCards, makeRng } from "./uiiLight";
 import { WowSceneLighting } from "./WowSceneLighting";
-import { WowAssistantModel } from "./WowAssistantModel";
-import { WowPhoneStage } from "./WowPhoneStage";
 import { WowPortalArch } from "./WowPortalArch";
 import { WowFloatingCards } from "./WowFloatingCards";
 import { WowAmbientDecor } from "./WowAmbientDecor";
@@ -53,10 +51,10 @@ function ParallaxRig({
 /**
  * UII Light 3D WOW hero scene (Stage P.7.2).
  *
- * A light, exhibition-grade "AI Learning Portal": a glossy AI assistant standing
- * on a smartphone/device stage, framed by a translucent glass portal arch, with
- * project-derived floating data cards and soft ambient decor. Replaces the old
- * dark sci-fi sphere/cube constellation. Fully procedural — no GLTF, no CDN.
+ * A light, exhibition-grade "AI Learning Portal": portal arch, floating data
+ * cards and soft ambient decor frame the HTML/CSS cat mascot hero layer.
+ * Replaces the old dark sci-fi sphere/cube constellation. Fully procedural
+ * background — no GLTF, no CDN for the 3D decor.
  */
 export function WowHeroSceneUiiLight({ data, intensity, reducedMotion, accent }: SceneProps) {
   const sceneAccent = accent || UII_LIGHT.accent;
@@ -73,8 +71,6 @@ export function WowHeroSceneUiiLight({ data, intensity, reducedMotion, accent }:
 
       <ParallaxRig reducedMotion={reducedMotion}>
         <WowPortalArch accent={sceneAccent} reducedMotion={reducedMotion} />
-        <WowAssistantModel accent={sceneAccent} reducedMotion={reducedMotion} />
-        <WowPhoneStage accent={sceneAccent} reducedMotion={reducedMotion} />
         <WowFloatingCards cards={cards} reducedMotion={reducedMotion} />
         <WowAmbientDecor accent={sceneAccent} reducedMotion={reducedMotion} full={full} />
       </ParallaxRig>

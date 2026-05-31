@@ -15,6 +15,8 @@ import {
   buildSceneNodes,
   type WowBundleData,
 } from "./WowBundleData";
+import { WowHeroMascot } from "@/components/wow/WowHeroMascot";
+import { WOW_BUNDLE_BUILD_MARKER, WOW_BUNDLE_CAT_MASCOT_SRC } from "@/components/wow/wowMascotAsset";
 
 const WowBundleRenderer = lazy(() => import("./WowBundleRenderer"));
 
@@ -129,6 +131,7 @@ export function WowBundleApp({ data, enable3d, reducedMotion }: Props) {
     <div
       className="wow-bundle"
       data-profile={data.theme.profile}
+      data-wow-build={WOW_BUNDLE_BUILD_MARKER}
       style={{ ["--wow-accent" as string]: accent } as React.CSSProperties}
     >
       <section className="wow-hero">
@@ -151,6 +154,7 @@ export function WowBundleApp({ data, enable3d, reducedMotion }: Props) {
           <MetricCards data={data} limit={4} className="wow-hero__metrics" />
           <HeroCta data={data} />
         </div>
+        <WowHeroMascot src={WOW_BUNDLE_CAT_MASCOT_SRC} className="wow-hero__mascot" />
         <div className="wow-hero__scrollhint" aria-hidden="true">
           ↓ прокрутите вниз
         </div>

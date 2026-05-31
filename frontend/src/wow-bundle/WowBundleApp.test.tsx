@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { WowBundleApp } from "./WowBundleApp";
@@ -62,6 +65,21 @@ describe("WowBundleApp", () => {
     const html = render();
     expect(html).toContain("wow-hero__static");
     expect(html).not.toContain("<canvas");
+  });
+
+  it("renders the cat mascot layer with bundle asset path", () => {
+    const html = render();
+    expect(html).toContain("wow-hero-mascot");
+    expect(html).toContain("wow-hero-mascot-image");
+    expect(html).toContain('src="assets/wow/cat-assistant.png"');
+    expect(html).toContain("wow-bundle-cat-mascot-v1");
+  });
+
+  it("bundle renderer source has no stale procedural robot", () => {
+    const dir = dirname(fileURLToPath(import.meta.url));
+    const src = readFileSync(join(dir, "WowBundleRenderer.tsx"), "utf-8");
+    expect(src).not.toContain("function Assistant");
+    expect(src).not.toContain("PhoneStage");
   });
 
   it("does not break when links are missing", () => {

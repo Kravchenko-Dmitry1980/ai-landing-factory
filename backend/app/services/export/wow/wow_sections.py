@@ -14,6 +14,7 @@ from app.schemas.landing_contract import LandingBlock, LandingContract
 from app.services.export.export_tagline import resolve_tagline
 from app.services.export.theme_tokens import ThemeTokens
 from app.services.export.wow.wow_metrics import WowMetric
+from app.services.export.wow.wow_mascot import build_wow_hero_mascot_html
 from app.services.export.wow.wow_pipeline import PipelineNode
 from app.services.showcase.showcase_safety import escape_text, sanitize_url
 from app.services.showcase.showcase_vendor import DEFAULT_AFRAME_SRC, is_local_aframe_src
@@ -84,10 +85,12 @@ def build_wow_hero(
     )
 
     # WOW hero is always pseudo-3D regardless of profile heroMode.
+    mascot_html = build_wow_hero_mascot_html()
     return (
         f"<section id='wow-hero' class='wow-hero wow-cockpit hero--future-3d'>"
         f"<div class='wow-bg-grid' aria-hidden='true'></div>"
         f"<div class='wow-bg-radar' aria-hidden='true'></div>"
+        f"{mascot_html}"
         f"<div class='wow-cockpit-shell'>"
         f"<div class='wow-kicker'>{escape_text(KICKER)}</div>"
         f"<h1>{escape_text(contract.title or 'AI-проект')}</h1>"

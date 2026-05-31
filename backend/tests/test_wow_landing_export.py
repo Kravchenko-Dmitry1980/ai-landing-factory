@@ -74,6 +74,8 @@ def test_wow_export_contains_cockpit_hero():
     assert "wow-cockpit" in html
     assert "wow-bg-grid" in html
     assert "wow-bg-radar" in html
+    assert "wow-hero-mascot" in html
+    assert "cat-assistant" in html or "data:image/png;base64," in html
 
 
 # 4
