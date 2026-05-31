@@ -13,10 +13,10 @@ interface Props {
 }
 
 /**
- * Exhibition-grade hero mascot layer (Stage P.7.7).
+ * Exhibition-grade hero mascot layer (Stage P.8.1).
  *
- * "2D landing + one 3D mascot" with soft 2.5D motion: blink, head sway, typing
- * shim, medallion pulse and drifting UI cards — pure CSS, no WebGL rig.
+ * Transparent PNG cat on the hero CSS background — depth via spotlight, contact
+ * shadow, rim light and subtle 2.5D motion. No opaque plate under the mascot.
  */
 export function WowHeroMascot({
   src = WOW_CAT_MASCOT_SRC,
@@ -70,8 +70,9 @@ export function WowHeroMascot({
         <span className="wow-hero-ui-pie" />
       </div>
 
+      <div className="wow-hero-mascot-spotlight" />
       <div className="wow-hero-mascot-glow" />
-      <div className="wow-hero-mascot-platform" />
+      <div className="wow-hero-mascot-contact-shadow" />
 
       <div className="wow-hero-mascot-rig">
         <div className="wow-hero-mascot-pose">

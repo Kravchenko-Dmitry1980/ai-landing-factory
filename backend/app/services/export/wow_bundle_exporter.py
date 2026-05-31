@@ -55,7 +55,7 @@ _SOURCE_CSS_NAME = "wow-app.css"
 
 _BUILD_INSTRUCTION = "cd frontend && npm run build:wow-bundle"
 
-WOW_BUNDLE_BUILD_MARKER = b"wow-bundle-cat-mascot-v2"
+WOW_BUNDLE_BUILD_MARKER = b"wow-bundle-cat-mascot-v3"
 WOW_BUNDLE_MASCOT_MARKERS = (
     b"cat-assistant",
     b"wow-hero-mascot",
@@ -65,6 +65,8 @@ WOW_BUNDLE_MASCOT_MARKERS = (
 WOW_BUNDLE_STALE_ROBOT_MARKERS = (
     b"PhoneStage",
     b"function Assistant",
+    b"wow-bundle-cat-mascot-v2",
+    b"wow-hero-mascot-platform",
 )
 WOW_BUNDLE_FORBIDDEN_ASSET_PARTS = (
     "landing-preview",
@@ -74,6 +76,7 @@ WOW_BUNDLE_FORBIDDEN_ASSET_PARTS = (
 )
 # Wide landscape PNGs are landing screenshots, not standalone mascot art.
 _CAT_MASCOT_MAX_WIDTH_TO_HEIGHT = 1.35
+_CAT_MASCOT_MIN_TRANSPARENT_RATIO = 0.08
 
 
 @dataclass(frozen=True)
@@ -100,16 +103,16 @@ class WowBundleExportResult:
 def _validate_wow_app_js(js_bytes: bytes) -> None:
     """Reject stale dist-wow builds that predate the cat mascot integration."""
 
+    for stale in WOW_BUNDLE_STALE_ROBOT_MARKERS:
+        if stale in js_bytes:
+            raise ValueError(
+                f"WOW bundle wow-app.js contains stale marker ({stale.decode()!r}). "
+                f"Rebuild the frontend bundle: {_BUILD_INSTRUCTION}"
+            )
     for marker in WOW_BUNDLE_MASCOT_MARKERS:
         if marker not in js_bytes:
             raise ValueError(
                 f"WOW bundle wow-app.js is missing cat mascot marker {marker.decode()!r}. "
-                f"Rebuild the frontend bundle: {_BUILD_INSTRUCTION}"
-            )
-    for stale in WOW_BUNDLE_STALE_ROBOT_MARKERS:
-        if stale in js_bytes:
-            raise ValueError(
-                f"WOW bundle wow-app.js still contains stale robot scene ({stale.decode()!r}). "
                 f"Rebuild the frontend bundle: {_BUILD_INSTRUCTION}"
             )
 
@@ -125,19 +128,47 @@ def _read_png_dimensions(data: bytes) -> tuple[int, int] | None:
     return width, height
 
 
-def validate_cat_mascot_png(data: bytes) -> None:
-    """Reject landing-screenshot PNGs masquerading as the standalone cat mascot."""
+def _png_has_transparency(data: bytes) -> bool:
+    """Return True when PNG alpha channel includes visible transparency."""
 
-    if not (data.startswith(b"\x89PNG\r\n\x1a\n") or data.startswith(b"\xff\xd8\xff")):
-        raise ValueError("cat-assistant.png is not a valid PNG/JPEG image")
+    try:
+        from PIL import Image
+        import io as _io
+
+        img = Image.open(_io.BytesIO(data)).convert("RGBA")
+    except Exception:
+        return False
+    alpha = img.split()[-1]
+    lo, hi = alpha.getextrema()
+    if hi < 255 or lo >= 250:
+        return False
+    alpha_values = getattr(alpha, "get_flattened_data", alpha.getdata)()
+    transparent = sum(1 for v in alpha_values if v < 250)
+    ratio = transparent / (img.width * img.height)
+    return ratio >= _CAT_MASCOT_MIN_TRANSPARENT_RATIO
+
+
+def validate_cat_mascot_png(data: bytes) -> None:
+    """Reject landing-screenshot or opaque-backdrop PNGs."""
+
+    if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise ValueError(
+            "cat-assistant.png must be a transparent PNG; "
+            "run frontend/scripts/prepare_transparent_cat_mascot.py"
+        )
     dims = _read_png_dimensions(data)
     if dims is None:
-        return
+        raise ValueError("cat-assistant.png has unreadable PNG dimensions")
     width, height = dims
     if width > height * _CAT_MASCOT_MAX_WIDTH_TO_HEIGHT:
         raise ValueError(
             "cat-assistant.png looks like a wide landing screenshot "
             f"({width}x{height}); expected standalone square/portrait mascot art"
+        )
+    if not _png_has_transparency(data):
+        raise ValueError(
+            "cat-assistant.png has no transparent background; "
+            "expected standalone cat without opaque white plate"
         )
 
 

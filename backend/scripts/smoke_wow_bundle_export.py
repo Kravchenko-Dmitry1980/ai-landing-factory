@@ -77,11 +77,15 @@ def main() -> None:
         js = zf.read("assets/wow-app.js").decode("utf-8")
         cat_png = zf.read("assets/wow/cat-assistant.png")
 
-    for marker in ("cat-assistant", "wow-hero-mascot", "wow-hero-mascot-rig", "wow-bundle-cat-mascot-v2"):
+    for marker in ("cat-assistant", "wow-hero-mascot", "wow-hero-mascot-rig", "wow-bundle-cat-mascot-v3"):
         if marker not in js:
             _fail(f"wow-app.js missing cat mascot marker: {marker!r}")
+    if "wow-hero-mascot-platform" in js:
+        _fail("wow-app.js still references removed opaque platform layer")
     if "PhoneStage" in js or "function Assistant" in js:
         _fail("wow-app.js still contains stale robot scene markers")
+    if "wow-bundle-cat-mascot-v2" in js:
+        _fail("wow-app.js is stale (v2 bundle marker); rebuild with npm run build:wow-bundle")
     if "wow-hero-mascot-image" not in js and "wow-hero-mascot-img" not in js:
         _fail("wow-app.js missing wow-hero-mascot-image marker")
     try:

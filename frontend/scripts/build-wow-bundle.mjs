@@ -18,6 +18,7 @@
 
 import { build } from "esbuild";
 import { mkdirSync, rmSync, existsSync, statSync, copyFileSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,33 +27,22 @@ const frontendRoot = resolve(__dirname, "..");
 const entry = join(frontendRoot, "src", "wow-bundle", "main.tsx");
 const outdir = join(frontendRoot, "dist-wow", "assets");
 
-const BUILD_MARKER = "wow-bundle-cat-mascot-v2";
+const BUILD_MARKER = "wow-bundle-cat-mascot-v3";
 const MASCOT_MARKERS = ["cat-assistant", "wow-hero-mascot", "wow-hero-mascot-rig", BUILD_MARKER];
-const STALE_ROBOT_MARKERS = ["PhoneStage", "function Assistant"];
+const STALE_MARKERS = ["PhoneStage", "function Assistant", "wow-bundle-cat-mascot-v2"];
 
 function fail(message) {
   console.error(`FAIL: ${message}`);
   process.exit(1);
 }
 
-function readPngDimensions(buffer) {
-  if (buffer.length < 24 || buffer.readUInt32BE(0) !== 0x89504e47) {
-    return null;
-  }
-  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
-}
-
 function validateCatMascotPng(catPath) {
-  const data = readFileSync(catPath);
-  const dims = readPngDimensions(data);
-  if (!dims || dims.width <= 0 || dims.height <= 0) {
-    fail(`cat mascot PNG has unreadable dimensions: ${catPath}`);
-  }
-  if (dims.width > dims.height * 1.35) {
-    fail(
-      `cat-assistant.png looks like a wide landing screenshot (${dims.width}x${dims.height}); ` +
-        "expected standalone square/portrait mascot art",
-    );
+  const validator = join(frontendRoot, "scripts", "validate_cat_mascot_asset.py");
+  try {
+    execFileSync("python", [validator, catPath], { stdio: "pipe", encoding: "utf-8" });
+  } catch (err) {
+    const detail = err.stderr?.toString?.() || err.stdout?.toString?.() || String(err);
+    fail(detail.trim() || `cat mascot validation failed: ${catPath}`);
   }
 }
 
@@ -63,10 +53,13 @@ function validateBundleJs(jsPath) {
       fail(`wow-app.js missing mascot marker ${JSON.stringify(marker)}. Source bundle may be stale.`);
     }
   }
-  for (const stale of STALE_ROBOT_MARKERS) {
+  for (const stale of STALE_MARKERS) {
     if (text.includes(stale)) {
-      fail(`wow-app.js still contains stale robot marker ${JSON.stringify(stale)}. Rebuild from current source.`);
+      fail(`wow-app.js still contains stale marker ${JSON.stringify(stale)}. Rebuild from current source.`);
     }
+  }
+  if (text.includes("wow-hero-mascot-platform")) {
+    fail("wow-app.js still references removed opaque platform layer (wow-hero-mascot-platform)");
   }
 }
 

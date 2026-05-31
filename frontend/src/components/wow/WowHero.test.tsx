@@ -51,7 +51,7 @@ describe("WOW hero components", () => {
     expect(fallback).toContain("WowHeroMascot");
     expect(mascot).toContain("wow-hero-ui-card--chart");
     expect(mascot).not.toContain("wow-hero-mascot-portal");
-    expect(mascot).not.toContain("wow-hero-mascot-ring");
+    expect(mascot).not.toContain("wow-hero-mascot-platform");
     expect(source("wowMascotAsset.ts")).toContain("/assets/wow/cat-assistant.png");
   });
 
@@ -82,6 +82,9 @@ describe("WOW hero components", () => {
     expect(html).toContain("wow-hero-mascot-image");
     expect(html).toContain("/assets/wow/cat-assistant.png");
     expect(html).toContain("wow-hero-mascot-rig");
+    expect(html).toContain("wow-hero-mascot-spotlight");
+    expect(html).toContain("wow-hero-mascot-contact-shadow");
+    expect(html).not.toContain("wow-hero-mascot-platform");
     expect(html).not.toMatch(/screenshot|mockup|preview-card|landing-preview|hero-preview/i);
   });
 });

@@ -74,7 +74,8 @@ describe("WowBundleApp", () => {
     expect(html).toContain('src="assets/wow/cat-assistant.png"');
     expect(html).toContain("wow-hero-mascot-rig");
     expect(html).toContain("wow-hero-mascot-medallion");
-    expect(html).toContain("wow-bundle-cat-mascot-v2");
+    expect(html).toContain("wow-bundle-cat-mascot-v3");
+    expect(html).not.toContain("wow-hero-mascot-platform");
   });
 
   it("bundle renderer source has no portal arch or procedural robot", () => {

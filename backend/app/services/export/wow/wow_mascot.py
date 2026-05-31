@@ -83,8 +83,9 @@ def build_wow_hero_mascot_html(*, src: str | None = None) -> str:
     return (
         "<div class='wow-hero-mascot' aria-hidden='true'>"
         f"{_UI_CARDS}"
+        "<div class='wow-hero-mascot-spotlight'></div>"
         "<div class='wow-hero-mascot-glow'></div>"
-        "<div class='wow-hero-mascot-platform'></div>"
+        "<div class='wow-hero-mascot-contact-shadow'></div>"
         f"{rig}"
         "</div>"
     )
