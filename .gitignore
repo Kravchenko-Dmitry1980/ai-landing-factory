@@ -203,6 +203,10 @@ test_corpus/**/sources/originals/
 # 7. Generated exports / visual artifacts
 # ============================================================
 
+# Final demo pack output (Stage P.8.2) — generated, never committed
+demo_release/
+demo_release_*/
+
 exports/
 artifacts/
 tmp/

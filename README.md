@@ -124,6 +124,18 @@ ZIP: `index.html`, `assets/wow-app.js` (+ `wow-app.css`),
 
 Подробности: [docs/WOW_INTERACTIVE_BUNDLE_P7_2.md](docs/WOW_INTERACTIVE_BUNDLE_P7_2.md)
 
+## Final Demo Pack (Stage P.8.2)
+
+Финальный demo pack для показа руководителю (WOW ZIP, Showcase ZIP, standard +
+static HTML). Сборка и smoke:
+
+```powershell
+.\scripts\build_demo_pack.ps1
+.\scripts\smoke_demo_pack.ps1
+```
+
+Подробности: [docs/FINAL_DEMO_PACK_P8_2.md](docs/FINAL_DEMO_PACK_P8_2.md)
+
 ## Operator guide (Russian)
 
 See [docs/USER_QUICKSTART.md](docs/USER_QUICKSTART.md).
