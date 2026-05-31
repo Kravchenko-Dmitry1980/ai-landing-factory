@@ -12,10 +12,12 @@ from app.services.showcase.showcase_schema import (
     ShowcaseProject,
 )
 from app.services.showcase.showcase_html_exporter import ShowcaseHtmlExporter
+from app.services.showcase.showcase_vendor import DEFAULT_AFRAME_SRC
 
 __all__ = [
     "ShowcaseConfig",
     "ShowcaseExportResult",
     "ShowcaseProject",
     "ShowcaseHtmlExporter",
+    "DEFAULT_AFRAME_SRC",
 ]

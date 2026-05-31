@@ -22,6 +22,7 @@ from app.services.showcase.showcase_safety import (
     escape_text,
     js_string_literal,
     sanitize_accent,
+    sanitize_aframe_src,
     sanitize_url,
 )
 from app.services.showcase.showcase_schema import (
@@ -30,13 +31,9 @@ from app.services.showcase.showcase_schema import (
     ShowcaseProject,
     ShowcaseTheme,
 )
+from app.services.showcase.showcase_vendor import DEFAULT_AFRAME_SRC, is_local_aframe_src
 
 logger = logging.getLogger(__name__)
-
-# Pinned A-Frame runtime. Showcase export is a separate mode and is allowed to
-# load the WebXR runtime. Override with a relative path to a vendored copy
-# (e.g. ``vendor/aframe/aframe.min.js``) for a fully offline deployment.
-DEFAULT_AFRAME_SRC = "https://aframe.io/releases/1.7.0/aframe.min.js"
 
 _THEME_PALETTE: dict[ShowcaseTheme, dict[str, str]] = {
     ShowcaseTheme.UNIVERSITY: {
@@ -77,11 +74,15 @@ _CARD_BODY_COLOR = "#333333"
 class ShowcaseHtmlExporter:
     """Render a :class:`ShowcaseConfig` into showcase HTML."""
 
-    def __init__(self, aframe_src: str = DEFAULT_AFRAME_SRC) -> None:
-        self._aframe_src = aframe_src
+    def __init__(self, aframe_src: str | None = None) -> None:
+        resolved, warning = sanitize_aframe_src(aframe_src, default=DEFAULT_AFRAME_SRC)
+        self._aframe_src = resolved
+        self._aframe_src_warning = warning
 
     def export(self, config: ShowcaseConfig) -> ShowcaseExportResult:
         warnings: list[str] = []
+        if self._aframe_src_warning:
+            warnings.append(self._aframe_src_warning)
         palette = _THEME_PALETTE.get(config.theme, _THEME_PALETTE[ShowcaseTheme.UNIVERSITY])
 
         if not config.projects:
@@ -274,8 +275,19 @@ class ShowcaseHtmlExporter:
         )
 
         runtime_note = (
-            '<p class="showcase-note">VR/AR Showcase export uses A-Frame runtime. '
-            "Раздел ниже доступен без WebXR.</p>"
+            '<p class="showcase-note">VR/AR Showcase export uses '
+            + (
+                "local vendored A-Frame runtime. "
+                if is_local_aframe_src(self._aframe_src)
+                else "A-Frame runtime (CDN override). "
+            )
+            + "Раздел ниже доступен без WebXR.</p>"
+        )
+
+        aframe_comment = (
+            "<!-- A-Frame runtime: local vendored -->"
+            if is_local_aframe_src(self._aframe_src)
+            else "<!-- A-Frame runtime: CDN override -->"
         )
 
         return (
@@ -283,6 +295,7 @@ class ShowcaseHtmlExporter:
             f"<meta charset='utf-8'>"
             f"<meta name='viewport' content='width=device-width, initial-scale=1'>"
             f"<title>{title}</title>"
+            f"{aframe_comment}"
             f'<script src="{escape_text(self._aframe_src)}"></script>'
             f"<style>{css}</style></head>"
             f"<body class='showcase-theme-{escape_text(config.theme.value)}'>"

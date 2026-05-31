@@ -7,6 +7,7 @@ Usage (Windows PowerShell):
 
 Output:
     backend/data/exports/showcase_demo.html
+    backend/data/exports/vendor/aframe/aframe.min.js  (offline runtime copy)
 """
 
 from __future__ import annotations
@@ -27,6 +28,11 @@ from app.services.showcase.showcase_schema import (
     ShowcaseMode,
     ShowcaseProject,
     ShowcaseTheme,
+)
+from app.services.showcase.showcase_vendor import (
+    ALLOWED_AFRAME_CDN,
+    copy_aframe_vendor_to_export_dir,
+    is_local_aframe_src,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -101,24 +107,30 @@ def main() -> int:
     parser.add_argument(
         "--aframe-src",
         default=None,
-        help="Override A-Frame runtime URL (e.g. a vendored relative path).",
+        help=(
+            "Override A-Frame runtime URL. Default: local vendor/aframe/aframe.min.js. "
+            f"CDN example: {ALLOWED_AFRAME_CDN}"
+        ),
     )
     args = parser.parse_args()
 
     config = build_demo_config()
-    exporter = (
-        ShowcaseHtmlExporter(aframe_src=args.aframe_src)
-        if args.aframe_src
-        else ShowcaseHtmlExporter()
-    )
+    exporter = ShowcaseHtmlExporter(aframe_src=args.aframe_src)
     result = exporter.export(config)
 
     output: Path = args.output
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(result.html, encoding="utf-8")
 
+    vendor_path: Path | None = None
+    if is_local_aframe_src(exporter._aframe_src):
+        vendor_path = copy_aframe_vendor_to_export_dir(output)
+
     logger.info("Showcase demo exported")
     logger.info("  path=%s", output)
+    logger.info("  aframe_src=%s", exporter._aframe_src)
+    if vendor_path:
+        logger.info("  vendor=%s", vendor_path)
     logger.info("  projects=%d mode=%s", result.project_count, result.mode)
     logger.info("  html_bytes=%d", len(result.html))
     if result.warnings:

@@ -2,15 +2,23 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from app.services.showcase.showcase_html_exporter import ShowcaseHtmlExporter
 from app.services.showcase.showcase_layout import compute_placements
-from app.services.showcase.showcase_safety import sanitize_url
+from app.services.showcase.showcase_safety import sanitize_aframe_src, sanitize_url
 from app.services.showcase.showcase_schema import (
     ShowcaseConfig,
     ShowcaseLayout,
     ShowcaseProject,
+)
+from app.services.showcase.showcase_vendor import (
+    ALLOWED_AFRAME_CDN,
+    DEFAULT_AFRAME_SRC,
+    VENDOR_SOURCE,
+    copy_aframe_vendor_to_export_dir,
 )
 
 
@@ -134,4 +142,61 @@ def test_grid_hall_and_circle_booths_layouts() -> None:
 
 def test_runtime_note_present() -> None:
     result = ShowcaseHtmlExporter().export(_config([_project()]))
-    assert "VR/AR Showcase export uses A-Frame runtime." in result.html
+    assert "local vendored A-Frame runtime" in result.html
+
+
+def test_default_aframe_src_is_local() -> None:
+    exporter = ShowcaseHtmlExporter()
+    assert exporter._aframe_src == DEFAULT_AFRAME_SRC
+    assert DEFAULT_AFRAME_SRC == "vendor/aframe/aframe.min.js"
+
+
+def test_local_vendor_path_emitted_in_html() -> None:
+    result = ShowcaseHtmlExporter().export(_config([_project()]))
+    assert f'src="{DEFAULT_AFRAME_SRC}"' in result.html
+    assert "aframe.io/releases" not in result.html
+    assert "<!-- A-Frame runtime: local vendored -->" in result.html
+
+
+def test_cdn_override_allowed_for_allowlisted_aframe_url() -> None:
+    exporter = ShowcaseHtmlExporter(aframe_src=ALLOWED_AFRAME_CDN)
+    assert exporter._aframe_src == ALLOWED_AFRAME_CDN
+    result = exporter.export(_config([_project()]))
+    assert ALLOWED_AFRAME_CDN in result.html
+    assert "<!-- A-Frame runtime: CDN override -->" in result.html
+
+
+@pytest.mark.parametrize(
+    "bad_src",
+    [
+        "javascript:alert(1)",
+        "data:text/html,<script>",
+        "file:///etc/passwd",
+        "https://evil.example/aframe.min.js",
+    ],
+)
+def test_malicious_aframe_src_rejected(bad_src: str) -> None:
+    exporter = ShowcaseHtmlExporter(aframe_src=bad_src)
+    assert exporter._aframe_src == DEFAULT_AFRAME_SRC
+    result = exporter.export(_config([_project()]))
+    assert any("aframe_src rejected" in w for w in result.warnings)
+
+
+def test_sanitize_aframe_src_localhost_dev() -> None:
+    src, warning = sanitize_aframe_src(
+        "http://localhost:3000/vendor/aframe/aframe.min.js",
+        default=DEFAULT_AFRAME_SRC,
+    )
+    assert warning is None
+    assert src.startswith("http://localhost")
+
+
+def test_export_showcase_demo_copies_vendor_asset(tmp_path: Path) -> None:
+    if not VENDOR_SOURCE.is_file():
+        pytest.skip("vendored runtime not present")
+
+    html_out = tmp_path / "showcase_demo.html"
+    copy_aframe_vendor_to_export_dir(html_out)
+    vendor_copy = tmp_path / "vendor" / "aframe" / "aframe.min.js"
+    assert vendor_copy.is_file()
+    assert vendor_copy.stat().st_size == VENDOR_SOURCE.stat().st_size

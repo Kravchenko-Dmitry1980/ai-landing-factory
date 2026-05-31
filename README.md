@@ -46,16 +46,20 @@ Fresh-clone demo gate: [docs/UAT_FRESH_CLONE_P2.md](docs/UAT_FRESH_CLONE_P2.md)
 
 ## VR/AR Showcase mode
 
-Дополнительный режим (Stage P.5 MVP): собрать витрину из нескольких лендингов
-и демо-проектов (например, AI Google Studio) и экспортировать self-contained
-HTML с 3D-стендом A-Frame и 2D-фолбэком. Это надстройка — обычный landing
-export не меняется и остаётся без внешнего JS.
+Дополнительный режим (Stage P.5): собрать витрину из нескольких лендингов
+и демо-проектов (например, AI Google Studio) и экспортировать offline-ready
+HTML с 3D-стендом A-Frame (локальный vendored runtime) и 2D-фолбэком.
+Обычный landing export не меняется.
 
 ```powershell
 cd backend
 ..\.venv\Scripts\python.exe scripts\export_showcase_demo.py
 # → backend/data/exports/showcase_demo.html
+# → backend/data/exports/vendor/aframe/aframe.min.js  (offline runtime)
 ```
+
+Vendored runtime в репозитории: `frontend/public/vendor/aframe/aframe.min.js`.
+CDN override: `--aframe-src https://aframe.io/releases/1.7.0/aframe.min.js`.
 
 UI: страница `/showcase`. Подробности: [docs/VR_AR_SHOWCASE_P5.md](docs/VR_AR_SHOWCASE_P5.md)
 

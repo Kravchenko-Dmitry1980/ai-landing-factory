@@ -21,6 +21,15 @@ _DANGEROUS_SCHEME_RE = re.compile(
 _SAFE_ABSOLUTE_RE = re.compile(r"^\s*https?://", re.IGNORECASE)
 # A hex color like #fff, #ffffff or #ffffffff (with alpha).
 _HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
+# Allowlisted official A-Frame CDN releases (explicit override only).
+_ALLOWED_AFRAME_CDN_RE = re.compile(
+    r"^https://aframe\.io/releases/\d+\.\d+\.\d+/aframe\.min\.js$",
+    re.IGNORECASE,
+)
+_LOCALHOST_HTTP_RE = re.compile(
+    r"^https?://(?:localhost|127\.0\.0\.1)(?::\d+)?/",
+    re.IGNORECASE,
+)
 
 
 def escape_text(value: str | None) -> str:
@@ -101,3 +110,51 @@ def js_string_literal(value: str | None) -> str:
         .replace("&", "\\u0026")
     )
     return f"'{out}'"
+
+
+def sanitize_aframe_src(
+    value: str | None,
+    *,
+    default: str,
+) -> tuple[str, str | None]:
+    """Validate an A-Frame ``<script src>`` override.
+
+    Allows relative vendored paths, localhost dev URLs, and allowlisted
+    ``https://aframe.io/releases/.../aframe.min.js`` CDN URLs. Rejects
+    ``javascript:``, ``data:``, ``file:``, arbitrary external domains, and
+    other dangerous schemes.
+    """
+
+    if not value:
+        return default, None
+    candidate = str(value).strip()
+    if not candidate:
+        return default, None
+
+    if _DANGEROUS_SCHEME_RE.match(candidate):
+        logger.warning("showcase: rejected dangerous aframe_src: %r", candidate[:64])
+        return default, f"aframe_src rejected dangerous scheme: {candidate[:64]}"
+
+    if _LOCALHOST_HTTP_RE.match(candidate):
+        return candidate, None
+
+    if _ALLOWED_AFRAME_CDN_RE.match(candidate):
+        return candidate, None
+
+    if _SAFE_ABSOLUTE_RE.match(candidate):
+        logger.warning("showcase: rejected non-allowlisted aframe_src: %r", candidate[:64])
+        return default, f"aframe_src rejected non-allowlisted external URL: {candidate[:64]}"
+
+    if "://" in candidate:
+        logger.warning("showcase: rejected aframe_src with scheme: %r", candidate[:64])
+        return default, f"aframe_src rejected: {candidate[:64]}"
+
+    if re.match(r"^\s*[a-zA-Z][a-zA-Z0-9+.\-]*:", candidate):
+        logger.warning("showcase: rejected scheme-like aframe_src: %r", candidate[:64])
+        return default, f"aframe_src rejected scheme-like path: {candidate[:64]}"
+
+    if candidate.startswith(("/", "./", "../")) or re.match(r"^[\w\-./]+$", candidate):
+        return candidate, None
+
+    logger.warning("showcase: rejected unrecognized aframe_src: %r", candidate[:64])
+    return default, f"aframe_src rejected unrecognized path: {candidate[:64]}"

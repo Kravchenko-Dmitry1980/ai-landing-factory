@@ -35,10 +35,25 @@ generated landings → showcase registry → 3D/VR exhibition stand → demo lin
 - Self-contained: одна `<script>`-ссылка на runtime + декларативные теги.
 - Работает в обычном браузере без VR-гарнитуры; VR — опционально.
 
-Runtime по умолчанию: pinned CDN `https://aframe.io/releases/1.7.0/aframe.min.js`
-(см. `DEFAULT_AFRAME_SRC`). Для полностью офлайн-развёртывания можно передать
-относительный путь к вендоренному файлу (`--aframe-src vendor/aframe/aframe.min.js`
-или query-параметр `aframe_src`).
+Runtime по умолчанию (P.5.1): **локальный vendored** файл
+`vendor/aframe/aframe.min.js` — копируется рядом с экспортированным HTML.
+Источник в репозитории: `frontend/public/vendor/aframe/aframe.min.js`
+(A-Frame 1.7.0, MIT — см. `LICENSE.txt`).
+
+Структура demo-экспорта:
+
+```text
+backend/data/exports/
+  showcase_demo.html
+  vendor/aframe/aframe.min.js
+```
+
+Открытие `showcase_demo.html` через `file://` или без интернета работает,
+если рядом лежит скопированный vendor runtime.
+
+**CDN override** (явный opt-in): query `?aframe_src=https://aframe.io/releases/1.7.0/aframe.min.js`
+или флаг `--aframe-src` в demo-скрипте. Произвольные внешние домены отклоняются
+(`sanitize_aframe_src`).
 
 ## 4. Почему не R3F / SuperSplat пока
 
@@ -75,12 +90,21 @@ ShowcaseExportResult { html, project_count, mode, warnings[] }
 Demo-скрипт `backend/scripts/export_showcase_demo.py` собирает витрину из трёх
 проектов: Эндокринология+, Indlab News Assistant, KSK Platform.
 
+Пример demo-ссылки на AI Google Studio в UI builder (`/showcase`):
+
+```text
+demo_url: https://aistudio.google.com/
+demo_label: AI Studio демо
+```
+
 ## 7. Security
 
-URL-валидация (`showcase_safety.sanitize_url`):
+URL-валидация (`showcase_safety.sanitize_url` и `sanitize_aframe_src`):
 
-- Разрешены: `http://`, `https://`, относительные пути (`/`, `./`, `../`, `#`).
+- Разрешены для project links: `http://`, `https://`, относительные пути.
 - Отклоняются: `javascript:`, `data:`, `vbscript:`, `file:`, `blob:`, `about:`.
+- `aframe_src`: relative paths, localhost dev URLs, allowlisted `aframe.io/releases/.../aframe.min.js`.
+- Произвольные внешние CDN для A-Frame — **запрещены** по умолчанию.
 
 Экранирование (`escape_text`, `js_string_literal`): title, description,
 labels, tags и URL экранируются перед вставкой в HTML/атрибуты. Inline-обработчик
@@ -101,8 +125,12 @@ labels, tags и URL экранируются перед вставкой в HTML
 ```powershell
 cd C:\Dima\Projects\CURSOR\_uat\ai-landing-factory-fresh\backend
 
-# демо-витрина → backend/data/exports/showcase_demo.html
+# демо-витрина (offline-ready) → HTML + vendor runtime рядом
 ..\.venv\Scripts\python.exe scripts\export_showcase_demo.py
+# backend/data/exports/showcase_demo.html
+# backend/data/exports/vendor/aframe/aframe.min.js
+
+# открыть showcase_demo.html без интернета (file:// или локальный сервер)
 
 # опциональный smoke (офлайн, проверка безопасности)
 ..\.venv\Scripts\python.exe scripts\smoke_showcase_export.py
