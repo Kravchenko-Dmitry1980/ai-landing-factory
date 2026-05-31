@@ -22,6 +22,9 @@ export default function RootLayout({
               <Link href="/" className="hover:text-foreground">
                 Загрузка
               </Link>
+              <Link href="/showcase" className="hover:text-foreground">
+                VR/AR Showcase
+              </Link>
             </nav>
           </div>
         </header>

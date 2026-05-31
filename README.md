@@ -44,6 +44,21 @@ Details: [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)
 
 Fresh-clone demo gate: [docs/UAT_FRESH_CLONE_P2.md](docs/UAT_FRESH_CLONE_P2.md)
 
+## VR/AR Showcase mode
+
+Дополнительный режим (Stage P.5 MVP): собрать витрину из нескольких лендингов
+и демо-проектов (например, AI Google Studio) и экспортировать self-contained
+HTML с 3D-стендом A-Frame и 2D-фолбэком. Это надстройка — обычный landing
+export не меняется и остаётся без внешнего JS.
+
+```powershell
+cd backend
+..\.venv\Scripts\python.exe scripts\export_showcase_demo.py
+# → backend/data/exports/showcase_demo.html
+```
+
+UI: страница `/showcase`. Подробности: [docs/VR_AR_SHOWCASE_P5.md](docs/VR_AR_SHOWCASE_P5.md)
+
 ## Operator guide (Russian)
 
 See [docs/USER_QUICKSTART.md](docs/USER_QUICKSTART.md).
