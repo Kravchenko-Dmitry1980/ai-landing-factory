@@ -1,28 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
 import type {
   GeneratedLanding,
   GeneratedSemanticLanding,
   LandingContract,
 } from "@/lib/types";
 import { buildWowHeroData } from "@/lib/wowHeroMapping";
-import {
-  isWebGLAvailable,
-  prefersReducedMotion,
-  sceneIntensity,
-  type WowHeroMode,
-} from "@/lib/wowHeroMode";
+import type { WowHeroMode } from "@/lib/wowHeroMode";
+import { WowHeroBackdrop } from "./WowHeroBackdrop";
 import { WowHeroOverlay } from "./WowHeroOverlay";
 import { WowHeroFallback } from "./WowHeroFallback";
 import { WowHeroMascot } from "./WowHeroMascot";
 import "./wow-hero.css";
-
-const WowHeroR3F = dynamic(() => import("./WowHeroR3F"), {
-  ssr: false,
-  loading: () => null,
-});
 
 interface Props {
   landing: GeneratedLanding;
@@ -33,56 +23,37 @@ interface Props {
   accent?: string;
 }
 
-type Capability = "pending" | "webgl" | "fallback";
-
 /**
- * Top-level WOW hero (Stage P.7.1).
+ * Top-level WOW hero (Stage P.7.6).
  *
- * Resolves project data into a deterministic scene, then either mounts the R3F
- * 3D canvas (with an accessible HTML overlay) or a static premium fallback when
- * WebGL is unavailable. SSR renders the static fallback so the hero text is
- * always present for LCP / no-JS / assistive tech.
+ * Pure 2D landing with a cat mascot PNG on the right. No R3F portal rings or
+ * heavy 3D scene — the hero text stays crisp and the mascot never overlaps copy.
  */
-export function WowHeroCanvas({ landing, contract, semantic, mode, accent = "#7c8bff" }: Props) {
+export function WowHeroCanvas({ landing, contract, semantic, mode }: Props) {
   const data = useMemo(
     () => buildWowHeroData(landing, contract, semantic),
     [landing, contract, semantic],
   );
-  const intensity = sceneIntensity(mode);
 
-  const [capability, setCapability] = useState<Capability>("pending");
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setReducedMotion(prefersReducedMotion());
-    setCapability(isWebGLAvailable() ? "webgl" : "fallback");
+    setReady(true);
   }, []);
 
-  if (capability === "pending") {
+  if (!ready) {
     return <WowHeroFallback data={data} mode={mode} reason="loading" />;
-  }
-
-  if (capability === "fallback") {
-    return <WowHeroFallback data={data} mode={mode} reason="no-webgl" />;
   }
 
   return (
     <section
       className="wow-hero-stage wow-hero-stage--live"
       data-mode={mode}
-      data-reduced-motion={reducedMotion ? "true" : "false"}
-      aria-label="WOW 3D hero"
+      aria-label="WOW hero"
     >
-      <div className="wow-hero-canvas-layer" aria-hidden="true">
-        <WowHeroR3F
-          data={data}
-          intensity={intensity}
-          reducedMotion={reducedMotion}
-          accent={accent}
-        />
-      </div>
-      <WowHeroMascot />
+      <WowHeroBackdrop />
       <WowHeroOverlay data={data} mode={mode} />
+      <WowHeroMascot />
     </section>
   );
 }

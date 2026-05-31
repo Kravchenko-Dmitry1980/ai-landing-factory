@@ -1,7 +1,6 @@
-/* WOW R3F hero styles — UII Light edition (Stage P.7.2).
- * Light, exhibition-grade "AI Learning Portal": soft violet/lavender/cyan on a
- * light background. The 3D canvas (or static backdrop) sits behind an accessible
- * HTML overlay layered with CSS. Replaces the previous dark sci-fi theme. */
+/* WOW hero styles — UII Light edition (Stage P.7.6).
+ * "2D landing + one 3D mascot": light lavender background, crisp HTML overlay,
+ * cat PNG on the right with glass UI cards. No portal rings or heavy 3D scene. */
 
 .wow-hero-stage {
   --wow-accent: #7c4dff;
@@ -12,6 +11,10 @@
   --wow-muted: #5b6474;
   position: relative;
   isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, min(680px, 58%)) minmax(280px, 1fr);
+  align-items: center;
+  gap: clamp(20px, 4vw, 48px);
   width: 100%;
   min-height: clamp(520px, 78vh, 760px);
   border-radius: 24px;
@@ -27,96 +30,74 @@
     0 40px 120px -50px rgba(80, 70, 160, 0.35);
 }
 
-.wow-hero-canvas-layer,
-.wow-hero-backdrop,
-.wow-hero-mascot-layer {
+.wow-hero-backdrop {
   position: absolute;
   inset: 0;
   z-index: 0;
-}
-
-.wow-hero-mascot-layer {
-  z-index: 1;
   pointer-events: none;
 }
 
-.wow-hero-mascot {
+/* ---- backdrop layers ---- */
+.wow-hero-aurora {
   position: absolute;
-  right: clamp(1rem, 4vw, 3.5rem);
-  top: 52%;
-  width: clamp(200px, 28vw, 340px);
+  inset: -20%;
+  background:
+    radial-gradient(40% 40% at 32% 30%, rgba(124, 77, 255, 0.2), transparent 70%),
+    radial-gradient(36% 36% at 70% 58%, rgba(93, 214, 255, 0.16), transparent 70%),
+    radial-gradient(48% 48% at 56% 86%, rgba(167, 139, 250, 0.18), transparent 70%);
+  filter: blur(34px);
+  animation: wow-aurora 18s ease-in-out infinite alternate;
+}
+
+.wow-hero-dots {
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  background-image: radial-gradient(rgba(124, 77, 255, 0.35) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(circle at 70% 40%, black 0%, transparent 72%);
+}
+
+/* ---- mascot column ---- */
+.wow-hero-mascot {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  z-index: 1;
+  justify-self: end;
+  align-self: center;
+  width: clamp(320px, 34vw, 520px);
+  max-width: 100%;
+  margin-right: clamp(0.5rem, 3vw, 2.5rem);
   aspect-ratio: 1;
-  transform: translateY(-44%);
   pointer-events: none;
 }
 
 .wow-hero-mascot-glow {
   position: absolute;
   left: 50%;
-  top: 58%;
-  width: 88%;
-  height: 42%;
+  top: 72%;
+  width: 76%;
+  height: 28%;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(93, 214, 255, 0.35), rgba(124, 77, 255, 0.12) 55%, transparent 72%);
-  filter: blur(18px);
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.45), rgba(93, 214, 255, 0.12) 55%, transparent 72%);
+  filter: blur(16px);
   animation: wow-mascot-glow 5.5s ease-in-out infinite alternate;
 }
 
-.wow-hero-mascot-portal {
-  position: absolute;
-  inset: 4% 2% 18% 2%;
-}
-
-.wow-hero-mascot-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.92);
-  box-shadow:
-    inset 0 0 0 1px rgba(124, 77, 255, 0.18),
-    0 0 0 6px rgba(93, 214, 255, 0.12),
-    0 0 48px 8px rgba(93, 214, 255, 0.28);
-  animation: wow-mascot-ring-spin 28s linear infinite;
-}
-
-.wow-hero-mascot-ring--inner {
-  inset: 12%;
-  border-width: 2px;
-  border-color: rgba(93, 214, 255, 0.55);
-  box-shadow: 0 0 28px 4px rgba(93, 214, 255, 0.35);
-  animation-direction: reverse;
-  animation-duration: 22s;
-}
-
-.wow-hero-mascot-pedestal {
+.wow-hero-mascot-platform {
   position: absolute;
   left: 50%;
-  bottom: 2%;
-  width: 72%;
+  bottom: 6%;
+  width: 68%;
+  height: 14px;
   transform: translateX(-50%);
-}
-
-.wow-hero-mascot-pedestal-tier {
-  display: block;
-  margin: 0 auto;
   border-radius: 50%;
-  background: linear-gradient(180deg, #ffffff 0%, #eef1fb 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(238, 241, 251, 0.85) 100%);
   box-shadow:
-    0 18px 36px -22px rgba(80, 70, 160, 0.55),
+    0 16px 32px -18px rgba(80, 70, 160, 0.45),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
-}
-
-.wow-hero-mascot-pedestal-tier--1 {
-  width: 100%;
-  height: 18px;
-}
-
-.wow-hero-mascot-pedestal-tier--2 {
-  width: 74%;
-  height: 12px;
-  margin-top: -4px;
-  opacity: 0.92;
 }
 
 .wow-hero-mascot-image {
@@ -129,40 +110,109 @@
   animation: wow-mascot-float 6.5s ease-in-out infinite;
 }
 
-.wow-hero-mascot-float {
+/* ---- floating 2D UI cards around mascot ---- */
+.wow-hero-ui-card,
+.wow-hero-ui-icon {
   position: absolute;
   z-index: 3;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--wow-ink);
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(124, 77, 255, 0.2);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(124, 77, 255, 0.16);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 14px 36px -22px rgba(80, 70, 160, 0.65);
+  animation: wow-mascot-float 5.5s ease-in-out infinite;
+}
+
+.wow-hero-ui-card {
+  padding: 10px 12px;
+  opacity: 0.88;
+}
+
+.wow-hero-ui-card--chart {
+  left: -6%;
+  top: 8%;
+  width: 72px;
+  height: 52px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  animation-delay: -1.4s;
+}
+
+.wow-hero-ui-bar {
+  display: block;
+  width: 10px;
+  border-radius: 4px 4px 2px 2px;
+  background: linear-gradient(180deg, var(--wow-accent-2), var(--wow-accent));
+}
+
+.wow-hero-ui-bar--1 { height: 18px; opacity: 0.55; }
+.wow-hero-ui-bar--2 { height: 28px; }
+.wow-hero-ui-bar--3 { height: 22px; opacity: 0.75; }
+.wow-hero-ui-bar--4 { height: 34px; }
+
+.wow-hero-ui-card--news {
+  right: -4%;
+  top: 22%;
+  width: 88px;
+  animation-delay: -2.6s;
+}
+
+.wow-hero-ui-line {
+  display: block;
+  height: 5px;
   border-radius: 999px;
-  padding: 5px 10px;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 12px 28px -18px rgba(80, 70, 160, 0.85);
-  animation: wow-mascot-float 5s ease-in-out infinite;
+  background: rgba(124, 77, 255, 0.18);
+  margin-bottom: 6px;
 }
 
-.wow-hero-mascot-float--1 {
-  left: -4%;
-  top: 18%;
-  animation-delay: -1.2s;
+.wow-hero-ui-line--title {
+  height: 7px;
+  width: 70%;
+  background: rgba(124, 77, 255, 0.32);
 }
 
-.wow-hero-mascot-float--2 {
-  right: -2%;
-  top: 36%;
-  animation-delay: -2.4s;
+.wow-hero-ui-line--short {
+  width: 55%;
+  margin-bottom: 0;
 }
 
-.wow-hero-mascot-float--3 {
-  right: 8%;
-  bottom: 24%;
-  color: var(--wow-accent);
-  animation-delay: -0.6s;
+.wow-hero-ui-icon--telegram {
+  left: 4%;
+  bottom: 28%;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #229ed9;
+  border-radius: 50%;
+  animation-delay: -0.8s;
+}
+
+.wow-hero-ui-card--pie {
+  right: 2%;
+  bottom: 18%;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation-delay: -3.2s;
+}
+
+.wow-hero-ui-pie {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--wow-accent) 0deg 130deg,
+    var(--wow-accent-2) 130deg 220deg,
+    var(--wow-lavender) 220deg 360deg
+  );
+  mask: radial-gradient(circle, transparent 42%, black 43%);
+  -webkit-mask: radial-gradient(circle, transparent 42%, black 43%);
 }
 
 @keyframes wow-mascot-float {
@@ -175,95 +225,11 @@
   100% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
 }
 
-@keyframes wow-mascot-ring-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.wow-hero-canvas {
-  width: 100% !important;
-  height: 100% !important;
-  display: block;
-}
-
-/* ---- static fallback backdrop (no-WebGL / loading) ---- */
-.wow-hero-aurora {
-  position: absolute;
-  inset: -20%;
-  background:
-    radial-gradient(40% 40% at 32% 30%, rgba(124, 77, 255, 0.28), transparent 70%),
-    radial-gradient(36% 36% at 70% 58%, rgba(93, 214, 255, 0.24), transparent 70%),
-    radial-gradient(48% 48% at 56% 86%, rgba(167, 139, 250, 0.26), transparent 70%);
-  filter: blur(34px);
-  animation: wow-aurora 18s ease-in-out infinite alternate;
-}
-
-.wow-hero-grid-floor {
-  position: absolute;
-  inset: 58% -10% -20% -10%;
-  background-image:
-    linear-gradient(rgba(124, 77, 255, 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(124, 77, 255, 0.12) 1px, transparent 1px);
-  background-size: 46px 46px;
-  transform: perspective(600px) rotateX(62deg);
-  transform-origin: center top;
-  mask-image: linear-gradient(to bottom, black, transparent 80%);
-  opacity: 0.5;
-}
-
-.wow-hero-core {
-  position: absolute;
-  left: 64%;
-  top: 42%;
-  width: 200px;
-  height: 200px;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(124, 77, 255, 0.55), rgba(217, 204, 255, 0.05) 70%);
-  box-shadow: 0 0 90px 26px rgba(124, 77, 255, 0.22);
-  animation: wow-core-pulse 6s ease-in-out infinite;
-}
-
-.wow-hero-constellation {
-  position: absolute;
-  inset: 0;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.wow-hero-node {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  transform: translate(-50%, -50%);
-}
-
-.wow-hero-node-dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 6px;
-  background: var(--wow-node-color, #7c4dff);
-  box-shadow: 0 0 16px 4px color-mix(in srgb, var(--wow-node-color, #7c4dff) 55%, transparent);
-}
-
-.wow-hero-node-label {
-  font-size: 11px;
-  letter-spacing: 0.02em;
-  color: var(--wow-ink);
-  white-space: nowrap;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(124, 77, 255, 0.22);
-  padding: 2px 8px;
-  border-radius: 999px;
-  backdrop-filter: blur(4px);
-}
-
-/* ---- overlay ---- */
+/* ---- overlay (left column) ---- */
 .wow-hero-overlay {
   position: relative;
+  grid-column: 1;
+  grid-row: 1;
   z-index: 2;
   display: flex;
   flex-direction: column;
@@ -271,6 +237,7 @@
   gap: 28px;
   height: 100%;
   min-height: inherit;
+  max-width: 720px;
   padding: clamp(20px, 4vw, 52px);
   pointer-events: none;
 }
@@ -280,7 +247,7 @@
 }
 
 .wow-hero-overlay-top {
-  max-width: 560px;
+  max-width: 620px;
 }
 
 .wow-hero-eyebrow {
@@ -506,11 +473,6 @@
   100% { transform: translate3d(3%, 2%, 0) scale(1.08); }
 }
 
-@keyframes wow-core-pulse {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.85; }
-  50% { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
-}
-
 @keyframes wow-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
@@ -518,12 +480,11 @@
 
 @media (prefers-reduced-motion: reduce) {
   .wow-hero-aurora,
-  .wow-hero-core,
   .wow-hero-pulse,
   .wow-hero-mascot-image,
-  .wow-hero-mascot-float,
-  .wow-hero-mascot-glow,
-  .wow-hero-mascot-ring {
+  .wow-hero-ui-card,
+  .wow-hero-ui-icon,
+  .wow-hero-mascot-glow {
     animation: none !important;
   }
   .wow-cta-primary:hover {
@@ -531,39 +492,54 @@
   }
 }
 
+@media (max-width: 960px) {
+  .wow-hero-stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    min-height: auto;
+    padding-bottom: 0;
+  }
+
+  .wow-hero-overlay {
+    grid-column: 1;
+    grid-row: 1;
+    max-width: 100%;
+    padding-bottom: 0;
+  }
+
+  .wow-hero-mascot {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: center;
+    margin: 0 auto 24px;
+    width: clamp(260px, 58vw, 380px);
+  }
+
+  .wow-hero-ui-card--chart,
+  .wow-hero-ui-card--news {
+    opacity: 0.75;
+  }
+}
+
 @media (max-width: 640px) {
   .wow-hero-stage {
     min-height: 560px;
   }
-  .wow-hero-node-label {
-    display: none;
-  }
+
   .wow-hero-overlay-top {
     max-width: 100%;
   }
-  .wow-hero-mascot {
-    right: 50%;
-    top: auto;
-    bottom: 10px;
-    width: min(210px, 58vw);
-    transform: translateX(50%);
-  }
-  .wow-hero-mascot-float {
-    display: none;
-  }
-  .wow-hero-overlay-bottom {
-    padding-bottom: clamp(140px, 34vw, 200px);
-  }
-}
 
-@media (max-width: 960px) and (min-width: 641px) {
-  .wow-hero-mascot {
-    width: clamp(180px, 24vw, 260px);
-    right: clamp(0.5rem, 2vw, 1.5rem);
-    opacity: 0.92;
-  }
-  .wow-hero-mascot-float--1,
-  .wow-hero-mascot-float--3 {
+  .wow-hero-ui-card,
+  .wow-hero-ui-icon {
     display: none;
+  }
+
+  .wow-hero-mascot {
+    width: min(240px, 72vw);
+  }
+
+  .wow-hero-overlay-bottom {
+    padding-bottom: 8px;
   }
 }

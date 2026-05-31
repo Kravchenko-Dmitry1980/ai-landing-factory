@@ -75,11 +75,13 @@ describe("WowBundleApp", () => {
     expect(html).toContain("wow-bundle-cat-mascot-v1");
   });
 
-  it("bundle renderer source has no stale procedural robot", () => {
+  it("bundle renderer source has no portal arch or procedural robot", () => {
     const dir = dirname(fileURLToPath(import.meta.url));
     const src = readFileSync(join(dir, "WowBundleRenderer.tsx"), "utf-8");
     expect(src).not.toContain("function Assistant");
     expect(src).not.toContain("PhoneStage");
+    expect(src).not.toContain("PortalArch");
+    expect(src).not.toContain("torusGeometry");
   });
 
   it("does not break when links are missing", () => {

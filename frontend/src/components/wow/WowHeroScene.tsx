@@ -12,14 +12,10 @@ interface SceneProps {
 }
 
 /**
- * WOW 3D hero scene (rendered inside an R3F <Canvas>).
+ * WOW 3D hero scene (rendered inside an R3F <Canvas> when used).
  *
- * Stage P.7.2 replaces the original dark sci-fi constellation with the light,
- * exhibition-grade "UII Light" composition (AI assistant + device stage + glass
- * portal arch + floating data cards). This module stays as the stable entry
- * point used by {@link WowHeroR3F}; the visual language lives in
- * {@link WowHeroSceneUiiLight}. `reducedMotion` is threaded through to disable
- * all animation when the user prefers it.
+ * Stage P.7.6 keeps the scene ambient-only (sparkles). The cat mascot is an
+ * HTML/CSS PNG layer; portal arch and 3D floating cards are removed.
  */
 export function WowHeroScene({ data, intensity, reducedMotion, accent }: SceneProps) {
   return (

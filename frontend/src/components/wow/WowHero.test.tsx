@@ -22,17 +22,17 @@ describe("WOW hero components", () => {
     expect(typeof WowMetricStrip).toBe("function");
   });
 
-  it("renders a static fallback before WebGL is confirmed and when unavailable", () => {
+  it("renders a static fallback while hydrating", () => {
     const src = source("WowHeroCanvas.tsx");
     expect(src).toContain('reason="loading"');
-    expect(src).toContain('reason="no-webgl"');
-    expect(src).toContain("isWebGLAvailable");
+    expect(src).toContain("WowHeroFallback");
   });
 
-  it("loads the R3F canvas client-only via next/dynamic ssr:false", () => {
-    const src = source("WowHeroCanvas.tsx");
-    expect(src).toContain("dynamic(() => import(\"./WowHeroR3F\")");
-    expect(src).toContain("ssr: false");
+  it("uses a pure 2D hero without R3F portal scene", () => {
+    const canvas = source("WowHeroCanvas.tsx");
+    expect(canvas).toContain("WowHeroBackdrop");
+    expect(canvas).not.toContain("WowHeroR3F");
+    expect(canvas).not.toContain("dynamic(() => import");
   });
 
   it("keeps the CTA clickable and metrics anchored in the overlay", () => {
@@ -42,18 +42,22 @@ describe("WOW hero components", () => {
     expect(src).toContain("aria-label");
   });
 
-  it("mounts the cat mascot in live canvas and static fallback", () => {
+  it("mounts the cat mascot with 2D UI cards, no portal ring", () => {
     const canvas = source("WowHeroCanvas.tsx");
     const fallback = source("WowHeroFallback.tsx");
+    const mascot = source("WowHeroMascot.tsx");
     expect(canvas).toContain("WowHeroMascot");
     expect(fallback).toContain("WowHeroMascot");
+    expect(mascot).toContain("wow-hero-ui-card--chart");
+    expect(mascot).not.toContain("wow-hero-mascot-portal");
+    expect(mascot).not.toContain("wow-hero-mascot-ring");
     expect(source("wowMascotAsset.ts")).toContain("/assets/wow/cat-assistant.png");
   });
 
-  it("supports reduced motion in the scene", () => {
-    const src = source("WowHeroScene.tsx");
-    expect(src).toContain("reducedMotion");
-    const r3f = source("WowHeroR3F.tsx");
-    expect(r3f).toContain('frameloop={reducedMotion ? "demand" : "always"}');
+  it("UII light scene has no portal arch or 3D floating cards", () => {
+    const scene = source("WowHeroSceneUiiLight.tsx");
+    expect(scene).not.toContain("WowPortalArch");
+    expect(scene).not.toContain("WowFloatingCards");
+    expect(scene).toContain("WowAmbientDecor");
   });
 });
