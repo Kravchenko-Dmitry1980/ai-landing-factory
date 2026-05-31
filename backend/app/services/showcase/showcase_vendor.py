@@ -12,7 +12,15 @@ DEFAULT_AFRAME_SRC = "vendor/aframe/aframe.min.js"
 ALLOWED_AFRAME_CDN = "https://aframe.io/releases/1.7.0/aframe.min.js"
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
-VENDOR_SOURCE = _REPO_ROOT / "frontend" / "public" / "vendor" / "aframe" / "aframe.min.js"
+VENDOR_DIR = _REPO_ROOT / "frontend" / "public" / "vendor" / "aframe"
+VENDOR_SOURCE = VENDOR_DIR / "aframe.min.js"
+VENDOR_LICENSE = VENDOR_DIR / "LICENSE.txt"
+
+# Hardcoded paths inside portable ZIP bundles (never user-controlled).
+ZIP_HTML_NAME = "showcase.html"
+ZIP_AFRAME_ENTRY = "vendor/aframe/aframe.min.js"
+ZIP_LICENSE_ENTRY = "vendor/aframe/LICENSE.txt"
+ZIP_DOWNLOAD_FILENAME = "ai-showcase.zip"
 
 
 def is_local_aframe_src(src: str) -> bool:

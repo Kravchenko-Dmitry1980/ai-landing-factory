@@ -87,15 +87,38 @@ ShowcaseExportResult { html, project_count, mode, warnings[] }
 `landing_url`. В 3D-сцене карточка кликабельна (минимальный inline-обработчик
 `alfOpen`), в 2D-фолбэке — обычные `<a target="_blank" rel="noopener">`.
 
-Demo-скрипт `backend/scripts/export_showcase_demo.py` собирает витрину из трёх
-проектов: Эндокринология+, Indlab News Assistant, KSK Platform.
-
 Пример demo-ссылки на AI Google Studio в UI builder (`/showcase`):
 
 ```text
 demo_url: https://aistudio.google.com/
 demo_label: AI Studio демо
 ```
+
+## 6.1 HTML export vs ZIP export (P.5.2)
+
+| | HTML export | ZIP export |
+|---|---|---|
+| Endpoint | `POST /api/v1/showcase/export-html` | `POST /api/v1/showcase/export-zip` |
+| UI button | Export HTML | Export ZIP for offline demo |
+| Содержимое | только HTML (нужен vendor рядом вручную) | `showcase.html` + `vendor/aframe/*` |
+| Offline | только если vendor скопирован | **полностью portable** после unzip |
+
+Структура ZIP bundle:
+
+```text
+ai-showcase.zip
+  showcase.html
+  vendor/aframe/aframe.min.js
+  vendor/aframe/LICENSE.txt
+```
+
+Как открыть offline:
+
+1. Скачать ZIP (UI `/showcase` или `export_showcase_demo.py --zip`).
+2. Распаковать в любую папку.
+3. Открыть `showcase.html` в браузере (`file://` или локальный сервер).
+
+Vendor runtime включён в ZIP, чтобы 3D-сцена работала без интернета и CDN.
 
 ## 7. Security
 
@@ -113,6 +136,11 @@ labels, tags и URL экранируются перед вставкой в HTML
 Тесты подтверждают: вредоносный `<script>` в title экранируется и не
 исполняется; `javascript:` URL отбрасывается и не попадает в вывод.
 
+ZIP bundle использует **только hardcoded entry names** (`showcase.html`,
+`vendor/aframe/aframe.min.js`, `vendor/aframe/LICENSE.txt`). User-provided
+filenames, path traversal (`../`), absolute paths, `.env`, logs и backend/data
+в ZIP **не попадают**.
+
 ## 8. Future roadmap
 
 1. **R3F preview editor** — интерактивный редактор 3D-сцены в React.
@@ -127,16 +155,17 @@ cd C:\Dima\Projects\CURSOR\_uat\ai-landing-factory-fresh\backend
 
 # демо-витрина (offline-ready) → HTML + vendor runtime рядом
 ..\.venv\Scripts\python.exe scripts\export_showcase_demo.py
-# backend/data/exports/showcase_demo.html
-# backend/data/exports/vendor/aframe/aframe.min.js
 
-# открыть showcase_demo.html без интернета (file:// или локальный сервер)
+# portable ZIP bundle (рекомендуется для demo/аудитории)
+..\.venv\Scripts\python.exe scripts\export_showcase_demo.py --zip
+# backend/data/exports/showcase_demo.zip
 
-# опциональный smoke (офлайн, проверка безопасности)
+# опциональный smoke
 ..\.venv\Scripts\python.exe scripts\smoke_showcase_export.py
+..\.venv\Scripts\python.exe scripts\smoke_showcase_zip_export.py
 
 # тесты
-..\.venv\Scripts\python.exe -m pytest tests\test_showcase_exporter.py -q
+..\.venv\Scripts\python.exe -m pytest tests\test_showcase_exporter.py tests\test_showcase_zip_exporter.py -q
 ```
 
 Frontend: страница `/showcase` (`frontend/src/app/showcase/page.tsx`).

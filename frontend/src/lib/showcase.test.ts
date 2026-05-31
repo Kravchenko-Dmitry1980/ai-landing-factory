@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  SHOWCASE_ZIP_DEFAULT_FILENAME,
+  SHOWCASE_ZIP_EXPORT_PATH,
   createEmptyProject,
   isSafeShowcaseUrl,
+  showcaseZipFilename,
   toShowcasePayload,
   validateShowcaseConfig,
   type ShowcaseConfigInput,
@@ -83,5 +86,16 @@ describe("toShowcasePayload", () => {
     expect(payload.subtitle).toBeUndefined();
     expect(payload.projects[0].landing_url).toBeUndefined();
     expect(payload.projects[0].demo_url).toBe("https://aistudio.google.com/");
+  });
+});
+
+describe("showcase ZIP export helpers", () => {
+  it("uses showcase export-zip API path", () => {
+    expect(SHOWCASE_ZIP_EXPORT_PATH).toBe("/showcase/export-zip");
+  });
+
+  it("download filename ends with .zip", () => {
+    expect(showcaseZipFilename()).toMatch(/\.zip$/i);
+    expect(SHOWCASE_ZIP_DEFAULT_FILENAME).toBe("ai-showcase.zip");
   });
 });

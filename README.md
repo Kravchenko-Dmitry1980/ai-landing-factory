@@ -48,20 +48,22 @@ Fresh-clone demo gate: [docs/UAT_FRESH_CLONE_P2.md](docs/UAT_FRESH_CLONE_P2.md)
 
 Дополнительный режим (Stage P.5): собрать витрину из нескольких лендингов
 и демо-проектов (например, AI Google Studio) и экспортировать offline-ready
-HTML с 3D-стендом A-Frame (локальный vendored runtime) и 2D-фолбэком.
-Обычный landing export не меняется.
+HTML/ZIP с 3D-стендом A-Frame и 2D-фолбэком. Обычный landing export не меняется.
 
 ```powershell
 cd backend
+# HTML + vendor folder
 ..\.venv\Scripts\python.exe scripts\export_showcase_demo.py
-# → backend/data/exports/showcase_demo.html
-# → backend/data/exports/vendor/aframe/aframe.min.js  (offline runtime)
+# Portable ZIP (recommended for offline demo)
+..\.venv\Scripts\python.exe scripts\export_showcase_demo.py --zip
 ```
 
-Vendored runtime в репозитории: `frontend/public/vendor/aframe/aframe.min.js`.
-CDN override: `--aframe-src https://aframe.io/releases/1.7.0/aframe.min.js`.
+ZIP содержит `showcase.html`, `vendor/aframe/aframe.min.js`, `LICENSE.txt`.
+Распакуйте и откройте `showcase.html` без интернета.
 
-UI: страница `/showcase`. Подробности: [docs/VR_AR_SHOWCASE_P5.md](docs/VR_AR_SHOWCASE_P5.md)
+Vendored runtime: `frontend/public/vendor/aframe/aframe.min.js`.
+UI `/showcase`: **Export HTML** или **Export ZIP for offline demo**.
+Подробности: [docs/VR_AR_SHOWCASE_P5.md](docs/VR_AR_SHOWCASE_P5.md)
 
 ## Operator guide (Russian)
 

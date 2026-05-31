@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   createEmptyProject,
   exportShowcase,
+  exportShowcaseZip,
   isSafeShowcaseUrl,
   validateShowcaseConfig,
   type ShowcaseConfigInput,
@@ -82,7 +83,7 @@ export function ShowcaseBuilder() {
     }));
   }
 
-  async function handleExport() {
+  async function handleExportHtml() {
     const validation = validateShowcaseConfig(config);
     setErrors(validation.errors);
     setWarnings([]);
@@ -103,10 +104,39 @@ export function ShowcaseBuilder() {
       anchor.remove();
       URL.revokeObjectURL(url);
       setStatus(
-        `Экспортировано: ${result.project_count} проект(ов), режим ${result.mode}.`,
+        `HTML экспортирован: ${result.project_count} проект(ов), режим ${result.mode}. ` +
+          "Для offline demo используйте Export ZIP.",
       );
     } catch (err) {
-      setErrors([err instanceof Error ? err.message : "Ошибка экспорта."]);
+      setErrors([err instanceof Error ? err.message : "Ошибка экспорта HTML."]);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleExportZip() {
+    const validation = validateShowcaseConfig(config);
+    setErrors(validation.errors);
+    setWarnings([]);
+    setStatus(null);
+    if (!validation.ok) return;
+
+    setBusy(true);
+    try {
+      const { blob, filename } = await exportShowcaseZip(config);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setStatus(
+        `ZIP экспортирован (${filename}). Распакуйте и откройте showcase.html offline.`,
+      );
+    } catch (err) {
+      setErrors([err instanceof Error ? err.message : "Ошибка экспорта ZIP."]);
     } finally {
       setBusy(false);
     }
@@ -315,14 +345,24 @@ export function ShowcaseBuilder() {
         </p>
       )}
 
-      <button
-        type="button"
-        onClick={handleExport}
-        disabled={busy}
-        className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:opacity-50"
-      >
-        {busy ? "Экспорт..." : "Экспортировать VR/AR витрину"}
-      </button>
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={handleExportHtml}
+          disabled={busy}
+          className="rounded-md border px-4 py-2 text-sm font-semibold disabled:opacity-50"
+        >
+          {busy ? "Экспорт..." : "Export HTML"}
+        </button>
+        <button
+          type="button"
+          onClick={handleExportZip}
+          disabled={busy}
+          className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:opacity-50"
+        >
+          {busy ? "Экспорт..." : "Export ZIP for offline demo"}
+        </button>
+      </div>
     </div>
   );
 }

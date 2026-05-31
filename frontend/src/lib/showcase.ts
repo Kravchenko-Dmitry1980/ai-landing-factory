@@ -132,7 +132,7 @@ export function toShowcasePayload(config: ShowcaseConfigInput): ShowcaseConfigIn
   };
 }
 
-/** Call the backend showcase export endpoint. */
+/** Call the backend showcase HTML export endpoint. */
 export async function exportShowcase(
   config: ShowcaseConfigInput,
 ): Promise<ShowcaseExportResult> {
@@ -147,4 +147,35 @@ export async function exportShowcase(
     throw new Error(text || `HTTP ${res.status}`);
   }
   return (await res.json()) as ShowcaseExportResult;
+}
+
+export const SHOWCASE_ZIP_EXPORT_PATH = "/showcase/export-zip";
+export const SHOWCASE_ZIP_DEFAULT_FILENAME = "ai-showcase.zip";
+
+/** Suggested download filename for portable showcase ZIP bundles. */
+export function showcaseZipFilename(): string {
+  return SHOWCASE_ZIP_DEFAULT_FILENAME;
+}
+
+/** Call the backend showcase ZIP export endpoint. */
+export async function exportShowcaseZip(
+  config: ShowcaseConfigInput,
+): Promise<{ blob: Blob; filename: string }> {
+  const base = resolveApiBaseUrl();
+  const res = await fetch(`${base}${SHOWCASE_ZIP_EXPORT_PATH}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(toShowcasePayload(config)),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const match = disposition.match(/filename="?([^";]+)"?/i);
+  const filename = match?.[1]?.endsWith(".zip")
+    ? match[1]
+    : showcaseZipFilename();
+  return { blob, filename };
 }
