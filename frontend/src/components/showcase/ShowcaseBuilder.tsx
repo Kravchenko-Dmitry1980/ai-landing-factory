@@ -44,6 +44,10 @@ export function ShowcaseBuilder({ showcaseId }: { showcaseId: string }) {
   const [busy, setBusy] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const [addFormInitial, setAddFormInitial] = useState<
+    ShowcaseProjectRequest | undefined
+  >();
+  const [landingAutofillHint, setLandingAutofillHint] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const settingsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -93,6 +97,22 @@ export function ShowcaseBuilder({ showcaseId }: { showcaseId: string }) {
     await withBusy(() => addShowcaseProject(showcaseId, request));
     setShowAddForm(false);
     setShowPicker(false);
+    setAddFormInitial(undefined);
+    setLandingAutofillHint(false);
+  }
+
+  function handleCandidatePick(request: ShowcaseProjectRequest) {
+    setShowPicker(false);
+    setShowAddForm(true);
+    setAddFormInitial(request);
+    setLandingAutofillHint(Boolean(request.landing_url?.trim()));
+  }
+
+  function openManualAddForm() {
+    setShowAddForm((v) => !v);
+    setShowPicker(false);
+    setAddFormInitial(undefined);
+    setLandingAutofillHint(false);
   }
 
   async function handleEdit(projectId: string, request: ShowcaseProjectRequest) {
@@ -142,10 +162,7 @@ export function ShowcaseBuilder({ showcaseId }: { showcaseId: string }) {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => {
-                setShowAddForm((v) => !v);
-                setShowPicker(false);
-              }}
+              onClick={openManualAddForm}
               className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
             >
               Добавить проект
@@ -165,16 +182,27 @@ export function ShowcaseBuilder({ showcaseId }: { showcaseId: string }) {
 
         {showAddForm && (
           <ShowcaseProjectForm
+            key={
+              addFormInitial?.source_project_id
+                ? `candidate-${addFormInitial.source_project_id}`
+                : "manual-add"
+            }
+            initial={addFormInitial}
+            landingAutofillHint={landingAutofillHint}
             submitLabel="Добавить"
             onSubmit={handleAdd}
-            onCancel={() => setShowAddForm(false)}
+            onCancel={() => {
+              setShowAddForm(false);
+              setAddFormInitial(undefined);
+              setLandingAutofillHint(false);
+            }}
             busy={busy}
           />
         )}
 
         {showPicker && (
           <LandingCandidatePicker
-            onPick={handleAdd}
+            onPick={handleCandidatePick}
             onClose={() => setShowPicker(false)}
             busy={busy}
           />

@@ -12,6 +12,7 @@ from app.config import settings
 from app.core.dependencies import get_contract_repository
 from app.repositories.project_repository import ProjectRepository
 from app.services.showcase.showcase_html_exporter import ShowcaseHtmlExporter
+from app.services.showcase.showcase_landing_candidates import build_landing_candidate
 from app.services.showcase.showcase_schema import (
     LandingCandidate,
     ShowcaseConfig,
@@ -66,10 +67,9 @@ async def list_landing_candidates(
 ) -> list[LandingCandidate]:
     """List existing landing projects that can be attached to a showcase.
 
-    MVP behavior: read from the existing project registry and enrich each
-    entry with contract title/client/lead when available. ``landing_url`` is
-    left blank (no permanent public URL in MVP); the builder lets the user
-    paste a demo/landing link manually.
+    Each candidate includes ``preview_url`` (``/preview/{id}``),
+    ``export_html_url`` (project HTML export API), and ``landing_url`` defaulting
+    to the preview route. ``demo_url`` is still added manually in the builder.
     """
 
     records = await _project_repo.list_projects(limit=limit, sort="updated_desc")
@@ -77,21 +77,12 @@ async def list_landing_candidates(
     candidates: list[LandingCandidate] = []
     for record in records:
         contract = await contract_repo.get_contract(record.id)
-        title = (contract.title if contract and contract.title else record.name) or record.name
-        client = contract.client if contract else None
-        description = None
-        if contract:
-            description = contract.lead or contract.quote or None
         landing = await contract_repo.get_landing(record.id)
-        candidates.append(
-            LandingCandidate(
-                project_id=str(record.id),
-                title=title,
-                client=client,
-                description=description,
-                landing_url=None,
-                export_available=bool(contract or landing),
-                updated_at=record.updated_at.isoformat() if record.updated_at else None,
-            )
+        candidate = build_landing_candidate(
+            record,
+            contract=contract,
+            has_landing=bool(landing),
         )
+        if candidate is not None:
+            candidates.append(candidate)
     return candidates

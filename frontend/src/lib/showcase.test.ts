@@ -36,6 +36,7 @@ describe("isSafeShowcaseUrl", () => {
   it("accepts https and relative paths", () => {
     expect(isSafeShowcaseUrl("https://example.com")).toBe(true);
     expect(isSafeShowcaseUrl("/landings/x")).toBe(true);
+    expect(isSafeShowcaseUrl("/preview/demo-id")).toBe(true);
     expect(isSafeShowcaseUrl("")).toBe(true);
     expect(isSafeShowcaseUrl(undefined)).toBe(true);
   });
@@ -119,12 +120,14 @@ describe("moveProjectInList", () => {
 });
 
 describe("candidateToProjectRequest", () => {
-  it("fills title and description from a landing candidate", () => {
+  it("fills title, description, and landing_url from a landing candidate", () => {
     const candidate: LandingCandidate = {
       project_id: "p-1",
       title: "Эндокринология+",
       client: "УИИ",
       description: "Лид-абзац",
+      preview_url: "/preview/p-1",
+      export_html_url: "/api/v1/projects/p-1/export/html",
       landing_url: "/preview/p-1",
       export_available: true,
     };
@@ -133,6 +136,32 @@ describe("candidateToProjectRequest", () => {
     expect(request.description).toBe("Лид-абзац");
     expect(request.landing_url).toBe("/preview/p-1");
     expect(request.source_project_id).toBe("p-1");
+    expect(request.demo_url).toBeUndefined();
+  });
+
+  it("falls back to preview_url when landing_url is empty", () => {
+    const candidate: LandingCandidate = {
+      project_id: "p-2",
+      title: "Demo",
+      preview_url: "/preview/p-2",
+      export_html_url: "/api/v1/projects/p-2/export/html",
+      landing_url: "",
+      export_available: true,
+    };
+    expect(candidateToProjectRequest(candidate).landing_url).toBe("/preview/p-2");
+  });
+
+  it("uses client as description fallback", () => {
+    const candidate: LandingCandidate = {
+      project_id: "p-3",
+      title: "Demo",
+      client: "Клиент",
+      preview_url: "/preview/p-3",
+      export_html_url: "/api/v1/projects/p-3/export/html",
+      landing_url: "/preview/p-3",
+      export_available: false,
+    };
+    expect(candidateToProjectRequest(candidate).description).toBe("Клиент");
   });
 });
 

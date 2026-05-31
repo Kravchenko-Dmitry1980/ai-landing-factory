@@ -125,7 +125,15 @@ def test_export_zip_returns_application_zip(client: TestClient) -> None:
 def test_landing_candidates_endpoint(client: TestClient) -> None:
     res = client.get("/api/v1/showcase/landing-candidates")
     assert res.status_code == 200
-    assert isinstance(res.json(), list)
+    body = res.json()
+    assert isinstance(body, list)
+    if body:
+        item = body[0]
+        assert "preview_url" in item
+        assert "export_html_url" in item
+        assert "landing_url" in item
+        assert item["landing_url"] == item["preview_url"]
+        assert item["preview_url"].startswith("/preview/")
 
 
 def test_get_missing_showcase_404(client: TestClient) -> None:

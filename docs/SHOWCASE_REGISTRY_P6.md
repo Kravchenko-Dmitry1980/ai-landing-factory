@@ -12,7 +12,8 @@
 1. создать витрину;
 2. добавить проекты/ленды вручную;
 3. прикрепить `demo_url` (например, из AI Google Studio);
-4. указать `landing_url` или выбрать существующий generated landing;
+4. указать `landing_url` или выбрать существующий generated landing (при выборе
+   из лендов `landing_url` подставляется как `/preview/{project_id}`);
 5. выбрать layout/theme;
 6. отредактировать список проектов (правка / удаление / порядок);
 7. экспортировать HTML или ZIP;
@@ -98,10 +99,14 @@ backend/data/showcases/
 |---|---|---|
 | GET | `/showcase/landing-candidates` | `LandingCandidate[]` |
 
-`LandingCandidate { project_id, title, client?, description?, landing_url?, export_available, updated_at? }`
+`LandingCandidate { project_id, title, client?, description?, preview_url, export_html_url, landing_url, export_available, updated_at? }`
 строится из текущего project registry + LandingContract (title/client/lead).
-`landing_url` в MVP не заполняется (нет постоянного публичного URL) — ссылку
-можно вставить вручную в билдере.
+
+- `preview_url` — относительный маршрут фронтенда `/preview/{project_id}`;
+- `export_html_url` — backend HTML export `/api/v1/projects/{project_id}/export/html`;
+- `landing_url` — по умолчанию равен `preview_url` (подставляется автоматически при
+  «Добавить из лендов»);
+- `demo_url` (AI Google Studio и т.п.) пользователь добавляет вручную в форме.
 
 ## 5. UI flow
 
@@ -180,8 +185,8 @@ cd C:\Dima\Projects\CURSOR\_uat\ai-landing-factory-fresh\backend
 - Хранилище — JSON-файлы, без БД, без конкурентных транзакций (атомарная
   запись на файл, но без блокировок между процессами).
 - Нет авторизации/мультипользовательского доступа.
-- `landing_url` для кандидатов лендов не выдаётся автоматически (вставляется
-  вручную) — нет постоянного публичного URL лендинга в MVP.
+- `landing_url` для кандидатов лендов подставляется автоматически как
+  `/preview/{project_id}`; пользователь может отредактировать перед сохранением.
 - Нет drag-and-drop, нет полноценного 3D scene editor, нет R3F/SuperSplat,
   нет multiplayer (см. NON-GOALS).
 - Showcase не обязателен в Simple Gate и не влияет на `run.ps1`.

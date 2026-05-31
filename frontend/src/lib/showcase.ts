@@ -235,7 +235,9 @@ export interface LandingCandidate {
   title: string;
   client?: string | null;
   description?: string | null;
-  landing_url?: string | null;
+  preview_url: string;
+  export_html_url: string;
+  landing_url: string;
   export_available: boolean;
   updated_at?: string | null;
 }
@@ -258,10 +260,16 @@ export function moveProjectInList<T>(
 export function candidateToProjectRequest(
   candidate: LandingCandidate,
 ): ShowcaseProjectRequest {
+  const description =
+    candidate.description?.trim() ||
+    candidate.client?.trim() ||
+    "";
+  const landingUrl =
+    candidate.landing_url?.trim() || candidate.preview_url?.trim() || undefined;
   return {
     title: candidate.title,
-    description: candidate.description ?? "",
-    landing_url: candidate.landing_url ?? undefined,
+    description,
+    landing_url: landingUrl,
     source_project_id: candidate.project_id,
     category: candidate.client ?? undefined,
   };

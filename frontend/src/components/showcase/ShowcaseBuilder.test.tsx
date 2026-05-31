@@ -68,13 +68,30 @@ describe("ShowcaseBuilder UI", () => {
     ]);
   });
 
-  it("'Add from landing' fills the title from the candidate", () => {
+  it("'Add from landing' prefills landing_url and leaves demo_url empty", () => {
     const candidate: LandingCandidate = {
       project_id: "p-1",
       title: "Эндокринология+",
+      preview_url: "/preview/p-1",
+      export_html_url: "/api/v1/projects/p-1/export/html",
+      landing_url: "/preview/p-1",
       export_available: true,
     };
-    expect(candidateToProjectRequest(candidate).title).toBe("Эндокринология+");
+    const request = candidateToProjectRequest(candidate);
+    expect(request.title).toBe("Эндокринология+");
+    expect(request.landing_url).toBe("/preview/p-1");
+    expect(request.demo_url).toBeUndefined();
+  });
+
+  it("shows landing autofill helper in the project form", () => {
+    const form = source("ShowcaseProjectForm.tsx");
+    expect(form).toMatch(/подставлена автоматически/i);
+  });
+
+  it("candidate pick opens the add form instead of immediate submit", () => {
+    const builder = source("ShowcaseBuilder.tsx");
+    expect(builder).toMatch(/handleCandidatePick/);
+    expect(builder).toMatch(/landingAutofillHint/);
   });
 
   it("export ZIP button calls the API", async () => {

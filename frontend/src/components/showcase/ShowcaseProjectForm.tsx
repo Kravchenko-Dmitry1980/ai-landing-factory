@@ -24,12 +24,14 @@ export function ShowcaseProjectForm({
   onSubmit,
   onCancel,
   busy,
+  landingAutofillHint,
 }: {
   initial?: ShowcaseProjectRequest;
   submitLabel: string;
   onSubmit: (request: ShowcaseProjectRequest) => void;
   onCancel?: () => void;
   busy?: boolean;
+  landingAutofillHint?: boolean;
 }) {
   const [draft, setDraft] = useState<ShowcaseProjectRequest>(
     initial ?? EMPTY,
@@ -103,6 +105,12 @@ export function ShowcaseProjectForm({
             placeholder="https://... или /preview/id"
             onChange={(e) => update({ landing_url: e.target.value })}
           />
+          {landingAutofillHint && !landingUnsafe && (
+            <span className="text-xs text-muted-foreground">
+              Ссылка на ленд подставлена автоматически. Demo-ссылку AI Google
+              Studio добавьте отдельно.
+            </span>
+          )}
           {landingUnsafe && (
             <span className="text-xs text-red-600">
               Недопустимый URL (только http/https или путь).

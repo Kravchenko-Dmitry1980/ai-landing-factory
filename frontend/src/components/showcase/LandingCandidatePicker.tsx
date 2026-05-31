@@ -74,6 +74,9 @@ export function LandingCandidatePicker({
                   {candidate.client}
                 </p>
               )}
+              <p className="truncate text-xs text-muted-foreground">
+                {candidate.preview_url}
+              </p>
             </div>
             <button
               type="button"

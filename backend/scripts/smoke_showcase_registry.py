@@ -7,7 +7,7 @@ Usage:
 
 Flow (uses an isolated temp storage dir; cleans up after itself):
     1. create showcase;
-    2. add 3 projects (incl. an unsafe URL that must be sanitized);
+    2. add 3 projects (incl. relative landing_url and unsafe URL sanitized);
     3. export HTML from the saved showcase;
     4. export ZIP from the saved showcase;
     5. verify ZIP entries;
@@ -101,6 +101,8 @@ def main() -> int:
             _fail("export HTML project_count mismatch")
         if "Эндокринология+" not in html_result.html:
             _fail("project title missing from exported HTML")
+        if "/preview/endo" not in html_result.html:
+            _fail("relative landing_url missing from exported HTML")
         if "javascript:alert(1)" in html_result.html:
             _fail("unsafe URL leaked into exported HTML")
 

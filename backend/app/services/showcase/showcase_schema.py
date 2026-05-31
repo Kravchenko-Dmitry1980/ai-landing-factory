@@ -147,6 +147,8 @@ class LandingCandidate(BaseModel):
     title: str
     client: str | None = None
     description: str | None = None
-    landing_url: str | None = None
+    preview_url: str
+    export_html_url: str
+    landing_url: str
     export_available: bool = False
     updated_at: str | None = None

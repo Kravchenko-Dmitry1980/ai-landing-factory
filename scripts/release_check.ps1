@@ -203,6 +203,7 @@ if ($Full) {
             "tests/test_showcase_exporter.py",
             "tests/test_showcase_registry.py",
             "tests/test_showcase_api.py",
+            "tests/test_showcase_landing_candidates.py",
             "-q"
         )
     }
