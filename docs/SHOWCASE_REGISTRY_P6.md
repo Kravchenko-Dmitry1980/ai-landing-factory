@@ -204,6 +204,11 @@ UI подсказки:
 - demo-ссылки — внешние, требуют интернет;
 - ZIP содержит vendored A-Frame runtime.
 
+**Optional browser/API smoke (P.6.4):** `.\scripts\smoke_showcase_browser.ps1` — проверяет
+`/showcase` HTTP 200, создаёт витрину через API, экспортирует ZIP, удаляет витрину.
+Opt-in в release gate: `-RunBrowserSmoke` (strict: `-RequireBrowserSmoke`).
+Manual demo path: [SHOWCASE_DEMO_CHECKLIST.md](SHOWCASE_DEMO_CHECKLIST.md).
+
 ## 10. Limitations
 
 - Хранилище — JSON-файлы, без БД, без конкурентных транзакций (атомарная

@@ -80,10 +80,17 @@ Report template: [UAT_RELEASE_REPORT.md](../UAT_RELEASE_REPORT.md)
 .\scripts\release_check.ps1 -Full -SkipFrontendBuild
 # skip showcase checks only (still Full gate otherwise):
 .\scripts\release_check.ps1 -Full -SkipShowcaseSmoke
+# optional showcase browser/API smoke (dev servers must be running):
+.\scripts\release_check.ps1 -Full -RunBrowserSmoke -SkipFrontendBuild
+# strict browser smoke (fail if servers down):
+.\scripts\release_check.ps1 -Full -RunBrowserSmoke -RequireBrowserSmoke -SkipFrontendBuild
 ```
 
 Includes Simple release checks (`check_all -Simple`), frontend tests/build
 (unless skipped), backend targeted pytest, and **VR/AR Showcase** offline checks.
+
+Browser smoke is **opt-in** (`-RunBrowserSmoke`), not part of default Simple/Full gates.
+See [SHOWCASE_DEMO_CHECKLIST.md](SHOWCASE_DEMO_CHECKLIST.md).
 
 For heavier regression (full backend pytest, live HTTP smokes), run
 `.\scripts\check_all.ps1` separately without `-Simple`.

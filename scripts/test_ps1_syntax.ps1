@@ -10,6 +10,7 @@ $RootDir = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $scripts = @(
     (Join-Path $RootDir "run.ps1"),
     (Join-Path $RootDir "scripts\smoke_simple_product.ps1"),
+    (Join-Path $RootDir "scripts\smoke_showcase_browser.ps1"),
     (Join-Path $RootDir "scripts\check_all.ps1"),
     (Join-Path $RootDir "scripts\release_check.ps1"),
     (Join-Path $RootDir "scripts\check_git_hygiene.ps1"),
@@ -99,7 +100,12 @@ if (Test-Path $releaseCheckPath) {
         @{ Name = "release_check Full gate guards showcase registry smoke"; Pattern = '(?s)if \(\$Full\).*smoke_showcase_registry\.py' },
         @{ Name = "release_check SkipShowcaseSmoke skips registry smoke"; Pattern = '(?s)\$SkipShowcaseSmoke.*Showcase registry smoke' },
         @{ Name = "release_check simple skips showcase ZIP smoke"; Pattern = 'Full gate only' },
-        @{ Name = "release_check simple skips showcase registry smoke"; Pattern = 'Showcase registry smoke is Full gate only' }
+        @{ Name = "release_check simple skips showcase registry smoke"; Pattern = 'Showcase registry smoke is Full gate only' },
+        @{ Name = "release_check defines -RunBrowserSmoke"; Pattern = '\[switch\]\$RunBrowserSmoke' },
+        @{ Name = "release_check defines -RequireBrowserSmoke"; Pattern = '\[switch\]\$RequireBrowserSmoke' },
+        @{ Name = "release_check browser smoke is opt-in"; Pattern = 'RunBrowserSmoke' },
+        @{ Name = "release_check default skips browser smoke"; Pattern = 'opt-in \(-RunBrowserSmoke\)' },
+        @{ Name = "release_check RequireBrowserSmoke passes flag"; Pattern = '"-RequireBrowser"' }
     )
     foreach ($check in $releaseChecks) {
         $matched = $releaseCheckText -match $check.Pattern

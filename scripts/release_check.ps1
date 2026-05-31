@@ -17,13 +17,18 @@
 
 .EXAMPLE
   .\scripts\release_check.ps1 -Full -SkipShowcaseSmoke
+
+.EXAMPLE
+  .\scripts\release_check.ps1 -Full -RunBrowserSmoke -SkipFrontendBuild
 #>
 [CmdletBinding()]
 param(
     [switch]$Fast,
     [switch]$Full,
     [switch]$SkipFrontendBuild,
-    [switch]$SkipShowcaseSmoke
+    [switch]$SkipShowcaseSmoke,
+    [switch]$RunBrowserSmoke,
+    [switch]$RequireBrowserSmoke
 )
 
 Set-StrictMode -Version Latest
@@ -216,6 +221,22 @@ else {
     Write-Host "SKIP: Showcase registry smoke is Full gate only."
     Add-Result -Name "Showcase registry smoke" -Ok $true -Detail "Full gate only"
     Add-Result -Name "Showcase registry/exporter tests" -Ok $true -Detail "Full gate only"
+}
+
+if ($RunBrowserSmoke) {
+    $browserArgs = @(
+        "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $RootDir "scripts\smoke_showcase_browser.ps1")
+    )
+    if ($RequireBrowserSmoke) {
+        $browserArgs += "-RequireBrowser"
+    }
+    Invoke-Step -Name "Showcase browser smoke" -WorkingDirectory $RootDir -Command $browserArgs
+}
+else {
+    Write-Step "Showcase browser smoke"
+    Write-Host "SKIP: Showcase browser smoke is opt-in (-RunBrowserSmoke)."
+    Add-Result -Name "Showcase browser smoke" -Ok $true -Detail "opt-in only"
 }
 
 Write-Step "Git status (informational)"

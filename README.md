@@ -91,6 +91,8 @@ cd backend
 
 Подробности: [docs/SHOWCASE_REGISTRY_P6.md](docs/SHOWCASE_REGISTRY_P6.md)
 
+**Demo checklist:** [docs/SHOWCASE_DEMO_CHECKLIST.md](docs/SHOWCASE_DEMO_CHECKLIST.md)
+
 #### Demo-ready VR/AR showcase (P.6.3)
 
 На `/showcase` — кнопка **Создать витрину AI-проектов УИИ** (шаблон УИИ с
