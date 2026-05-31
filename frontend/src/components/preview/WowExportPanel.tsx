@@ -6,6 +6,7 @@ export interface WowExportPanelProps {
   onStandard: () => void;
   onWow: () => void;
   onWow3d: () => void;
+  onWowBundle: () => void;
   busy?: boolean;
 }
 
@@ -19,6 +20,7 @@ export function WowExportPanel({
   onStandard,
   onWow,
   onWow3d,
+  onWowBundle,
   busy = false,
 }: WowExportPanelProps) {
   return (
@@ -41,7 +43,16 @@ export function WowExportPanel({
         <Button variant="ghost" type="button" onClick={onWow3d} disabled={busy}>
           WOW HTML + 3D runtime
         </Button>
+        <Button variant="default" type="button" onClick={onWowBundle} disabled={busy}>
+          Экспорт интерактивного WOW ZIP
+        </Button>
       </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Интерактивный WOW ZIP содержит React/R3F-версию лендинга. Распакуйте
+        архив и откройте index.html. Если браузер блокирует локальный запуск
+        (file://), откройте папку через локальный static server (например{" "}
+        <code className="text-xs">python -m http.server</code>).
+      </p>
       <p className="mt-2 text-xs text-muted-foreground">
         Standard export остаётся обычной стабильной версией. WOW export
         создаётся отдельно.

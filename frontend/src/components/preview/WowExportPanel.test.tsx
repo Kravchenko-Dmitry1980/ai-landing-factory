@@ -30,6 +30,16 @@ describe("WowExportPanel", () => {
     expect(panelSource()).toContain("WOW HTML + 3D runtime");
   });
 
+  it("has an Interactive WOW ZIP button (Stage P.7.2)", () => {
+    expect(panelSource()).toContain("Экспорт интерактивного WOW ZIP");
+  });
+
+  it("explains how to open the bundle and the file:// workaround", () => {
+    const src = panelSource();
+    expect(src).toContain("index.html");
+    expect(src).toContain("python -m http.server");
+  });
+
   it("shows the WOW helper text", () => {
     expect(panelSource()).toContain("презентационная версия проекта");
   });
@@ -40,10 +50,11 @@ describe("WowExportPanel", () => {
     );
   });
 
-  it("wires three distinct handlers", () => {
+  it("wires four distinct handlers", () => {
     const src = panelSource();
     expect(src).toContain("onStandard");
     expect(src).toContain("onWow");
     expect(src).toContain("onWow3d");
+    expect(src).toContain("onWowBundle");
   });
 });

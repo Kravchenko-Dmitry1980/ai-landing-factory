@@ -260,6 +260,41 @@ export async function exportHtml(
   return data.html;
 }
 
+export const WOW_BUNDLE_ZIP_FILENAME = "ai-wow-landing.zip";
+
+/**
+ * Export the Interactive WOW Bundle as a portable ZIP (Stage P.7.2).
+ *
+ * Returns the raw blob + suggested filename. The ZIP ships a standalone React/R3F
+ * app that opens offline (no backend, no CDN). Separate from the HTML exports.
+ */
+export async function exportWowBundleZip(
+  projectId: string,
+  options?: { demoUrl?: string; showcaseUrl?: string },
+): Promise<{ blob: Blob; filename: string }> {
+  const params = new URLSearchParams();
+  if (options?.demoUrl) params.set("demo_url", options.demoUrl);
+  if (options?.showcaseUrl) params.set("showcase_url", options.showcaseUrl);
+  const qs = params.toString();
+  const url = `${API_BASE_URL}/projects/${projectId}/export/wow-bundle${qs ? `?${qs}` : ""}`;
+
+  let res: Response;
+  try {
+    res = await fetch(url);
+  } catch {
+    throw new Error(formatApiError(new Error("Failed to fetch")));
+  }
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(formatApiError(new Error(text || `HTTP ${res.status}`)));
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const match = disposition.match(/filename="?([^";]+)"?/i);
+  const filename = match?.[1]?.endsWith(".zip") ? match[1] : WOW_BUNDLE_ZIP_FILENAME;
+  return { blob, filename };
+}
+
 export async function getContractCompleteness(
   projectId: string,
 ): Promise<ContractCompletenessReport> {

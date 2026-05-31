@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   exportHtml,
+  exportWowBundleZip,
   formatApiError,
   getContract,
   getLanding,
@@ -19,6 +20,9 @@ import { PrivacyBanner } from "@/components/privacy/PrivacyBanner";
 import type { GeneratedLanding, LandingContract } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { WowExportPanel } from "@/components/preview/WowExportPanel";
+import { WowHeroCanvas } from "@/components/wow/WowHeroCanvas";
+import { parseWowHeroMode, isWowMode } from "@/lib/wowHeroMode";
+import { normalizeThemeTokens } from "@/design/themeTokens";
 import { InteractiveRenderer } from "@/rendering/renderer";
 import {
   resolveExportStyleConfig,
@@ -35,6 +39,7 @@ interface Props {
 export function LandingPreview({ projectId }: Props) {
   const searchParams = useSearchParams();
   const urlStyle = searchParams.get("style");
+  const heroMode = parseWowHeroMode(searchParams.get("mode"));
   const [landing, setLanding] = useState<GeneratedLanding | null>(null);
   const [contract, setContract] = useState<LandingContract | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,6 +77,29 @@ export function LandingPreview({ projectId }: Props) {
   }, []);
 
   const urlStyleDisplay = urlStyle;
+
+  const heroAccent = useMemo(() => {
+    const styleConfig = contract?.style_config ?? { profile: "tech" as const };
+    try {
+      return normalizeThemeTokens(styleConfig).accent;
+    } catch {
+      return "#7c8bff";
+    }
+  }, [contract]);
+
+  const modeHref = useCallback(
+    (mode: "standard" | "wow" | "wow3d") => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (mode === "standard") {
+        params.delete("mode");
+      } else {
+        params.set("mode", mode);
+      }
+      const qs = params.toString();
+      return qs ? `?${qs}` : "?";
+    },
+    [searchParams],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -136,6 +164,20 @@ export function LandingPreview({ projectId }: Props) {
     downloadHtml(html, withRuntime ? "-wow-3d" : "-wow");
   }
 
+  async function handleWowBundleExport() {
+    try {
+      const { blob, filename } = await exportWowBundleZip(projectId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(formatApiError(err, "Не удалось собрать интерактивный WOW ZIP"));
+    }
+  }
+
   if (loading) return <p className="text-muted-foreground">Загрузка preview…</p>;
   if (error) return <p className="text-red-600">{error}</p>;
   if (!landing || !renderConfig) return null;
@@ -179,7 +221,46 @@ export function LandingPreview({ projectId }: Props) {
         onStandard={handleExport}
         onWow={() => handleWowExport(false)}
         onWow3d={() => handleWowExport(true)}
+        onWowBundle={handleWowBundleExport}
       />
+
+      <section
+        className="rounded-lg border border-border bg-muted/40 p-4"
+        aria-label="Режим preview"
+      >
+        <h2 className="text-sm font-semibold">Режим preview</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          WOW-hero — интерактивная 3D-сцена (React Three Fiber) поверх обычного
+          лендинга. Standard остаётся без изменений.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link href={modeHref("standard")} scroll={false}>
+            <Button variant={heroMode === "standard" ? "default" : "outline"} type="button">
+              Standard
+            </Button>
+          </Link>
+          <Link href={modeHref("wow")} scroll={false}>
+            <Button variant={heroMode === "wow" ? "default" : "outline"} type="button">
+              WOW
+            </Button>
+          </Link>
+          <Link href={modeHref("wow3d")} scroll={false}>
+            <Button variant={heroMode === "wow3d" ? "default" : "outline"} type="button">
+              WOW 3D
+            </Button>
+          </Link>
+        </div>
+      </section>
+
+      {isWowMode(heroMode) && (
+        <WowHeroCanvas
+          landing={landing}
+          contract={contract}
+          semantic={semantic}
+          mode={heroMode}
+          accent={heroAccent}
+        />
+      )}
 
       {showDomainDebug && (
         <DomainDebugPanel
@@ -199,16 +280,18 @@ export function LandingPreview({ projectId }: Props) {
         <ArchitectureDebugPanel topology={semantic?.architecture} />
       )}
 
-      <InteractiveRenderer
-        landing={landing}
-        contract={contract}
-        projectId={projectId}
-        semantic={semantic}
-        config={renderConfig}
-        onConfigChange={handleConfigChange}
-        showDevPanel={showDevPanel}
-        showFidelityDebug={showFidelityDebug}
-      />
+      <div id="wow-landing-content">
+        <InteractiveRenderer
+          landing={landing}
+          contract={contract}
+          projectId={projectId}
+          semantic={semantic}
+          config={renderConfig}
+          onConfigChange={handleConfigChange}
+          showDevPanel={showDevPanel}
+          showFidelityDebug={showFidelityDebug}
+        />
+      </div>
     </div>
   );
 }

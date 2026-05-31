@@ -99,6 +99,31 @@ cd backend
 prefilled title/layout/theme). В редакторе — панель готовности к демо,
 разделение landing/demo URL и экспорт ZIP с локальным A-Frame runtime.
 
+## Interactive WOW Bundle (Stage P.7.2)
+
+Отдельный режим экспорта: переносимый ZIP с **настоящей React/R3F-версией**
+лендинга (интерактивный 3D WOW-hero). Работает офлайн, без backend, без
+dev-сервера и без CDN — распакуйте и откройте `index.html`. Standard / WOW HTML
+экспорт не меняются; это **не** значение по умолчанию.
+
+```powershell
+# 1. собрать standalone bundle (esbuild → frontend/dist-wow)
+cd frontend
+npm run build:wow-bundle
+# из корня: .\scripts\build_wow_bundle.ps1 [-Smoke]
+
+# 2. экспортировать ZIP
+#    UI: preview → «Экспорт интерактивного WOW ZIP»
+#    API: GET /api/v1/projects/{project_id}/export/wow-bundle
+```
+
+ZIP: `index.html`, `assets/wow-app.js` (+ `wow-app.css`),
+`data/landing-contract.json`, `README_DEMO.txt`. Данные проекта встроены в
+`index.html` (без `fetch`). Если bundle не собран — endpoint вернёт 503 с
+инструкцией по сборке. Не входит в Simple Gate; по умолчанию не в Full Gate.
+
+Подробности: [docs/WOW_INTERACTIVE_BUNDLE_P7_2.md](docs/WOW_INTERACTIVE_BUNDLE_P7_2.md)
+
 ## Operator guide (Russian)
 
 See [docs/USER_QUICKSTART.md](docs/USER_QUICKSTART.md).

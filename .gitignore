@@ -74,6 +74,10 @@ frontend/node_modules/
 .next/
 frontend/.next/
 
+# Interactive WOW Bundle build output (Stage P.7.2) — generated, never committed
+dist-wow/
+frontend/dist-wow/
+
 out/
 frontend/out/
 

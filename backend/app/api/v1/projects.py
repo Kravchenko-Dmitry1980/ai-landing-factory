@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response
 
 from app.config import settings
 from app.core.dependencies import get_contract_repository
@@ -184,3 +184,44 @@ async def export_html(
         style_config=parsed_style,
     )
     return {"html": html}
+
+
+@router.get("/{project_id}/export/wow-bundle")
+async def export_wow_bundle(
+    project_id: UUID,
+    demo_url: str | None = None,
+    showcase_url: str | None = None,
+) -> Response:
+    """Export the interactive WOW bundle as a portable ZIP (Stage P.7.2).
+
+    Returns a self-contained React/R3F app + project data. Standard and WOW HTML
+    exports are untouched. Requires the frontend bundle to be built first
+    (``npm run build:wow-bundle``); otherwise a 503 with build instructions.
+    """
+
+    from app.services.export.wow_bundle_exporter import (
+        ZIP_DOWNLOAD_FILENAME,
+        WowBundleExportOptions,
+        build_wow_bundle_zip_with_meta,
+    )
+
+    repo = get_contract_repository()
+    contract = await repo.get_contract(project_id)
+    if not contract:
+        raise HTTPException(404, "LandingContract not found. Upload materials first.")
+
+    options = WowBundleExportOptions(demo_url=demo_url, showcase_url=showcase_url)
+    try:
+        result = build_wow_bundle_zip_with_meta(contract, options)
+    except FileNotFoundError as exc:
+        raise HTTPException(503, str(exc)) from exc
+
+    filename = f"ai-wow-landing-{project_id}.zip"
+    return Response(
+        content=result.data,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Wow-Bundle-Default-Filename": ZIP_DOWNLOAD_FILENAME,
+        },
+    )
