@@ -62,9 +62,29 @@ ZIP содержит `showcase.html`, `vendor/aframe/aframe.min.js`, `LICENSE.tx
 Распакуйте и откройте `showcase.html` без интернета.
 
 Vendored runtime: `frontend/public/vendor/aframe/aframe.min.js`.
-UI `/showcase`: **Export HTML** or **Export ZIP for offline demo**.
 Showcase ZIP is checked by `.\scripts\release_check.ps1 -Full` (not Simple Gate).
 Подробности: [docs/VR_AR_SHOWCASE_P5.md](docs/VR_AR_SHOWCASE_P5.md)
+
+### VR/AR Showcase Builder (Stage P.6)
+
+Витрина теперь — сохраняемый объект (JSON registry), а не только разовый
+экспорт. Базовый сценарий в UI:
+
+1. открыть `/showcase`;
+2. создать витрину;
+3. добавить проекты (вручную или **Добавить из лендов**);
+4. прикрепить demo-ссылки (`demo_url`, например AI Google Studio);
+5. экспортировать **HTML** или **ZIP для офлайн-демо**.
+
+Список витрин — `/showcase`, редактор — `/showcase/{id}`. CRUD API:
+`/api/v1/showcases`. Реестр-смоук (вручную, изолированный temp storage):
+
+```powershell
+cd backend
+..\.venv\Scripts\python.exe scripts\smoke_showcase_registry.py
+```
+
+Подробности: [docs/SHOWCASE_REGISTRY_P6.md](docs/SHOWCASE_REGISTRY_P6.md)
 
 ## Operator guide (Russian)
 

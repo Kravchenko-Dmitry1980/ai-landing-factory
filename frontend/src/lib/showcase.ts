@@ -157,6 +157,133 @@ export function showcaseZipFilename(): string {
   return SHOWCASE_ZIP_DEFAULT_FILENAME;
 }
 
+// ---------------------------------------------------------------------------
+// Stage P.6 — Registry types and pure helpers
+// ---------------------------------------------------------------------------
+
+/** A persisted exhibit inside a saved showcase (mirrors backend ShowcaseProject). */
+export interface ShowcaseProject {
+  id: string;
+  title: string;
+  description: string;
+  landing_url?: string | null;
+  demo_url?: string | null;
+  demo_label?: string | null;
+  category?: string | null;
+  tags: string[];
+  accent?: string | null;
+  source_project_id?: string | null;
+  order_index: number;
+}
+
+/** A persisted showcase (mirrors backend ShowcaseConfig). */
+export interface ShowcaseConfig {
+  id: string;
+  title: string;
+  subtitle?: string | null;
+  organization?: string | null;
+  layout: ShowcaseLayout;
+  mode: ShowcaseMode;
+  theme: ShowcaseTheme;
+  projects: ShowcaseProject[];
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+/** Lightweight list-view entry. */
+export interface ShowcaseSummary {
+  id: string;
+  title: string;
+  project_count: number;
+  updated_at?: string | null;
+  created_at?: string | null;
+}
+
+export interface ShowcaseCreateRequest {
+  title: string;
+  subtitle?: string;
+  organization?: string;
+  layout?: ShowcaseLayout;
+  mode?: ShowcaseMode;
+  theme?: ShowcaseTheme;
+}
+
+export interface ShowcaseUpdateRequest {
+  title?: string;
+  subtitle?: string;
+  organization?: string;
+  layout?: ShowcaseLayout;
+  mode?: ShowcaseMode;
+  theme?: ShowcaseTheme;
+}
+
+export interface ShowcaseProjectRequest {
+  title: string;
+  description?: string;
+  landing_url?: string;
+  demo_url?: string;
+  demo_label?: string;
+  category?: string;
+  tags?: string[];
+  accent?: string;
+  source_project_id?: string;
+}
+
+/** An existing landing project that can be attached to a showcase. */
+export interface LandingCandidate {
+  project_id: string;
+  title: string;
+  client?: string | null;
+  description?: string | null;
+  landing_url?: string | null;
+  export_available: boolean;
+  updated_at?: string | null;
+}
+
+/** Move a project up (-1) or down (+1) within the list (pure helper). */
+export function moveProjectInList<T>(
+  items: T[],
+  index: number,
+  direction: -1 | 1,
+): T[] {
+  const target = index + direction;
+  if (index < 0 || index >= items.length) return items;
+  if (target < 0 || target >= items.length) return items;
+  const next = [...items];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
+}
+
+/** Build an "add project" request prefilled from an existing landing candidate. */
+export function candidateToProjectRequest(
+  candidate: LandingCandidate,
+): ShowcaseProjectRequest {
+  return {
+    title: candidate.title,
+    description: candidate.description ?? "",
+    landing_url: candidate.landing_url ?? undefined,
+    source_project_id: candidate.project_id,
+    category: candidate.client ?? undefined,
+  };
+}
+
+/** Validate a manual "add project" form (UX convenience; backend re-validates). */
+export function validateProjectRequest(
+  request: ShowcaseProjectRequest,
+): ShowcaseValidationResult {
+  const errors: string[] = [];
+  if (!request.title.trim()) {
+    errors.push("Укажите название проекта.");
+  }
+  if (!isSafeShowcaseUrl(request.demo_url)) {
+    errors.push("Небезопасная ссылка на демо.");
+  }
+  if (!isSafeShowcaseUrl(request.landing_url)) {
+    errors.push("Небезопасная ссылка на ленд.");
+  }
+  return { ok: errors.length === 0, errors };
+}
+
 /** Call the backend showcase ZIP export endpoint. */
 export async function exportShowcaseZip(
   config: ShowcaseConfigInput,

@@ -81,6 +81,22 @@ ShowcaseConfig  { title, subtitle?, organization?,
 ShowcaseExportResult { html, project_count, mode, warnings[] }
 ```
 
+## 5.1 Stage P.6 — Showcase Registry (управляемый объект)
+
+Начиная с P.6 витрина — это **сохраняемый объект продукта**, а не только
+разовый экспорт. Конфигурация хранится в JSON-файлах
+`backend/data/showcases/{showcase_id}.json`, доступен CRUD через
+`/api/v1/showcases`, а UI — это список витрин (`/showcase`) и редактор
+(`/showcase/{id}`). `ShowcaseConfig` дополнен полями `id`, `created_at`,
+`updated_at`, а `ShowcaseProject` — `order_index` (порядок карточек).
+
+Полное описание реестра, API и UI-потока — в
+[`docs/SHOWCASE_REGISTRY_P6.md`](./SHOWCASE_REGISTRY_P6.md).
+
+Экспорт из **сохранённой** витрины использует те же экспортёры
+(`ShowcaseHtmlExporter`, `build_showcase_zip`), порядок карточек берётся из
+`order_index`.
+
 ## 6. Demo links
 
 Каждая карточка проекта может нести `demo_url` (например, AI Google Studio) и
@@ -168,7 +184,15 @@ cd C:\Dima\Projects\CURSOR\_uat\ai-landing-factory-fresh\backend
 ..\.venv\Scripts\python.exe -m pytest tests\test_showcase_exporter.py tests\test_showcase_zip_exporter.py -q
 ```
 
-Frontend: страница `/showcase` (`frontend/src/app/showcase/page.tsx`).
+Frontend: список витрин `/showcase` (`frontend/src/app/showcase/page.tsx`) и
+редактор `/showcase/{id}` (`frontend/src/app/showcase/[id]/page.tsx`).
+
+Stage P.6 smoke (изолированный temp-storage, без сети):
+
+```powershell
+..\.venv\Scripts\python.exe scripts\smoke_showcase_registry.py
+..\.venv\Scripts\python.exe -m pytest tests\test_showcase_registry.py tests\test_showcase_api.py -q
+```
 
 ## 10. Release safety
 

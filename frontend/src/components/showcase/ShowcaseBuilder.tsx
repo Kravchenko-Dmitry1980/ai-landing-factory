@@ -1,368 +1,230 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
-  createEmptyProject,
-  exportShowcase,
-  exportShowcaseZip,
-  isSafeShowcaseUrl,
-  validateShowcaseConfig,
-  type ShowcaseConfigInput,
-  type ShowcaseLayout,
-  type ShowcaseMode,
-  type ShowcaseProjectInput,
-  type ShowcaseTheme,
+  addShowcaseProject,
+  deleteShowcaseProject,
+  getShowcase,
+  reorderShowcaseProjects,
+  updateShowcase,
+  updateShowcaseProject,
+} from "@/lib/showcaseApi";
+import {
+  moveProjectInList,
+  type ShowcaseConfig,
+  type ShowcaseProject,
+  type ShowcaseProjectRequest,
+  type ShowcaseUpdateRequest,
 } from "@/lib/showcase";
+import { ShowcaseSettingsPanel } from "@/components/showcase/ShowcaseSettingsPanel";
+import { ShowcaseProjectCard } from "@/components/showcase/ShowcaseProjectCard";
+import { ShowcaseProjectForm } from "@/components/showcase/ShowcaseProjectForm";
+import { LandingCandidatePicker } from "@/components/showcase/LandingCandidatePicker";
+import { ShowcaseExportActions } from "@/components/showcase/ShowcaseExportActions";
 
-const LAYOUTS: { value: ShowcaseLayout; label: string }[] = [
-  { value: "gallery_arc", label: "Дуга-галерея" },
-  { value: "grid_hall", label: "Сетка-холл" },
-  { value: "circle_booths", label: "Круг стендов" },
-];
+function projectToRequest(project: ShowcaseProject): ShowcaseProjectRequest {
+  return {
+    title: project.title,
+    description: project.description,
+    demo_url: project.demo_url ?? "",
+    landing_url: project.landing_url ?? "",
+    demo_label: project.demo_label ?? undefined,
+    category: project.category ?? "",
+    tags: project.tags,
+    accent: project.accent ?? undefined,
+    source_project_id: project.source_project_id ?? undefined,
+  };
+}
 
-const THEMES: { value: ShowcaseTheme; label: string }[] = [
-  { value: "university", label: "University" },
-  { value: "tech", label: "Tech" },
-  { value: "dark", label: "Dark" },
-];
-
-const MODES: { value: ShowcaseMode; label: string }[] = [
-  { value: "web3d", label: "Web 3D" },
-  { value: "vr_ready", label: "VR Ready" },
-];
-
-const inputClass =
-  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm";
-
-export function ShowcaseBuilder() {
-  const [config, setConfig] = useState<ShowcaseConfigInput>(() => ({
-    title: "Витрина проектов",
-    subtitle: "",
-    organization: "",
-    layout: "gallery_arc",
-    mode: "web3d",
-    theme: "university",
-    projects: [
-      {
-        ...createEmptyProject(),
-        title: "",
-        description: "",
-        demo_url: "",
-      },
-    ],
-  }));
-  const [errors, setErrors] = useState<string[]>([]);
-  const [warnings, setWarnings] = useState<string[]>([]);
+export function ShowcaseBuilder({ showcaseId }: { showcaseId: string }) {
+  const [config, setConfig] = useState<ShowcaseConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const settingsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function updateConfig(patch: Partial<ShowcaseConfigInput>) {
-    setConfig((prev) => ({ ...prev, ...patch }));
+  useEffect(() => {
+    let cancelled = false;
+    getShowcase(showcaseId)
+      .then((c) => {
+        if (!cancelled) setConfig(c);
+      })
+      .catch((err) => {
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : "Витрина не найдена.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showcaseId]);
+
+  function handleSettingsChange(patch: ShowcaseUpdateRequest) {
+    setConfig((prev) => (prev ? { ...prev, ...patch } : prev));
+    if (settingsTimer.current) clearTimeout(settingsTimer.current);
+    settingsTimer.current = setTimeout(() => {
+      updateShowcase(showcaseId, patch)
+        .then((c) => setConfig(c))
+        .catch((err) =>
+          setError(err instanceof Error ? err.message : "Ошибка сохранения."),
+        );
+    }, 500);
   }
 
-  function updateProject(index: number, patch: Partial<ShowcaseProjectInput>) {
-    setConfig((prev) => {
-      const projects = prev.projects.map((p, i) =>
-        i === index ? { ...p, ...patch } : p,
-      );
-      return { ...prev, projects };
-    });
-  }
-
-  function addProject() {
-    setConfig((prev) => ({
-      ...prev,
-      projects: [...prev.projects, createEmptyProject()],
-    }));
-  }
-
-  function removeProject(index: number) {
-    setConfig((prev) => ({
-      ...prev,
-      projects: prev.projects.filter((_, i) => i !== index),
-    }));
-  }
-
-  async function handleExportHtml() {
-    const validation = validateShowcaseConfig(config);
-    setErrors(validation.errors);
-    setWarnings([]);
-    setStatus(null);
-    if (!validation.ok) return;
-
+  async function withBusy(action: () => Promise<ShowcaseConfig>) {
     setBusy(true);
+    setError(null);
     try {
-      const result = await exportShowcase(config);
-      setWarnings(result.warnings ?? []);
-      const blob = new Blob([result.html], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = "showcase.html";
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
-      setStatus(
-        `HTML экспортирован: ${result.project_count} проект(ов), режим ${result.mode}. ` +
-          "Для offline demo используйте Export ZIP.",
-      );
+      setConfig(await action());
     } catch (err) {
-      setErrors([err instanceof Error ? err.message : "Ошибка экспорта HTML."]);
+      setError(err instanceof Error ? err.message : "Ошибка операции.");
     } finally {
       setBusy(false);
     }
   }
 
-  async function handleExportZip() {
-    const validation = validateShowcaseConfig(config);
-    setErrors(validation.errors);
-    setWarnings([]);
-    setStatus(null);
-    if (!validation.ok) return;
-
-    setBusy(true);
-    try {
-      const { blob, filename } = await exportShowcaseZip(config);
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
-      setStatus(
-        `ZIP экспортирован (${filename}). Распакуйте и откройте showcase.html offline.`,
-      );
-    } catch (err) {
-      setErrors([err instanceof Error ? err.message : "Ошибка экспорта ZIP."]);
-    } finally {
-      setBusy(false);
-    }
+  async function handleAdd(request: ShowcaseProjectRequest) {
+    await withBusy(() => addShowcaseProject(showcaseId, request));
+    setShowAddForm(false);
+    setShowPicker(false);
   }
+
+  async function handleEdit(projectId: string, request: ShowcaseProjectRequest) {
+    await withBusy(() => updateShowcaseProject(showcaseId, projectId, request));
+    setEditingId(null);
+  }
+
+  async function handleDelete(projectId: string) {
+    await withBusy(() => deleteShowcaseProject(showcaseId, projectId));
+  }
+
+  async function handleMove(index: number, direction: -1 | 1) {
+    if (!config) return;
+    const reordered = moveProjectInList(config.projects, index, direction);
+    if (reordered === config.projects) return;
+    await withBusy(() =>
+      reorderShowcaseProjects(
+        showcaseId,
+        reordered.map((p) => p.id),
+      ),
+    );
+  }
+
+  if (loading) {
+    return <p className="text-sm text-muted-foreground">Загрузка витрины…</p>;
+  }
+  if (error && !config) {
+    return <p className="text-sm text-red-600">{error}</p>;
+  }
+  if (!config) return null;
 
   return (
     <div className="space-y-6">
-      <section className="space-y-4 rounded-lg border p-4">
-        <h2 className="text-lg font-semibold">Параметры витрины</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">Название</span>
-            <input
-              className={inputClass}
-              value={config.title}
-              onChange={(e) => updateConfig({ title: e.target.value })}
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">Подзаголовок</span>
-            <input
-              className={inputClass}
-              value={config.subtitle ?? ""}
-              onChange={(e) => updateConfig({ subtitle: e.target.value })}
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">Организация</span>
-            <input
-              className={inputClass}
-              value={config.organization ?? ""}
-              onChange={(e) => updateConfig({ organization: e.target.value })}
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">Раскладка</span>
-            <select
-              className={inputClass}
-              value={config.layout}
-              onChange={(e) =>
-                updateConfig({ layout: e.target.value as ShowcaseLayout })
-              }
-            >
-              {LAYOUTS.map((l) => (
-                <option key={l.value} value={l.value}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">Тема</span>
-            <select
-              className={inputClass}
-              value={config.theme}
-              onChange={(e) =>
-                updateConfig({ theme: e.target.value as ShowcaseTheme })
-              }
-            >
-              {THEMES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">Режим</span>
-            <select
-              className={inputClass}
-              value={config.mode}
-              onChange={(e) =>
-                updateConfig({ mode: e.target.value as ShowcaseMode })
-              }
-            >
-              {MODES.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </section>
+      <Link href="/showcase" className="text-sm text-muted-foreground hover:underline">
+        ← Все витрины
+      </Link>
+
+      <ShowcaseSettingsPanel
+        config={config}
+        onChange={handleSettingsChange}
+        disabled={busy}
+      />
 
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Проекты</h2>
-          <button
-            type="button"
-            onClick={addProject}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-          >
-            + Добавить проект
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">Проекты витрины</h2>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddForm((v) => !v);
+                setShowPicker(false);
+              }}
+              className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+            >
+              Добавить проект
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowPicker((v) => !v);
+                setShowAddForm(false);
+              }}
+              className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+            >
+              Добавить из лендов
+            </button>
+          </div>
         </div>
 
-        {config.projects.map((project, index) => {
-          const demoUnsafe = !isSafeShowcaseUrl(project.demo_url);
-          const landingUnsafe = !isSafeShowcaseUrl(project.landing_url);
-          return (
-            <div key={project.id} className="space-y-3 rounded-lg border p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">
-                  Проект {index + 1}
-                </span>
-                {config.projects.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeProject(index)}
-                    className="text-sm text-red-600 hover:underline"
-                  >
-                    Удалить
-                  </button>
-                )}
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="space-y-1 text-sm">
-                  <span className="text-muted-foreground">Название</span>
-                  <input
-                    className={inputClass}
-                    value={project.title}
-                    onChange={(e) =>
-                      updateProject(index, { title: e.target.value })
-                    }
-                  />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-muted-foreground">Категория</span>
-                  <input
-                    className={inputClass}
-                    value={project.category ?? ""}
-                    onChange={(e) =>
-                      updateProject(index, { category: e.target.value })
-                    }
-                  />
-                </label>
-                <label className="space-y-1 text-sm sm:col-span-2">
-                  <span className="text-muted-foreground">Описание</span>
-                  <textarea
-                    className={inputClass}
-                    rows={2}
-                    value={project.description}
-                    onChange={(e) =>
-                      updateProject(index, { description: e.target.value })
-                    }
-                  />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-muted-foreground">Demo URL</span>
-                  <input
-                    className={inputClass}
-                    value={project.demo_url ?? ""}
-                    onChange={(e) =>
-                      updateProject(index, { demo_url: e.target.value })
-                    }
-                    placeholder="https://aistudio.google.com/..."
-                  />
-                  {demoUnsafe && (
-                    <span className="text-xs text-red-600">
-                      Недопустимый URL (только http/https или путь).
-                    </span>
-                  )}
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="text-muted-foreground">Landing URL</span>
-                  <input
-                    className={inputClass}
-                    value={project.landing_url ?? ""}
-                    onChange={(e) =>
-                      updateProject(index, { landing_url: e.target.value })
-                    }
-                    placeholder="https://... или /landings/id"
-                  />
-                  {landingUnsafe && (
-                    <span className="text-xs text-red-600">
-                      Недопустимый URL (только http/https или путь).
-                    </span>
-                  )}
-                </label>
-              </div>
-            </div>
-          );
-        })}
+        {showAddForm && (
+          <ShowcaseProjectForm
+            submitLabel="Добавить"
+            onSubmit={handleAdd}
+            onCancel={() => setShowAddForm(false)}
+            busy={busy}
+          />
+        )}
+
+        {showPicker && (
+          <LandingCandidatePicker
+            onPick={handleAdd}
+            onClose={() => setShowPicker(false)}
+            busy={busy}
+          />
+        )}
+
+        {config.projects.length === 0 ? (
+          <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+            Пока в витрине нет проектов. Добавьте проект вручную или выберите
+            готовый ленд.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {config.projects.map((project, index) =>
+              editingId === project.id ? (
+                <ShowcaseProjectForm
+                  key={project.id}
+                  initial={projectToRequest(project)}
+                  submitLabel="Сохранить"
+                  onSubmit={(request) => handleEdit(project.id, request)}
+                  onCancel={() => setEditingId(null)}
+                  busy={busy}
+                />
+              ) : (
+                <ShowcaseProjectCard
+                  key={project.id}
+                  project={project}
+                  index={index}
+                  total={config.projects.length}
+                  onEdit={() => setEditingId(project.id)}
+                  onDelete={() => handleDelete(project.id)}
+                  onMoveUp={() => handleMove(index, -1)}
+                  onMoveDown={() => handleMove(index, 1)}
+                  busy={busy}
+                />
+              ),
+            )}
+          </div>
+        )}
       </section>
 
-      {errors.length > 0 && (
-        <ul className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-          {errors.map((e) => (
-            <li key={e}>{e}</li>
-          ))}
-        </ul>
-      )}
+      <section className="space-y-3 rounded-lg border p-4">
+        <h2 className="text-lg font-semibold">Экспорт</h2>
+        <ShowcaseExportActions showcaseId={showcaseId} />
+      </section>
 
-      {warnings.length > 0 && (
-        <ul className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-700">
-          {warnings.map((w) => (
-            <li key={w}>{w}</li>
-          ))}
-        </ul>
-      )}
-
-      {status && (
-        <p className="rounded-md border border-green-300 bg-green-50 p-3 text-sm text-green-700">
-          {status}
+      {error && config && (
+        <p className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+          {error}
         </p>
       )}
-
-      <div className="flex flex-wrap gap-3">
-        <button
-          type="button"
-          onClick={handleExportHtml}
-          disabled={busy}
-          className="rounded-md border px-4 py-2 text-sm font-semibold disabled:opacity-50"
-        >
-          {busy ? "Экспорт..." : "Export HTML"}
-        </button>
-        <button
-          type="button"
-          onClick={handleExportZip}
-          disabled={busy}
-          className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:opacity-50"
-        >
-          {busy ? "Экспорт..." : "Export ZIP for offline demo"}
-        </button>
-      </div>
     </div>
   );
 }
