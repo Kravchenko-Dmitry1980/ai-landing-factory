@@ -136,8 +136,24 @@ async def export_html(
     project_id: UUID,
     theme: str | None = None,
     style_config: str | None = None,
+    mode: str | None = None,
+    export_mode: str | None = None,
+    wow_3d_runtime: str | None = None,
+    demo_url: str | None = None,
 ) -> dict[str, str]:
+    from app.schemas.export_mode import (
+        LandingExportMode,
+        parse_export_mode,
+        parse_wow_runtime,
+    )
     from app.schemas.style_config import parse_style_config_query
+
+    # ``mode`` is the primary contract; ``export_mode`` is an accepted alias.
+    try:
+        resolved_mode = parse_export_mode(mode or export_mode)
+        resolved_runtime = parse_wow_runtime(wow_3d_runtime)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
     repo = get_contract_repository()
     contract = await repo.get_contract(project_id)
@@ -147,6 +163,21 @@ async def export_html(
         theme_query=theme,
         style_config_query=parsed_style,
     )
+
+    if resolved_mode == LandingExportMode.WOW:
+        from app.services.export.wow.wow_exporter import (
+            WowExportOptions,
+            WowHtmlExporter,
+        )
+
+        html = await WowHtmlExporter(repo).to_html(
+            project_id,
+            theme=resolved_theme,
+            style_config=parsed_style,
+            options=WowExportOptions(runtime=resolved_runtime, demo_url=demo_url),
+        )
+        return {"html": html}
+
     html = await StyledHtmlExporter(repo).to_html(
         project_id,
         theme=resolved_theme,

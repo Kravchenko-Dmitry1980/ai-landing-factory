@@ -170,7 +170,8 @@ $pytestFiles = @(
     "tests/test_export_theme_api.py",
     "tests/test_export_theme_tokens.py",
     "tests/test_export_interactive.py",
-    "tests/test_university_export_offline.py"
+    "tests/test_university_export_offline.py",
+    "tests/test_wow_landing_export.py"
 )
 Invoke-Step -Name "Backend targeted pytest" -WorkingDirectory $BackendDir -Command @(
     @($PythonExe, "-m", "pytest") + $pytestFiles + @("-q")
@@ -221,6 +222,21 @@ else {
     Write-Host "SKIP: Showcase registry smoke is Full gate only."
     Add-Result -Name "Showcase registry smoke" -Ok $true -Detail "Full gate only"
     Add-Result -Name "Showcase registry/exporter tests" -Ok $true -Detail "Full gate only"
+}
+
+if ($Full) {
+    Invoke-Step -Name "WOW landing export smoke" -WorkingDirectory $BackendDir -Command @(
+        $PythonExe, "scripts\smoke_wow_landing_export.py"
+    )
+    Invoke-Step -Name "WOW visual difference smoke" -WorkingDirectory $BackendDir -Command @(
+        $PythonExe, "scripts\smoke_wow_visual_difference.py"
+    )
+}
+else {
+    Write-Step "WOW landing export smoke"
+    Write-Host "SKIP: WOW export smoke is Full gate only."
+    Add-Result -Name "WOW landing export smoke" -Ok $true -Detail "Full gate only"
+    Add-Result -Name "WOW visual difference smoke" -Ok $true -Detail "Full gate only"
 }
 
 if ($RunBrowserSmoke) {

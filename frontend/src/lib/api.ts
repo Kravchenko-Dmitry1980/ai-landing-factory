@@ -229,15 +229,29 @@ export async function runPiiCleanup(): Promise<PiiCleanupResponse> {
   });
 }
 
+export type LandingExportMode = "standard" | "wow";
+export type Wow3dRuntime = "none" | "aframe";
+
 export async function exportHtml(
   projectId: string,
-  options?: { theme?: string; styleConfig?: LandingStyleConfig },
+  options?: {
+    theme?: string;
+    styleConfig?: LandingStyleConfig;
+    mode?: LandingExportMode;
+    wow3dRuntime?: Wow3dRuntime;
+  },
 ): Promise<string> {
   const params = new URLSearchParams();
   const theme = options?.theme ?? "university_platform";
   if (theme) params.set("theme", theme);
   if (options?.styleConfig) {
     params.set("style_config", JSON.stringify(options.styleConfig));
+  }
+  if (options?.mode && options.mode !== "standard") {
+    params.set("mode", options.mode);
+  }
+  if (options?.mode === "wow" && options.wow3dRuntime) {
+    params.set("wow_3d_runtime", options.wow3dRuntime);
   }
   const qs = params.toString();
   const data = await request<{ html: string }>(

@@ -18,6 +18,7 @@ import { SemanticDebugPanel } from "@/components/semantic/SemanticDebugPanel";
 import { PrivacyBanner } from "@/components/privacy/PrivacyBanner";
 import type { GeneratedLanding, LandingContract } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { WowExportPanel } from "@/components/preview/WowExportPanel";
 import { InteractiveRenderer } from "@/rendering/renderer";
 import {
   resolveExportStyleConfig,
@@ -106,17 +107,33 @@ export function LandingPreview({ projectId }: Props) {
     saveRenderConfig(projectId, config);
   }
 
-  async function handleExport() {
-    const theme = resolveExportTheme(renderConfig, contract, urlStyle, landing);
-    const styleConfig = resolveExportStyleConfig(renderConfig, contract);
-    const html = await exportHtml(projectId, { theme, styleConfig });
+  function downloadHtml(html: string, suffix: string) {
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `landing-${projectId}.html`;
+    a.download = `landing-${projectId}${suffix}.html`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function handleExport() {
+    const theme = resolveExportTheme(renderConfig, contract, urlStyle, landing);
+    const styleConfig = resolveExportStyleConfig(renderConfig, contract);
+    const html = await exportHtml(projectId, { theme, styleConfig });
+    downloadHtml(html, "");
+  }
+
+  async function handleWowExport(withRuntime: boolean) {
+    const theme = resolveExportTheme(renderConfig, contract, urlStyle, landing);
+    const styleConfig = resolveExportStyleConfig(renderConfig, contract);
+    const html = await exportHtml(projectId, {
+      theme,
+      styleConfig,
+      mode: "wow",
+      wow3dRuntime: withRuntime ? "aframe" : "none",
+    });
+    downloadHtml(html, withRuntime ? "-wow-3d" : "-wow");
   }
 
   if (loading) return <p className="text-muted-foreground">Загрузка preview…</p>;
@@ -157,6 +174,12 @@ export function LandingPreview({ projectId }: Props) {
           )}
         </span>
       </div>
+
+      <WowExportPanel
+        onStandard={handleExport}
+        onWow={() => handleWowExport(false)}
+        onWow3d={() => handleWowExport(true)}
+      />
 
       {showDomainDebug && (
         <DomainDebugPanel
