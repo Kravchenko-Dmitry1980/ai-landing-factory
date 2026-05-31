@@ -1,5 +1,22 @@
 /** Map raw fetch/API errors to user-friendly messages (no PII). */
 
+export class ApiRequestError extends Error {
+  status: number | null;
+
+  constructor(message: string, status: number | null = null) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+  }
+}
+
+export function getApiErrorStatus(err: unknown): number | null {
+  if (err instanceof ApiRequestError) {
+    return err.status;
+  }
+  return null;
+}
+
 export function formatApiError(err: unknown, fallback = "Ошибка запроса к API"): string {
   const raw = err instanceof Error ? err.message : String(err);
 

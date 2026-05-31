@@ -22,7 +22,7 @@ import type {
   UnifiedGenerateResponse,
   UploadResponse,
 } from "./types";
-import { formatApiError } from "./api-errors";
+import { ApiRequestError, formatApiError } from "./api-errors";
 
 /** Base URL including /api/v1 — paths are relative, e.g. /projects/privacy */
 export function resolveApiBaseUrl(): string {
@@ -50,12 +50,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     res = await fetch(url, init);
   } catch {
-    throw new Error(formatApiError(new Error("Failed to fetch")));
+    throw new ApiRequestError("Failed to fetch", null);
   }
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(formatApiError(new Error(text || `HTTP ${res.status}`)));
+    throw new ApiRequestError(text || `HTTP ${res.status}`, res.status);
   }
 
   return res.json() as Promise<T>;
@@ -282,11 +282,11 @@ export async function exportWowBundleZip(
   try {
     res = await fetch(url);
   } catch {
-    throw new Error(formatApiError(new Error("Failed to fetch")));
+    throw new ApiRequestError("Failed to fetch", null);
   }
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(formatApiError(new Error(text || `HTTP ${res.status}`)));
+    throw new ApiRequestError(text || `HTTP ${res.status}`, res.status);
   }
   const blob = await res.blob();
   const disposition = res.headers.get("Content-Disposition") ?? "";

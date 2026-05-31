@@ -18,6 +18,7 @@ import {
   patchStyleConfig,
   updateContract,
 } from "@/lib/api";
+import { getApiErrorStatus } from "@/lib/api-errors";
 import {
   DEFAULT_STYLE_CONFIG,
   parseStyleConfigFromContract,
@@ -88,12 +89,14 @@ export function LandingEditor({ projectId }: Props) {
   const [structureLoading, setStructureLoading] = useState(false);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [reparsing, setReparsing] = useState(false);
+  const [loadErrorStatus, setLoadErrorStatus] = useState<number | null>(null);
 
   const previewProfileId = resolvePreviewProfileId(styleConfig);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setLoadErrorStatus(null);
     try {
       const data = await getContract(projectId);
       setContract(data);
@@ -130,6 +133,7 @@ export function LandingEditor({ projectId }: Props) {
       }
       setEvidenceLoading(false);
     } catch (err) {
+      setLoadErrorStatus(getApiErrorStatus(err));
       setError(formatApiError(err, "Не удалось загрузить контракт"));
     } finally {
       setLoading(false);
@@ -251,7 +255,36 @@ export function LandingEditor({ projectId }: Props) {
   }
 
   if (loading) return <p className="text-muted-foreground">Загрузка контракта…</p>;
-  if (!contract && error) return <p className="text-red-600">{error}</p>;
+  if (!contract && error) {
+    const statusLabel = loadErrorStatus ? `HTTP ${loadErrorStatus}` : "статус неизвестен";
+    const notFound = loadErrorStatus === 404;
+    return (
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle className="text-xl">
+            {notFound ? "Проект не найден" : "Не удалось открыть проект"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <p className="text-muted-foreground">
+            project_id: <code>{projectId}</code>
+          </p>
+          <p className="text-muted-foreground">Статус: {statusLabel}</p>
+          <p className="text-red-600">{error}</p>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/">
+              <Button variant="outline" type="button">
+                Вернуться к списку
+              </Button>
+            </Link>
+            <Button type="button" onClick={() => void load()}>
+              Повторить
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
