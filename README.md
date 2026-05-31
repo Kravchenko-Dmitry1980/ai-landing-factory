@@ -62,7 +62,8 @@ ZIP содержит `showcase.html`, `vendor/aframe/aframe.min.js`, `LICENSE.tx
 Распакуйте и откройте `showcase.html` без интернета.
 
 Vendored runtime: `frontend/public/vendor/aframe/aframe.min.js`.
-Showcase ZIP is checked by `.\scripts\release_check.ps1 -Full` (not Simple Gate).
+Full release gate validates VR/AR Showcase ZIP and registry lifecycle
+(`.\scripts\release_check.ps1 -Full`, not Simple Gate).
 Подробности: [docs/VR_AR_SHOWCASE_P5.md](docs/VR_AR_SHOWCASE_P5.md)
 
 ### VR/AR Showcase Builder (Stage P.6)

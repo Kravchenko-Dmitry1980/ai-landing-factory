@@ -159,9 +159,15 @@ Layout/theme берутся из сохранённого конфига, пор
 - Smoke: `backend/scripts/smoke_showcase_registry.py` (изолированный temp
   storage, очищается сам).
 
-Для P.6 реестр-смоук запускается **вручную** и пока **не** добавляется ни в
-Simple, ни в Full gate (`release_check.ps1` не меняется), чтобы не вносить
-нестабильность. Кандидат во Full gate — после периода стабильности.
+**Full gate (`release_check.ps1 -Full`):**
+
+- `smoke_showcase_zip_export.py` — portable ZIP bundle;
+- `smoke_showcase_registry.py` — registry lifecycle (create → projects → export → delete);
+- pytest: `test_showcase_zip_exporter.py`, `test_showcase_exporter.py`,
+  `test_showcase_registry.py`, `test_showcase_api.py`.
+
+Simple Gate **не** запускает registry smoke. Флаг `-SkipShowcaseSmoke` пропускает
+и ZIP smoke, и registry smoke, и связанные pytest.
 
 ```powershell
 cd C:\Dima\Projects\CURSOR\_uat\ai-landing-factory-fresh\backend

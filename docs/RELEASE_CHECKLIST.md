@@ -91,10 +91,12 @@ For heavier regression (full backend pytest, live HTTP smokes), run
 **Full gate additionally runs:**
 
 - `scripts/smoke_showcase_zip_export.py`
-- `pytest tests/test_showcase_zip_exporter.py tests/test_showcase_exporter.py`
+- `scripts/smoke_showcase_registry.py`
+- `pytest tests/test_showcase_zip_exporter.py tests/test_showcase_exporter.py tests/test_showcase_registry.py tests/test_showcase_api.py`
 
-Showcase ZIP is **not** part of the Simple Gate — ordinary landing generation
-must remain lightweight and must not require vendored A-Frame assets.
+Showcase ZIP and registry lifecycle are **not** part of the Simple Gate —
+ordinary landing generation must remain lightweight and must not require
+vendored A-Frame assets or showcase JSON storage.
 
 #### VR/AR Showcase release checks (Full gate only)
 
@@ -102,15 +104,19 @@ must remain lightweight and must not require vendored A-Frame assets.
 |-------|----------------|
 | HTML export safety (optional manual) | `scripts/smoke_showcase_export.py` |
 | Portable ZIP bundle smoke | `scripts/smoke_showcase_zip_export.py` |
+| Registry lifecycle smoke (CRUD + export + cleanup) | `scripts/smoke_showcase_registry.py` |
 | HTML exporter unit tests | `tests/test_showcase_exporter.py` |
 | ZIP exporter unit tests | `tests/test_showcase_zip_exporter.py` |
+| Registry unit tests | `tests/test_showcase_registry.py` |
+| Showcase API unit tests | `tests/test_showcase_api.py` |
 
 Direct backend run:
 
 ```powershell
 cd backend
 ..\.venv\Scripts\python.exe scripts\smoke_showcase_zip_export.py
-..\.venv\Scripts\python.exe -m pytest tests/test_showcase_zip_exporter.py tests/test_showcase_exporter.py -q
+..\.venv\Scripts\python.exe scripts\smoke_showcase_registry.py
+..\.venv\Scripts\python.exe -m pytest tests/test_showcase_zip_exporter.py tests/test_showcase_exporter.py tests/test_showcase_registry.py tests/test_showcase_api.py -q
 ```
 
 Still **no OCR/VLM** unless explicit flags. Showcase checks are covered by

@@ -187,16 +187,22 @@ if ($Full) {
         Write-Step "Showcase ZIP export smoke"
         Write-Host "SKIP: Showcase smoke skipped by user." -ForegroundColor Yellow
         Add-Result -Name "Showcase ZIP export smoke" -Ok $true -Detail "skipped by -SkipShowcaseSmoke"
-        Add-Result -Name "Showcase exporter pytest" -Ok $true -Detail "skipped by -SkipShowcaseSmoke"
+        Add-Result -Name "Showcase registry smoke" -Ok $true -Detail "skipped by -SkipShowcaseSmoke"
+        Add-Result -Name "Showcase registry/exporter tests" -Ok $true -Detail "skipped by -SkipShowcaseSmoke"
     }
     else {
         Invoke-Step -Name "Showcase ZIP export smoke" -WorkingDirectory $BackendDir -Command @(
             $PythonExe, "scripts\smoke_showcase_zip_export.py"
         )
-        Invoke-Step -Name "Showcase exporter pytest" -WorkingDirectory $BackendDir -Command @(
+        Invoke-Step -Name "Showcase registry smoke" -WorkingDirectory $BackendDir -Command @(
+            $PythonExe, "scripts\smoke_showcase_registry.py"
+        )
+        Invoke-Step -Name "Showcase registry/exporter tests" -WorkingDirectory $BackendDir -Command @(
             $PythonExe, "-m", "pytest",
             "tests/test_showcase_zip_exporter.py",
             "tests/test_showcase_exporter.py",
+            "tests/test_showcase_registry.py",
+            "tests/test_showcase_api.py",
             "-q"
         )
     }
@@ -205,7 +211,10 @@ else {
     Write-Step "Showcase ZIP export smoke"
     Write-Host "SKIP: Showcase ZIP export smoke is Full gate only."
     Add-Result -Name "Showcase ZIP export smoke" -Ok $true -Detail "Full gate only"
-    Add-Result -Name "Showcase exporter pytest" -Ok $true -Detail "Full gate only"
+    Write-Step "Showcase registry smoke"
+    Write-Host "SKIP: Showcase registry smoke is Full gate only."
+    Add-Result -Name "Showcase registry smoke" -Ok $true -Detail "Full gate only"
+    Add-Result -Name "Showcase registry/exporter tests" -Ok $true -Detail "Full gate only"
 }
 
 Write-Step "Git status (informational)"

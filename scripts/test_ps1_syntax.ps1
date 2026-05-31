@@ -94,8 +94,12 @@ if (Test-Path $releaseCheckPath) {
         @{ Name = "release_check defines -Full switch"; Pattern = '\[switch\]\$Full' },
         @{ Name = "release_check defines -SkipShowcaseSmoke"; Pattern = '\[switch\]\$SkipShowcaseSmoke' },
         @{ Name = "release_check references showcase ZIP smoke script"; Pattern = 'smoke_showcase_zip_export\.py' },
+        @{ Name = "release_check references showcase registry smoke script"; Pattern = 'smoke_showcase_registry\.py' },
         @{ Name = "release_check Full gate guards showcase ZIP smoke"; Pattern = '(?s)if \(\$Full\).*smoke_showcase_zip_export\.py' },
-        @{ Name = "release_check simple skips showcase ZIP smoke"; Pattern = 'Full gate only' }
+        @{ Name = "release_check Full gate guards showcase registry smoke"; Pattern = '(?s)if \(\$Full\).*smoke_showcase_registry\.py' },
+        @{ Name = "release_check SkipShowcaseSmoke skips registry smoke"; Pattern = '(?s)\$SkipShowcaseSmoke.*Showcase registry smoke' },
+        @{ Name = "release_check simple skips showcase ZIP smoke"; Pattern = 'Full gate only' },
+        @{ Name = "release_check simple skips showcase registry smoke"; Pattern = 'Showcase registry smoke is Full gate only' }
     )
     foreach ($check in $releaseChecks) {
         $matched = $releaseCheckText -match $check.Pattern
