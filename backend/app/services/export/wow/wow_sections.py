@@ -198,10 +198,25 @@ def _stack_block(grouped: dict[str, list[str]]) -> str:
 def _team_capacity_block(members: list[TeamMember]) -> str:
     if not members:
         return ""
-    roles = sorted({m.role for m in members if m.role})
-    role_chips = "".join(
-        f"<span class='wow-chip'>{escape_text(role)}</span>" for role in roles[:8]
-    )
+    cards: list[str] = []
+    for member in members[:16]:
+        contrib = "".join(
+            f"<li>{escape_text(item[:180])}</li>"
+            for item in (member.contributions or [])[:4]
+        )
+        role = (
+            f"<div class='m-hint'>{escape_text(member.role[:120])}</div>"
+            if member.role
+            else ""
+        )
+        cards.append(
+            f"<article class='wow-hologram-card'>"
+            f"<span class='h-badge'>Team</span>"
+            f"<h3>{escape_text(member.name)}</h3>"
+            f"{role}"
+            f"{'<ul>' + contrib + '</ul>' if contrib else ''}"
+            f"</article>"
+        )
     return (
         f"<section id='wow-team' class='wow-section'>"
         f"<div class='wow-section-title'>Команда</div>"
@@ -211,7 +226,32 @@ def _team_capacity_block(members: list[TeamMember]) -> str:
         f"<div class='m-label'>Team capacity</div>"
         f"<div class='m-hint'>участников проекта</div>"
         f"</div></div>"
-        f"<div class='wow-stack-chips' style='margin-top:1rem'>{role_chips}</div>"
+        f"<div class='wow-module-grid' style='margin-top:1rem'>{''.join(cards)}</div>"
+        f"</section>"
+    )
+
+
+def _results_block(block: LandingBlock | None) -> str:
+    if not block or not block.bullets:
+        return ""
+    items = "".join(
+        f"<li>{escape_text(item[:320])}</li>" for item in block.bullets[:12]
+    )
+    return (
+        f"<section id='wow-results' class='wow-section'>"
+        f"<div class='wow-section-title'>Результаты проекта</div>"
+        f"<ul class='wow-bullet-list'>{items}</ul>"
+        f"</section>"
+    )
+
+
+def _essence_block(block: LandingBlock | None) -> str:
+    if not block or not (block.content or "").strip():
+        return ""
+    return (
+        f"<section id='wow-essence' class='wow-section'>"
+        f"<div class='wow-section-title'>Суть проекта</div>"
+        f"<p>{escape_text(block.content[:1200])}</p>"
         f"</section>"
     )
 
@@ -222,11 +262,14 @@ def build_wow_story_sections(
     fidelity: FidelityMetadata | None,
     tokens: ThemeTokens,
 ) -> str:
+    del tokens  # reserved for future theming hooks
     modules = fidelity.modules if fidelity else []
     grouped = fidelity.tech_stack_grouped if fidelity else {}
     members = fidelity.team_structured if fidelity else []
     return (
-        _modules_block(modules)
+        _essence_block(blocks.get("essence"))
+        + _modules_block(modules)
+        + _results_block(blocks.get("results"))
         + _stack_block(grouped)
         + _team_capacity_block(members)
     )

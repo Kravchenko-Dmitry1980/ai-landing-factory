@@ -16,6 +16,7 @@ class OpenAIClient(LLMClient):
             raise LLMUnavailableError("OPENAI_API_KEY is not set")
         self._api_key = settings.openai_api_key
         self._model = settings.openai_model
+        self._base_url = (settings.openai_base_url or "https://api.openai.com/v1").rstrip("/")
 
     async def generate_json(
         self,
@@ -39,13 +40,18 @@ class OpenAIClient(LLMClient):
         }
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
+                f"{self._base_url}/chat/completions",
                 headers=headers,
                 json=payload,
             )
         if response.status_code >= 400:
-            logger.error("OpenAI error %s: %s", response.status_code, response.text[:500])
-            raise LLMResponseError(f"OpenAI HTTP {response.status_code}")
+            logger.error(
+                "LLM error %s from %s: %s",
+                response.status_code,
+                self._base_url,
+                response.text[:500],
+            )
+            raise LLMResponseError(f"LLM HTTP {response.status_code} from {self._base_url}")
 
         data = response.json()
         try:

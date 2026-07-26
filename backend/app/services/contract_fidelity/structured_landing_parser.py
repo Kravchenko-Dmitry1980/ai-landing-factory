@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from app.schemas.fidelity import ParsedStructuredLanding
+from app.schemas.fidelity import ParsedStructuredLanding, TeamMember
 from app.services.contract_fidelity.module_parser import parse_modules
 from app.services.contract_fidelity.stack_parser import parse_stack_section
 from app.services.contract_fidelity.team_parser import parse_team_section
@@ -16,13 +16,22 @@ SECTION_DEFINITIONS: list[tuple[str, list[str]]] = [
     ("inputs", ["Вводные данные", "Исходные данные"]),
     ("outputs", ["Выходные данные", "Результирующие данные"]),
     ("results", ["Результаты проекта", "Результаты"]),
-    ("outlook", ["Перспектива развития", "Roadmap", "Дальнейшее развитие"]),
+    ("outlook", [
+        "Перспективы развития",
+        "Перспектива развития",
+        "Roadmap",
+        "Дальнейшее развитие",
+    ]),
     ("tech_stack", [
         "Используемый технологический стек",
         "Технологический стек",
         "Стек",
     ]),
-    ("team", ["Участники команды проекта", "Команда проекта"]),
+    ("team", [
+        "Участники команды проекта",
+        "Команда проекта",
+        "Участники",
+    ]),
     ("tagline", ["Фраза проекта"]),
 ]
 
@@ -37,7 +46,9 @@ METADATA_PATTERNS: dict[str, re.Pattern[str]] = {
         r"Заказчик\s*:\s*(.+?)(?:\n|$)", re.IGNORECASE | re.MULTILINE
     ),
     "timeline": re.compile(
-        r"Период\s+реализации\s*:\s*(.+?)(?:\n|$)", re.IGNORECASE | re.MULTILINE
+        r"(?:Период\s+реализации|Стажировка|Срок(?:и)?(?:\s+реализации)?|"
+        r"Период(?:\s+работ(?:ы)?)?)\s*:\s*(.+?)(?:\n|$)",
+        re.IGNORECASE | re.MULTILINE,
     ),
     "lead": re.compile(r"Тимлид\s*:\s*(.+?)(?:\n|$)", re.IGNORECASE | re.MULTILINE),
 }
@@ -60,8 +71,10 @@ class StructuredLandingParser:
 
         team_text = sections.get("team", "")
         team = parse_team_section(team_text)
+        team = _ensure_lead_in_team(team, metadata.get("lead"), team_text)
 
         section_lengths = {k: len(v) for k, v in sections.items()}
+        tagline = sections.get("tagline", "").strip() or None
 
         return ParsedStructuredLanding(
             title=title,
@@ -78,7 +91,7 @@ class StructuredLandingParser:
             tech_stack_grouped=stack_grouped,
             team=team,
             modules=modules,
-            tagline=sections.get("tagline", "").strip() or title,
+            tagline=tagline or title,
             section_lengths=section_lengths,
         )
 
@@ -163,3 +176,45 @@ def _parse_bullets(section_text: str) -> list[str]:
 
     lines = [ln.strip() for ln in section_text.splitlines() if ln.strip()]
     return lines
+
+
+def _ensure_lead_in_team(
+    team: list[TeamMember],
+    lead: str | None,
+    team_text: str,
+) -> list[TeamMember]:
+    """Guarantee lead appears in the roster when metadata or section mentions them."""
+    if not lead:
+        return team
+
+    lead_name = re.sub(r"\s*\([^)]*\)\s*", " ", lead).strip()
+    lead_name = re.split(r"[—–:\-]", lead_name, maxsplit=1)[0].strip()
+    if not lead_name:
+        return team
+
+    lead_key = lead_name.casefold()
+    parts = lead_name.split()
+    reversed_key = (
+        f"{parts[1]} {parts[0]}".casefold() if len(parts) == 2 else ""
+    )
+
+    for member in team:
+        member_key = member.name.casefold()
+        if member_key == lead_key or (reversed_key and member_key == reversed_key):
+            if not member.role:
+                member.role = "Тимлид"
+            return team
+
+    contributions: list[str] = []
+    for line in team_text.splitlines():
+        low = line.casefold()
+        if lead_name.casefold() in low or (reversed_key and reversed_key in low):
+            after = re.split(r"[—–:]", line, maxsplit=1)
+            if len(after) > 1 and after[1].strip():
+                contributions.append(after[1].strip())
+            break
+
+    return [
+        TeamMember(name=lead_name, role="Тимлид", contributions=contributions),
+        *team,
+    ]

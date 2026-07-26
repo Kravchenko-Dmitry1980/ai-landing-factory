@@ -1,0 +1,28 @@
+[Unit]
+Description=AI Landing Factory Frontend (Next.js)
+After=network.target alf-backend.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/ai-landing-factory/current/frontend
+Environment=NODE_ENV=production
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3000
+EnvironmentFile=-/opt/ai-landing-factory/shared/frontend.env
+ExecStart=/usr/bin/npm run start -- --hostname 127.0.0.1 --port 3000
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=alf-frontend
+
+[Install]
+WantedBy=multi-user.target

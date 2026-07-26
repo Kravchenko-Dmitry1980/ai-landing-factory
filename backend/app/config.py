@@ -80,6 +80,10 @@ class Settings(BaseSettings):
     llm_enabled: bool = False
     llm_provider: str = "mock"
     openai_api_key: str | None = None
+    # OpenAI-compatible endpoint root (без /chat/completions).
+    # Позволяет использовать совместимые шлюзы (FreeModel, OpenRouter и т.п.)
+    # без изменения кода. Дефолт — официальный OpenAI.
+    openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-4o-mini"
     llm_max_chars_per_file: int = 3000
     llm_max_total_chars: int = 12000

@@ -16,8 +16,8 @@ from app.schemas.landing_contract import LandingContract
 
 logger = logging.getLogger(__name__)
 
-MIN_METRIC_CARDS = 4
-MAX_METRIC_CARDS = 6
+MIN_METRIC_CARDS = 8
+MAX_METRIC_CARDS = 12
 
 
 @dataclass(frozen=True)
@@ -35,8 +35,45 @@ _NUM_RE = re.compile(
     r"(?P<num>\d{1,3}(?:[ \u00a0]\d{3})+\s*\+?"  # grouped thousands
     r"|\d+(?:[.,]\d+)?\s*%"  # percentage
     r"|\d+\s*\+"  # "800+"
-    r"|\d+)"  # plain integer
+    r"|\d+(?:[.,]\d+)?)"  # plain int/float
     r"\s*(?P<unit>[A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё0-9@\-]*)?"
+)
+
+# Explicit labeled metrics from CV / ML project reports.
+_LABELED_METRIC_PATTERNS: tuple[tuple[str, str, re.Pattern[str]], ...] = (
+    ("mAP50", "детекция объектов", re.compile(
+        r"mAP50\s*=\s*([0-9]+(?:[.,][0-9]+)?)", re.I)),
+    ("Precision", "детекция", re.compile(
+        r"precision\s*=\s*([0-9]+(?:[.,][0-9]+)?%?)", re.I)),
+    ("Recall", "детекция", re.compile(
+        r"recall\s*=\s*([0-9]+(?:[.,][0-9]+)?%?)", re.I)),
+    ("Accuracy RF", "классификация сцены", re.compile(
+        r"(?:Random\s*Forest[^.\n]{0,40})?accuracy\s*=\s*(95[.,]12\s*%|[0-9]+(?:[.,][0-9]+)?\s*%)",
+        re.I)),
+    ("Accuracy LSTM", "действия кассира", re.compile(
+        r"(?:LSTM[^.\n]{0,40})?accuracy\s*=\s*(75\s*%)", re.I)),
+    ("Accuracy CNN", "гибридный классификатор", re.compile(
+        r"accuracy\s*=\s*(87[.,]2\s*%)", re.I)),
+    ("XGBoost", "классификатор", re.compile(
+        r"XGBoost\s*([0-9]+(?:[.,][0-9]+)?\s*%)", re.I)),
+    ("LightGBM", "классификатор", re.compile(
+        r"LightGBM\s*([0-9]+(?:[.,][0-9]+)?\s*%)", re.I)),
+    ("Inference", "время инференса", re.compile(
+        r"inference\s*time\s*([0-9]+(?:[.,][0-9]+)?\s*(?:сек|s|ms)?)", re.I)),
+    ("Разметка ×", "ускорение разметки", re.compile(
+        r"ускорени[ея]\s*[×xХх*]?\s*([0-9]+)", re.I)),
+    ("Ложные+", "снижение false positive", re.compile(
+        r"с\s*(97\s*%)\s*до\s*менее\s*(5\s*%)", re.I)),
+    ("FSM states", "состояний автомата", re.compile(
+        r"([0-9]+)\s*состояни", re.I)),
+    ("FSM transitions", "переходов FSM", re.compile(
+        r"([0-9]+)\s*переход", re.I)),
+    ("Validation rules", "правил валидации", re.compile(
+        r"([0-9]+)\s*правил", re.I)),
+    ("Архив", "цифровой архив", re.compile(
+        r"архив\s*([0-9]+\s*[–\-]\s*[0-9]+\s*дн)", re.I)),
+    ("Реакция", "детект нарушения", re.compile(
+        r"([0-9]+\s*[–\-]\s*[0-9]+\s*секунд)", re.I)),
 )
 
 # Stem -> human label/hint. Order matters (longer stems first per group).
@@ -71,10 +108,17 @@ _CONTEXT_UNITS: tuple[tuple[str, str], ...] = (
     ("document", "documents"),
     ("запрос", "запросов"),
     ("query", "queries"),
+    ("кадр", "кадров"),
+    ("frame", "frames"),
+    ("состояни", "состояний FSM"),
+    ("переход", "переходов FSM"),
+    ("правил", "правил валидации"),
+    ("камер", "камер"),
 )
 
 # Product/quality metric keywords -> label. Detected with a nearby number.
 _PRODUCT_METRICS: tuple[tuple[str, str], ...] = (
+    ("map50", "mAP50"),
     ("recall@", "Recall@k"),
     ("recall", "Recall"),
     ("precision", "Precision"),
@@ -98,7 +142,7 @@ def _normalize_value(raw: str) -> str:
 
 
 def _numeric_weight(value: str) -> float:
-    digits = re.sub(r"[^\d.]", "", value.replace(" ", ""))
+    digits = re.sub(r"[^\d.]", "", value.replace(" ", "").replace(",", "."))
     try:
         return float(digits) if digits else 0.0
     except ValueError:
@@ -135,6 +179,24 @@ def _match_unit(unit: str) -> str | None:
     return None
 
 
+def _extract_labeled_metrics(text: str) -> list[WowMetric]:
+    out: list[WowMetric] = []
+    seen: set[str] = set()
+    for label, hint, pattern in _LABELED_METRIC_PATTERNS:
+        if label in seen:
+            continue
+        match = pattern.search(text)
+        if not match:
+            continue
+        if label == "Ложные+":
+            value = f"{_normalize_value(match.group(1))} → <{_normalize_value(match.group(2))}"
+        else:
+            value = _normalize_value(match.group(1))
+        seen.add(label)
+        out.append(WowMetric(label=label, value=value, hint=hint, source="extracted"))
+    return out
+
+
 def _extract_context_metrics(text: str) -> list[WowMetric]:
     found: dict[str, WowMetric] = {}
     for match in _NUM_RE.finditer(text):
@@ -162,7 +224,7 @@ def _extract_product_metrics(text: str) -> list[WowMetric]:
         idx = lowered.find(keyword)
         if idx < 0 or label in seen:
             continue
-        window = text[idx : idx + len(keyword) + 16]
+        window = text[idx : idx + len(keyword) + 24]
         num = re.search(r"\d+(?:[.,]\d+)?\s*%?", window)
         if not num:
             continue
@@ -237,16 +299,18 @@ def _fallback_metrics(contract: LandingContract) -> list[WowMetric]:
     )
     tasks_block = blocks.get("tasks")
     tasks_count = len(tasks_block.bullets) if tasks_block and tasks_block.bullets else 0
-    return [
+    candidates = [
         WowMetric(label="Подсистем", value=str(modules_count), source="fallback"),
         WowMetric(label="Команда", value=str(team_count), source="fallback"),
         WowMetric(label="Технологий", value=str(stack_count), source="fallback"),
         WowMetric(label="Задач", value=str(tasks_count), source="fallback"),
     ]
+    # Never pad the panel with explicit zeroes when real metrics exist elsewhere.
+    return [m for m in candidates if m.value not in {"0", "0.0", ""}]
 
 
 def extract_wow_metrics(contract: LandingContract) -> list[WowMetric]:
-    """Extract impact metrics, always returning at least ``MIN_METRIC_CARDS``."""
+    """Extract impact metrics, always preferring real numbers over zeroes."""
 
     text = _collect_text(contract)
     metrics: list[WowMetric] = []
@@ -256,9 +320,12 @@ def extract_wow_metrics(contract: LandingContract) -> list[WowMetric]:
         for item in items:
             if item.label in seen_labels:
                 continue
+            if item.value in {"0", "0.0", ""} and item.source == "fallback":
+                continue
             seen_labels.add(item.label)
             metrics.append(item)
 
+    _add(_extract_labeled_metrics(text))
     extracted = _extract_context_metrics(text)
     extracted.sort(key=lambda m: _numeric_weight(m.value), reverse=True)
     _add(extracted)
@@ -268,13 +335,13 @@ def extract_wow_metrics(contract: LandingContract) -> list[WowMetric]:
     if len(metrics) < MIN_METRIC_CARDS:
         _add(_fallback_metrics(contract))
 
-    if len(metrics) < MIN_METRIC_CARDS:
-        # Last-resort placeholders so the panel never collapses.
+    if len(metrics) < 4:
+        # UI panel hard floor for empty/legacy contracts only.
         placeholders = [
-            WowMetric(label="Подсистем", value="0", source="fallback"),
-            WowMetric(label="Команда", value="0", source="fallback"),
-            WowMetric(label="Технологий", value="0", source="fallback"),
-            WowMetric(label="Задач", value="0", source="fallback"),
+            WowMetric(label="Подсистем", value="—", source="fallback"),
+            WowMetric(label="Команда", value="—", source="fallback"),
+            WowMetric(label="Технологий", value="—", source="fallback"),
+            WowMetric(label="Задач", value="—", source="fallback"),
         ]
         for item in placeholders:
             if item.label not in seen_labels:

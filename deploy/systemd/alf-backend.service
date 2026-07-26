@@ -1,0 +1,27 @@
+[Unit]
+Description=AI Landing Factory Backend (FastAPI/uvicorn)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/ai-landing-factory/current/backend
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=/opt/ai-landing-factory/shared/backend.env
+ExecStart=/opt/ai-landing-factory/current/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 2
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+# Hardening (safe defaults; adjust if OCR engines need more)
+NoNewPrivileges=true
+PrivateTmp=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=alf-backend
+
+[Install]
+WantedBy=multi-user.target

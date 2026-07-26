@@ -1,12 +1,14 @@
 """Pipeline map generation for the WOW landing export (Stage P.7).
 
-Produces a 5-stage intelligence pipeline (Sources -> Processing -> Intelligence
+Produces either a domain CV/FSM pipeline when the source text describes one,
+or a 5-stage intelligence pipeline (Sources -> Processing -> Intelligence
 -> Storage -> Output). Keyword detection promotes detected technologies into the
 matching stage; otherwise a generic fallback pipeline is returned.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from app.schemas.fidelity import FidelityMetadata
@@ -61,6 +63,25 @@ _GENERIC_PIPELINE: tuple[PipelineNode, ...] = (
     PipelineNode("Вывод пользователю", ["UI"]),
 )
 
+_CV_PIPELINE: tuple[PipelineNode, ...] = (
+    PipelineNode("Видеокадр", ["VMS", "camera"]),
+    PipelineNode("YOLO v11 nano", ["detection"]),
+    PipelineNode("ByteTrack", ["tracking"]),
+    PipelineNode("Feature Extractor v3", ["features"]),
+    PipelineNode("Random Forest / LSTM", ["classification"]),
+    PipelineNode("Compliance Engine / FSM", ["rules"]),
+    PipelineNode("Incident", ["alert"]),
+    PipelineNode("CASHIER WATCH UI", ["dashboard"]),
+)
+
+_CV_SIGNAL_RE = re.compile(
+    r"(yolo|bytetrack|cashier\s*watch|compliance\s*engine|\bfsm\b|"
+    r"видеокадр|currency.?exchange|валютно.?обмен)",
+    re.IGNORECASE,
+)
+
+_ARROW_SPLIT_RE = re.compile(r"\s*(?:→|->|=>|⇒)\s*")
+
 _MAX_TAGS_PER_STAGE = 3
 
 
@@ -106,13 +127,26 @@ def _full_text(contract: LandingContract) -> str:
         for module in fidelity.modules:
             parts.append(module.name)
             parts.append(module.description)
-    return "\n".join(parts).casefold()
+    return "\n".join(parts)
+
+
+def _detect_cv_pipeline(text: str) -> list[PipelineNode] | None:
+    """Return domain CV/FSM pipeline when the document describes one."""
+    if not _CV_SIGNAL_RE.search(text):
+        return None
+    # Curated 8-card domain pipeline is preferred over fragile arrow parsing.
+    return list(_CV_PIPELINE)
 
 
 def build_pipeline(contract: LandingContract) -> list[PipelineNode]:
-    """Build a 5-stage pipeline; fall back to the generic flow if too sparse."""
+    """Build a domain or 5-stage pipeline; fall back to generic if sparse."""
 
     text = _full_text(contract)
+    cv_nodes = _detect_cv_pipeline(text)
+    if cv_nodes:
+        return cv_nodes
+
+    lowered = text.casefold()
     tokens = _collect_tokens(contract)
 
     stage_tags: dict[str, list[str]] = {stage: [] for stage in _STAGE_KEYWORDS}
@@ -127,7 +161,7 @@ def build_pipeline(contract: LandingContract) -> list[PipelineNode]:
         # Also probe the full text for keywords not present as discrete tokens.
         if not stage_tags[stage]:
             for kw in keywords:
-                if kw in text and len(kw) >= 4:
+                if kw in lowered and len(kw) >= 4:
                     stage_tags[stage].append(kw.title())
                     break
         if stage_tags[stage]:

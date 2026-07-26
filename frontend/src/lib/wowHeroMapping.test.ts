@@ -103,7 +103,7 @@ describe("buildWowHeroData", () => {
     expect(byLabel["Технологий"]).toBe("4");
     expect(byLabel["Задач"]).toBe("3");
     expect(data.metrics.length).toBeGreaterThanOrEqual(4);
-    expect(data.metrics.length).toBeLessThanOrEqual(6);
+    expect(data.metrics.length).toBeLessThanOrEqual(12);
   });
 
   it("extracts impact numbers from text", () => {

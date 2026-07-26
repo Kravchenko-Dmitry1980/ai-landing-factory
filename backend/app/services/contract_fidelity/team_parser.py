@@ -18,6 +18,10 @@ BULLET_RE = re.compile(r"^[\s]*(?:[-•*·]|–)\s+(.+)$")
 NUMBERED_RE = re.compile(r"^\d+\.\s+(.+)$")
 URL_RE = re.compile(r"\s+https?://\S+")
 NAME_ROLE_RE = re.compile(r"^(.+?)\s*[—–-]\s*(.+)$")
+NAME_COLON_RE = re.compile(
+    r"^([А-ЯЁA-Z][а-яёa-z]+(?:\s+[А-ЯЁA-Z][а-яёa-z]+){1,2}"
+    r"(?:\s*\([^)]+\))?)\s*:\s*(.+)$"
+)
 ALIAS_RE = re.compile(r"\s*\([^)]+\)\s*$")
 
 SKIP_HEADERS = frozenset(
@@ -175,16 +179,31 @@ def _member_starts(line: str) -> list[str]:
         names = _split_name_list(name_part)
         if names:
             return [f"{name}\n{role}" if role else name for name in names]
-        if _is_valid_name(name_part):
+        if _is_valid_name(ALIAS_RE.sub("", name_part).strip()):
             return [f"{name_part}\n{role}" if role else name_part]
+
+    colon_match = NAME_COLON_RE.match(payload)
+    if colon_match:
+        name_part = ALIAS_RE.sub("", colon_match.group(1)).strip()
+        rest = colon_match.group(2).strip()
+        role = ""
+        alias = re.search(r"\(([^)]+)\)", colon_match.group(1) or "")
+        if alias:
+            role = alias.group(1).strip()
+        if _is_valid_name(name_part):
+            if role and rest:
+                return [f"{name_part}\n{role}\n{rest}"]
+            if rest:
+                return [f"{name_part}\n{rest}"]
+            return [name_part]
 
     if "," in payload and not role_match:
         names = _split_name_list(payload)
         if len(names) > 1:
             return names
 
-    if _is_valid_name(payload):
-        return [payload]
+    if _is_valid_name(ALIAS_RE.sub("", payload).strip()):
+        return [ALIAS_RE.sub("", payload).strip()]
     return []
 
 

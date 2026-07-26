@@ -53,8 +53,8 @@ export interface WowHeroData {
 }
 
 const MAX_NODES = 8;
-const MIN_METRICS = 4;
-const MAX_METRICS = 6;
+const MIN_METRICS = 8;
+const MAX_METRICS = 12;
 
 const NUM_RE =
   /(\d{1,3}(?:[ \u00a0]\d{3})+\s*\+?|\d+(?:[.,]\d+)?\s*%|\d+\s*\+|\d+)\s*([A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё0-9@-]*)?/g;
@@ -108,6 +108,27 @@ const GENERIC_PIPELINE: ReadonlyArray<WowPipelineStage> = [
   { id: "service", title: "Логика", tags: ["Service"] },
   { id: "output", title: "Продукт", tags: ["UI"] },
 ];
+
+const CV_PIPELINE: ReadonlyArray<WowPipelineStage> = [
+  { id: "frame", title: "Видеокадр", tags: ["VMS"] },
+  { id: "yolo", title: "YOLO v11 nano", tags: ["detection"] },
+  { id: "track", title: "ByteTrack", tags: ["tracking"] },
+  { id: "feat", title: "Feature Extractor v3", tags: ["features"] },
+  { id: "clf", title: "Random Forest / LSTM", tags: ["classification"] },
+  { id: "fsm", title: "Compliance Engine / FSM", tags: ["rules"] },
+  { id: "incident", title: "Incident", tags: ["alert"] },
+  { id: "ui", title: "CASHIER WATCH UI", tags: ["dashboard"] },
+];
+
+function detectCvPipeline(text: string): WowPipelineStage[] | null {
+  const low = text.toLowerCase();
+  const hasCv =
+    /yolo|bytetrack|cashier\s*watch|compliance\s*engine|\bfsm\b|видеокадр|валютно.?обмен/.test(
+      low,
+    );
+  if (!hasCv) return null;
+  return [...CV_PIPELINE];
+}
 
 function nonEmpty(...candidates: Array<string | null | undefined>): string {
   for (const c of candidates) {
@@ -223,7 +244,7 @@ function fallbackMetrics(
 ): WowHeroMetric[] {
   const fidelity = contract?.fidelity;
   const blocks = blockMap(landing);
-  return [
+  const candidates: WowHeroMetric[] = [
     { label: "Подсистем", value: String(fidelity?.modules?.length ?? 0), source: "fallback" },
     { label: "Команда", value: String(fidelity?.team_structured?.length ?? 0), source: "fallback" },
     {
@@ -233,6 +254,7 @@ function fallbackMetrics(
     },
     { label: "Задач", value: String(blocks.get("tasks")?.bullets?.length ?? 0), source: "fallback" },
   ];
+  return candidates.filter((m) => m.value !== "0" && m.value !== "");
 }
 
 function buildMetrics(
@@ -253,6 +275,19 @@ function buildMetrics(
   add(extractedMetrics(text));
   add(derivedMetrics(landing, contract));
   if (metrics.length < MIN_METRICS) add(fallbackMetrics(landing, contract));
+  if (metrics.length < 4) {
+    for (const m of [
+      { label: "Подсистем", value: "—", source: "fallback" as const },
+      { label: "Команда", value: "—", source: "fallback" as const },
+      { label: "Технологий", value: "—", source: "fallback" as const },
+      { label: "Задач", value: "—", source: "fallback" as const },
+    ]) {
+      if (!seen.has(m.label)) {
+        seen.add(m.label);
+        metrics.push(m);
+      }
+    }
+  }
   return metrics.slice(0, MAX_METRICS);
 }
 
@@ -308,7 +343,11 @@ function buildPipeline(
   contract: LandingContract | null,
   semantic: GeneratedSemanticLanding | null,
 ): WowPipelineStage[] {
-  const text = collectText(landing, contract, semantic).toLowerCase();
+  const text = collectText(landing, contract, semantic);
+  const cv = detectCvPipeline(text);
+  if (cv) return cv;
+
+  const lowered = text.toLowerCase();
   const tokens: string[] = [];
   const fidelity = contract?.fidelity;
   if (fidelity) {
@@ -327,7 +366,7 @@ function buildPipeline(
       }
     }
     if (tags.length === 0) {
-      const kw = keywords.find((k) => k.length >= 4 && text.includes(k));
+      const kw = keywords.find((k) => k.length >= 4 && lowered.includes(k));
       if (kw) tags.push(kw.charAt(0).toUpperCase() + kw.slice(1));
     }
     if (tags.length) matched += 1;

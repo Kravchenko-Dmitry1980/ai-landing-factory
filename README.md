@@ -140,6 +140,16 @@ static HTML). Сборка и smoke:
 
 See [docs/USER_QUICKSTART.md](docs/USER_QUICKSTART.md).
 
+## Deploy (prep only)
+
+Локальные шаблоны и архивы для сервера (без реального деплоя):
+
+- Static demo: `deploy/static/README_STATIC_DEPLOY.md` · `.\scripts\build_static_demo_release.ps1`
+- Full product (systemd + nginx): `deploy/ubuntu/README_FULL_SYSTEMD_DEPLOY.md` · `.\scripts\build_full_release.ps1`
+- Docker draft (experimental): `deploy/docker/README_DOCKER_DEPLOY.md`
+- Preflight: `.\scripts\deploy_preflight.ps1`
+- Status: `DEPLOY_PREP_REPORT.md`, `FINAL_GO_NO_GO.md`
+
 ## Full developer docs
 
 See [README_RUN.md](README_RUN.md) — advanced OCR/VLM, benchmarks, and research tools are documented at the bottom of that file.

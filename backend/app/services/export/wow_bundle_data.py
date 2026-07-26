@@ -24,13 +24,13 @@ logger = logging.getLogger(__name__)
 
 BUNDLE_DATA_VERSION = "1"
 DEFAULT_ACCENT = "#7c8bff"
-_MAX_SUBTITLE = 220
+_MAX_SUBTITLE = 320
 _MAX_MODULES = 12
 _MAX_TEAM = 12
 _MAX_STACK_ITEMS = 12
 
 # Blocks that can supply a human subtitle, in priority order.
-_SUBTITLE_BLOCKS = ("essence", "hero", "tagline")
+_SUBTITLE_BLOCKS = ("tagline", "essence", "hero")
 
 
 def _clamp(text: str | None, limit: int) -> str:
@@ -43,13 +43,14 @@ def _clamp(text: str | None, limit: int) -> str:
 
 
 def _resolve_subtitle(contract: LandingContract) -> str:
+    # Prefer the project phrase/tagline when present — it is the exhibition hook.
+    if contract.quote:
+        return _clamp(contract.quote, _MAX_SUBTITLE)
     blocks = {b.key: b for b in contract.blocks}
     for key in _SUBTITLE_BLOCKS:
         block = blocks.get(key)
         if block and block.content:
             return _clamp(block.content, _MAX_SUBTITLE)
-    if contract.quote:
-        return _clamp(contract.quote, _MAX_SUBTITLE)
     return "Интеллектуальная система, собранная из проектных материалов."
 
 

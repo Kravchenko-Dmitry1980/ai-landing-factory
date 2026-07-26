@@ -11,9 +11,11 @@ from app.services.evidence.source_roles import infer_source_roles
 
 SOURCE_MARKERS: dict[str, list[str]] = {
     "ready_landing_doc": [
-        "суть проекта", "задачи проекта", "для чего", "вводные данные",
-        "выходные данные", "результаты проекта", "перспектива развития",
-        "используемый технологический стек", "команда проекта",
+        "суть проекта", "задачи проекта", "для чего", "цель проекта", "цели проекта",
+        "вводные данные", "выходные данные", "результаты проекта",
+        "перспектива развития", "перспективы развития",
+        "используемый технологический стек", "технологический стек", "команда проекта",
+        "фраза проекта",
     ],
     "pptx_project_presentation": [
         "цель проекта", "цели проекта", "этапы проекта", "этапы работы",
@@ -116,6 +118,19 @@ class SourceInventoryBuilder:
         )
         if person_lines >= 3 and "тимлид" in normalized:
             scores["team_list"] = max(scores.get("team_list", 0.0), 0.6)
+
+        # A full structured landing that *contains* a team section is still a
+        # landing doc — do not let roster density reclassify it as team_list.
+        ready_hits = sum(
+            1 for m in SOURCE_MARKERS["ready_landing_doc"] if m in normalized
+        )
+        if ready_hits >= 4 and "суть проекта" in normalized:
+            scores["ready_landing_doc"] = max(
+                scores.get("ready_landing_doc", 0.0),
+                min(ready_hits / max(len(SOURCE_MARKERS["ready_landing_doc"]), 1), 1.0),
+                0.8,
+            )
+            scores.pop("team_list", None)
 
         if scores:
             detected = max(scores, key=scores.get)
