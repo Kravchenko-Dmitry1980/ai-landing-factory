@@ -24,22 +24,55 @@ import type {
 } from "./types";
 import { ApiRequestError, formatApiError } from "./api-errors";
 
-/** Base URL including /api/v1 — paths are relative, e.g. /projects/privacy */
-export function resolveApiBaseUrl(): string {
-  const raw = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (raw) {
-    return raw.replace(/\/$/, "");
+/**
+ * API base URL including /api/v1 (no trailing slash).
+ *
+ * Browser/client: NEXT_PUBLIC_API_URL (relative `/api/v1` via nginx is OK).
+ * Server/SSR (Node): INTERNAL_API_URL — absolute Docker-network URL required;
+ * relative paths are invalid for Node fetch.
+ *
+ * Env keys are read via bracket access so Next.js does not permanently inline
+ * an empty INTERNAL_API_URL at build time.
+ */
+export function getApiBaseUrl(): string {
+  const trimSlash = (value: string): string => value.trim().replace(/\/$/, "");
+  const readEnv = (name: string): string =>
+    (typeof process !== "undefined" && process.env?.[name]
+      ? String(process.env[name])
+      : ""
+    ).trim();
+
+  if (typeof window === "undefined") {
+    const internal = readEnv("INTERNAL_API_URL");
+    if (internal) {
+      return trimSlash(internal);
+    }
+    const pub = readEnv("NEXT_PUBLIC_API_URL");
+    // Local Windows: absolute NEXT_PUBLIC is fine for SSR too.
+    if (pub && /^https?:\/\//i.test(pub)) {
+      return trimSlash(pub);
+    }
+    // Docker-compose service name fallback for SSR inside the frontend container.
+    return "http://backend:8001/api/v1";
   }
-  return "http://127.0.0.1:8001/api/v1";
+
+  const publicUrl = readEnv("NEXT_PUBLIC_API_URL");
+  if (publicUrl) {
+    return trimSlash(publicUrl);
+  }
+  return "/api/v1";
 }
 
-const API_BASE_URL = resolveApiBaseUrl();
+/** @deprecated Prefer getApiBaseUrl — kept for existing imports */
+export function resolveApiBaseUrl(): string {
+  return getApiBaseUrl();
+}
 
 export { formatApiError };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const url = `${API_BASE_URL}${normalizedPath}`;
+  const url = `${getApiBaseUrl()}${normalizedPath}`;
   const method = init?.method ?? "GET";
 
   if (process.env.NODE_ENV === "development") {
@@ -276,7 +309,7 @@ export async function exportWowBundleZip(
   if (options?.demoUrl) params.set("demo_url", options.demoUrl);
   if (options?.showcaseUrl) params.set("showcase_url", options.showcaseUrl);
   const qs = params.toString();
-  const url = `${API_BASE_URL}/projects/${projectId}/export/wow-bundle${qs ? `?${qs}` : ""}`;
+  const url = `${getApiBaseUrl()}/projects/${projectId}/export/wow-bundle${qs ? `?${qs}` : ""}`;
 
   let res: Response;
   try {

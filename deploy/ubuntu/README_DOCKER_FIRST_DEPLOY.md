@@ -68,14 +68,18 @@ sudo chmod 600 .env
 sudo nano .env
 ```
 
-Set at minimum (replace `<DOMAIN>`):
+Set at minimum (replace `<DOMAIN>` if public; SSH tunnel example included):
 
 ```env
-BACKEND_CORS_ORIGINS=http://<DOMAIN>,https://<DOMAIN>
-NEXT_PUBLIC_API_URL=http://<DOMAIN>/api/v1
+BACKEND_CORS_ORIGINS=http://127.0.0.1:8080,http://localhost:8080,http://<DOMAIN>
+NEXT_PUBLIC_API_URL=/api/v1
+INTERNAL_API_URL=http://backend:8001/api/v1
 LLM_ENABLED=false
 LLM_PROVIDER=mock
 ```
+
+`NEXT_PUBLIC_API_URL=/api/v1` — browser calls go through nginx.  
+`INTERNAL_API_URL` — Next.js SSR fetches the backend over the Docker network (required; relative URLs break Node).
 
 Optional shared copies for documentation:
 
@@ -83,8 +87,7 @@ Optional shared copies for documentation:
 sudo mkdir -p /opt/ai-landing-factory/shared
 sudo cp .env /opt/ai-landing-factory/shared/backend.env
 sudo chmod 600 /opt/ai-landing-factory/shared/backend.env
-# frontend env is baked at docker build via NEXT_PUBLIC_API_URL in .env
-sudo grep NEXT_PUBLIC /opt/ai-landing-factory/shared/backend.env \
+sudo grep -E 'NEXT_PUBLIC|INTERNAL_API' /opt/ai-landing-factory/current/deploy/docker/.env \
   | sudo tee /opt/ai-landing-factory/shared/frontend.env
 sudo chmod 600 /opt/ai-landing-factory/shared/frontend.env
 ```
@@ -176,7 +179,8 @@ sudo docker run --rm -v alf_backend_data:/data -v /tmp:/backup \
 |---|---|
 | `permission denied` on docker | prefix with `sudo` |
 | `docker compose` not found | use `docker-compose` (v1) |
-| frontend 502 / empty API | rebuild after `.env` change: `sudo docker-compose build frontend && sudo docker-compose up -d` |
+| frontend 502 / empty API | rebuild after `.env` change: `sudo docker-compose build frontend && sudo docker rm -f alf-frontend && sudo docker-compose up -d --no-build frontend` |
+| editor "Не удалось открыть проект" | SSR needs `INTERNAL_API_URL=http://backend:8001/api/v1` (not relative `/api/v1`) |
 | CORS errors | fix `BACKEND_CORS_ORIGINS` in `.env`, restart backend |
 | upload fails via nginx | check `client_max_body_size 50m` in nginx config |
 | port conflict on 13000/18001 | `sudo ss -tlnp \| grep -E '13000\|18001'` |

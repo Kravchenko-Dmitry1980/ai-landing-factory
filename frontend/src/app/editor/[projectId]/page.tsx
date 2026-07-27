@@ -1,10 +1,6 @@
 import { LandingEditor } from "@/components/editor/LandingEditor";
+import { getApiBaseUrl } from "@/lib/api";
 import { notFound } from "next/navigation";
-
-function resolveApiBaseUrl(): string {
-  const raw = process.env.NEXT_PUBLIC_API_URL?.trim();
-  return raw ? raw.replace(/\/$/, "") : "http://127.0.0.1:8001/api/v1";
-}
 
 export default async function EditorPage({
   params,
@@ -12,7 +8,8 @@ export default async function EditorPage({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = await params;
-  const apiBase = resolveApiBaseUrl();
+  // SSR: getApiBaseUrl() uses INTERNAL_API_URL (Docker: http://backend:8001/api/v1)
+  const apiBase = getApiBaseUrl();
   const preflight = await fetch(`${apiBase}/projects/${projectId}`, {
     cache: "no-store",
   });

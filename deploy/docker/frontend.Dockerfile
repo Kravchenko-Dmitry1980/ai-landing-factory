@@ -10,8 +10,12 @@ FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY frontend ./
-ARG NEXT_PUBLIC_API_URL=http://localhost:8001/api/v1
+# Browser/client base (relative via nginx is OK in the browser)
+ARG NEXT_PUBLIC_API_URL=/api/v1
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# SSR base — absolute Docker DNS name (also set again in runner)
+ARG INTERNAL_API_URL=http://backend:8001/api/v1
+ENV INTERNAL_API_URL=$INTERNAL_API_URL
 RUN npm run build
 
 FROM node:20-bookworm-slim AS runner
@@ -19,6 +23,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+# Runtime SSR must resolve backend via Docker network (not relative /api/v1)
+ARG NEXT_PUBLIC_API_URL=/api/v1
+ARG INTERNAL_API_URL=http://backend:8001/api/v1
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV INTERNAL_API_URL=$INTERNAL_API_URL
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules

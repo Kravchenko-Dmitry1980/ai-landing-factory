@@ -90,18 +90,26 @@ sudo cp .env.docker.example .env
 sudo chmod 600 .env
 ```
 
-Key variables for nginx public access:
+Key variables for nginx / SSH-tunnel public access:
 
 ```env
-BACKEND_CORS_ORIGINS=http://YOUR_DOMAIN,https://YOUR_DOMAIN
-NEXT_PUBLIC_API_URL=http://YOUR_DOMAIN/api/v1
+BACKEND_CORS_ORIGINS=http://127.0.0.1:8080,http://localhost:8080,http://YOUR_DOMAIN
+NEXT_PUBLIC_API_URL=/api/v1
+INTERNAL_API_URL=http://backend:8001/api/v1
 ```
 
-Rebuild frontend after changing `NEXT_PUBLIC_API_URL`:
+| Variable | Used by | Notes |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | Browser / client bundle | Relative `/api/v1` via nginx is correct |
+| `INTERNAL_API_URL` | Next.js SSR (Node) | Must be absolute; Docker DNS `backend:8001` |
+
+Rebuild frontend after changing either URL:
 
 ```bash
 sudo docker-compose build frontend
-sudo docker-compose up -d
+sudo docker rm -f alf-frontend
+# --no-deps avoids docker-compose v1 KeyError: ContainerConfig on backend recreate
+sudo docker-compose up -d --no-deps --no-build frontend
 ```
 
 ## Rollback
