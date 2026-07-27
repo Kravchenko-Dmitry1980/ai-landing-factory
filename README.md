@@ -144,9 +144,10 @@ See [docs/USER_QUICKSTART.md](docs/USER_QUICKSTART.md).
 
 Локальные шаблоны и архивы для сервера (без реального деплоя):
 
+- **Docker-first (UII dev):** `deploy/ubuntu/README_DOCKER_FIRST_DEPLOY.md` · `deploy/docker/README_DOCKER_DEPLOY.md`
 - Static demo: `deploy/static/README_STATIC_DEPLOY.md` · `.\scripts\build_static_demo_release.ps1`
-- Full product (systemd + nginx): `deploy/ubuntu/README_FULL_SYSTEMD_DEPLOY.md` · `.\scripts\build_full_release.ps1`
-- Docker draft (experimental): `deploy/docker/README_DOCKER_DEPLOY.md`
+- systemd fallback: `deploy/ubuntu/README_FULL_SYSTEMD_DEPLOY.md` · `.\scripts\build_full_release.ps1`
+- Server audit: `SERVER_AUDIT_UII_DEV.md`
 - Preflight: `.\scripts\deploy_preflight.ps1`
 - Status: `DEPLOY_PREP_REPORT.md`, `FINAL_GO_NO_GO.md`
 

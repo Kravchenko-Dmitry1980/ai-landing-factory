@@ -6,136 +6,133 @@
 |---|---|
 | Project | `C:\Dima\Projects\CURSOR\_uat\ai-landing-factory-fresh` |
 | Branch | `main` |
-| UAT status | Локальный UAT — **PASS**; DOCX Algofusion repair — **PASS** |
-| Deploy prep | **READY FOR SERVER PARAMS** (`DEPLOY_PREP_REPORT.md`) |
-| AI status | FreeModel — **BLOCKED**, продукт работает в `LLM_PROVIDER=mock` |
-| Stack | Backend: Python 3.12 + FastAPI/uvicorn (`app.main:app`). Frontend: Next.js 15 (`npm run start`). Хранилище: файловое (`backend/data`) |
-| Docker / systemd / nginx | **Черновики готовы** в `deploy/` |
+| UAT status | Локальный UAT — **PASS**; DOCX Algofusion — **PASS** |
+| Deploy prep | **READY FOR DOCKER-FIRST** (`DEPLOY_PREP_REPORT.md`) |
+| Server audit | **DONE** — `SERVER_AUDIT_UII_DEV.md` |
+| AI status | FreeModel — **BLOCKED**, `LLM_PROVIDER=mock` |
+| Primary mode | **Docker-first** (docker-compose v1) + optional nginx |
 
-## 2. Deployment Mode Candidates
+## 2. Server Audit Summary (UII dev)
+
+| Field | Value |
+|---|---|
+| OS | Ubuntu 24.04.4 LTS |
+| IP | `195.209.213.170` |
+| SSH user | `dkravchenko` |
+| Docker | 29.1.3 installed, **sudo required** |
+| docker-compose | **v1.29.2** (`docker-compose` command) |
+| docker compose v2 | **absent** |
+| nginx / caddy / apache | **not installed** |
+| Ports 80/443 | **free** |
+| `/opt/ai-portal` | **exists — DO NOT TOUCH** |
+| `/var/www` | absent |
+| Deploy path | `/opt/ai-landing-factory` (create) |
+| RAM / Disk | sufficient |
+
+## 3. Deployment Mode Candidates
 
 | Mode | Fit | Pros | Cons | Recommendation |
 |---|---|---|---|---|
-| **A. Static demo only** | Отличный | nginx + файлы; ноль AI/backend риска | Нет upload/generate | **Шаг 1 — сделать сразу** |
-| **B. systemd + nginx** | Хороший | Ближе к локальному запуску; rollback по symlink | Ручная настройка venv/node | **Шаг 2 — рекомендуемый full product** |
-| **C. Docker Compose** | Средний | Изоляция | Experimental draft | Позже при необходимости |
+| **C. Docker-first + nginx** | **Отличный** | Docker уже есть; изоляция; rollback через compose | sudo для docker; nginx ставить отдельно | **Primary для UII dev** |
+| **A. Static demo only** | Хороший | Минимальный риск | Нет upload/generate | Опционально для первого показа |
+| **B. systemd + nginx** | Средний | Без контейнеров | venv/node на хосте | Fallback |
 
 Артефакты:
 
-- Static: `.runtime/release/ai-landing-static-demo.zip`
-- Full: `.runtime/release/ai-landing-full-product.zip`
-- Docs: `deploy/static/`, `deploy/ubuntu/`, `deploy/docker/`
+- Full zip: `.runtime/release/ai-landing-full-product.zip`
+- Static zip: `.runtime/release/ai-landing-static-demo.zip`
+- Docker runbook: `deploy/ubuntu/README_DOCKER_FIRST_DEPLOY.md`
+- nginx (Docker): `deploy/nginx/ai-landing-docker.conf`
 
-## 3. Required Server Info
+## 4. Docker Port Mapping (loopback)
 
-Перед реальным деплоем нужны:
+| Service | Host bind | Container | Public via nginx |
+|---|---|---|---|
+| Backend | `127.0.0.1:18001` | `8001` | `/api/`, `/health` |
+| Frontend | `127.0.0.1:13000` | `3000` | `/` |
 
-1. OS сервера (ожидается Ubuntu 22.04/24.04 LTS)
-2. IP / hostname
-3. SSH user
-4. SSH port
-5. Deploy path (например `/opt/ai-landing-factory`)
-6. Domain / subdomain
-7. SSL-стратегия (Let's Encrypt / готовый сертификат / без TLS)
-8. Docker allowed: yes/no
-9. nginx уже установлен: yes/no
-10. Публичный доступ или только внутренняя сеть / basic auth
-11. Стратегия секретов (файл `.env` chmod 600 / systemd `EnvironmentFile`)
-12. Нужен ли AI-контур (FreeModel) или деплоим в `mock`-режиме
-13. Ожидаемая нагрузка и объём загружаемых файлов
+**Не публиковать** 18001/13000 на `0.0.0.0`. nginx — единственная публичная точка.
 
-## 4. Required Environment Variables
+## 5. Required Environment Variables
 
-См. актуальные шаблоны:
+Шаблоны:
 
-- `backend/.env.production.example`
-- `frontend/.env.production.example`
-- `deploy/docker/.env.docker.example`
-- `backend/.env.example` (обновлён: `OPENAI_BASE_URL`, комментарий CORS)
+- `deploy/docker/.env.docker.example` — **primary for Docker deploy**
+- `backend/.env.production.example` — systemd fallback
+- `frontend/.env.production.example` — build-time URL
 
-Ключевые production-значения:
+Docker `.env` (в `deploy/docker/.env`):
 
 | Variable | Example | Notes |
 |---|---|---|
-| `PRODUCT_MODE` | `simple` | |
+| `LLM_PROVIDER` | `mock` | AI off |
 | `LLM_ENABLED` | `false` | |
-| `LLM_PROVIDER` | `mock` | AI off by default |
-| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | FreeModel URL только при явном GO |
-| `OPENAI_API_KEY` | _(empty)_ | secret |
-| `BACKEND_CORS_ORIGINS` | `https://your-domain.example` | **required on server** |
-| `NEXT_PUBLIC_API_URL` | `https://your-domain.example/api/v1` | public, no secrets |
+| `BACKEND_CORS_ORIGINS` | `http://<DOMAIN>,https://<DOMAIN>` | after nginx |
+| `NEXT_PUBLIC_API_URL` | `http://<DOMAIN>/api/v1` | rebuild frontend image after change |
 
-## 5. Ports
+## 6. Still Needed from Operator
 
-| Service | Bind | Public? |
-|---|---|---|
-| Backend uvicorn | `127.0.0.1:8001` | нет |
-| Frontend Next | `127.0.0.1:3000` | нет |
-| nginx | `80` / later `443` | да |
-
-Nginx mapping (full mode):
-
-- `/api/` → `http://127.0.0.1:8001/api/v1/`
-- `/health` → `http://127.0.0.1:8001/health`
-- `/` → `http://127.0.0.1:3000`
-- `client_max_body_size 50m`
-
-## 6. Files Not To Commit
-
-- `backend/.env`, `frontend/.env.local`, любые реальные ключи
-- `.runtime/` (включая release zip — локальные артефакты)
-- `logs/`, `backend/data/`
-- мусорный `-files logs`
-
-Можно коммитить: `*.env.*.example`, `deploy/**`, scripts, reports.
+1. `<DOMAIN>` / DNS A-record → `195.209.213.170`
+2. SSL strategy (certbot after nginx)
+3. Explicit **deploy GO** (SSH execution)
+4. FreeModel yes/no — default **no**
 
 ## 7. Pre-Deploy Checklist
 
 - [x] Local UAT passed
+- [x] Server audited (`SERVER_AUDIT_UII_DEV.md`)
+- [x] docker-compose v1 package ready
+- [x] nginx docker template ready
+- [x] Full release zip rebuilt
 - [ ] FreeModel smoke — **BLOCKED**
-- [x] Backend health OK
-- [x] Frontend build OK
-- [x] Demo pack / static zip OK
-- [x] `.env.production.example` templates
-- [x] secrets absent from git
-- [x] nginx / systemd / ubuntu / docker drafts
-- [x] rollback script ready (`deploy/ubuntu/rollback.sh`)
-- [ ] server access confirmed
-- [ ] deploy mode selected with user after params
+- [ ] Domain / DNS confirmed
+- [ ] Deploy execution — **NOT DONE**
 
-## 8. Suggested Ubuntu Commands
+## 8. Suggested Commands (Docker-first)
 
-**Не выполнять до предоставления доступа и явного подтверждения.**
-
-Static:
+**Не выполнять автоматически. Только на сервере после явного GO.**
 
 ```bash
-sudo mkdir -p /var/www/ai-landing-demo
-sudo unzip -o ai-landing-static-demo.zip -d /var/www/ai-landing-demo
-# apply deploy/nginx/ai-landing-static.conf
+# 1. layout
+sudo mkdir -p /opt/ai-landing-factory/releases
+# upload + unzip ai-landing-full-product.zip
+sudo ln -sfn /opt/ai-landing-factory/releases/<ID> /opt/ai-landing-factory/current
+
+# 2. env
+cd /opt/ai-landing-factory/current/deploy/docker
+sudo cp .env.docker.example .env && sudo chmod 600 .env
+# edit BACKEND_CORS_ORIGINS, NEXT_PUBLIC_API_URL
+
+# 3. containers (v1 — sudo required)
+sudo docker-compose build
+sudo docker-compose up -d
+sudo docker-compose ps
+curl -fsS http://127.0.0.1:18001/health
+curl -fsS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:13000/
+
+# 4. public HTTP (nginx not preinstalled)
+sudo apt-get install -y nginx
+sudo cp deploy/nginx/ai-landing-docker.conf /etc/nginx/sites-available/
+# edit server_name
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Full:
+Полный runbook: `deploy/ubuntu/README_DOCKER_FIRST_DEPLOY.md`.
+
+## 9. Rollback (Docker)
 
 ```bash
-sudo bash deploy/ubuntu/install_prereqs.sh
-sudo DEPLOY_PATH=/opt/ai-landing-factory bash deploy/ubuntu/deploy_release.sh \
-  /tmp/ai-landing-full-product.zip 20260726_1
-sudo bash /opt/ai-landing-factory/current/deploy/ubuntu/healthcheck.sh
+cd /opt/ai-landing-factory/current/deploy/docker
+sudo docker-compose down
+sudo ln -sfn /opt/ai-landing-factory/releases/<PREV> /opt/ai-landing-factory/current
+cd /opt/ai-landing-factory/current/deploy/docker
+sudo docker-compose up -d
+curl -fsS http://127.0.0.1:18001/health
 ```
 
-Полный runbook: `deploy/ubuntu/README_FULL_SYSTEMD_DEPLOY.md`.
+## 10. Constraints
 
-## 9. Rollback Plan
-
-| Шаг | Действие |
-|---|---|
-| Prev release | `/opt/ai-landing-factory/releases/<prev>` |
-| Switch | `sudo bash deploy/ubuntu/rollback.sh <PREV_RELEASE_ID>` |
-| Verify | `curl -fsS http://127.0.0.1:8001/health` |
-| Emergency | nginx → static demo (`/var/www/ai-landing-demo`) |
-
-## 10. Stop-list (still in force)
-
-No push, no SSH/SCP deploy, no DNS/SSL issuance, no FreeModel smoke, no deletion of user data — until explicit server params + approval.
+- **Do not touch** `/opt/ai-portal`
+- Use **`sudo docker-compose`**, not `docker compose`
+- No git push / no deploy execution during prep
+- FreeModel disabled

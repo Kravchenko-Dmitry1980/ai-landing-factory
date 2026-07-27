@@ -83,6 +83,7 @@ $templates = @(
     "deploy\systemd\alf-backend.service",
     "deploy\systemd\alf-frontend.service",
     "deploy\ubuntu\README_FULL_SYSTEMD_DEPLOY.md",
+    "deploy\ubuntu\README_DOCKER_FIRST_DEPLOY.md",
     "deploy\ubuntu\install_prereqs.sh",
     "deploy\ubuntu\deploy_release.sh",
     "deploy\ubuntu\rollback.sh",

@@ -41,8 +41,8 @@ function Should-SkipPath {
     foreach ($p in $parts) {
         if ($excludeDirNames -contains $p) { return $true }
     }
-    # backend/data and uploads
-    if ($rel -match '(?i)^backend[\\/]data([\\/]|$)') { return $true }
+    # backend/data (any nesting under backend/) and uploads
+    if ($rel -match '(?i)^backend([\\/].*)?[\\/]data([\\/]|$)') { return $true }
     if ($rel -match '(?i)^backend[\\/]\.env$') { return $true }
     if ($rel -match '(?i)^frontend[\\/]\.env') {
         # allow tracked examples only
@@ -75,7 +75,8 @@ $includeRoots = @(
     "UAT_RELEASE_REPORT.md",
     "DEPLOY_PREP_REPORT.md",
     "DEPLOY_SECURITY_AUDIT.md",
-    "DEPLOY_RELEASE_CHECKLIST.md"
+    "DEPLOY_RELEASE_CHECKLIST.md",
+    "SERVER_AUDIT_UII_DEV.md"
 )
 
 Write-Host "Staging full release into $stage" -ForegroundColor Cyan
@@ -103,11 +104,7 @@ foreach ($item in $includeRoots) {
     }
 }
 
-# Ensure empty backend/data placeholder (no user uploads)
-$dataPlaceholder = Join-Path $stage "backend\data"
-New-Item -ItemType Directory -Force -Path $dataPlaceholder | Out-Null
-Set-Content -Path (Join-Path $dataPlaceholder ".gitkeep") -Value "" -Encoding UTF8
-
+# backend/data is created at runtime (Docker volume or first start) — not packaged
 # Sanity: secrets / junk must not be present
 $forbidden = @(
     (Join-Path $stage "backend\.env"),
@@ -127,6 +124,7 @@ $need = @(
     "deploy\systemd\alf-frontend.service",
     "deploy\nginx\ai-landing-full.conf",
     "deploy\nginx\ai-landing-static.conf",
+    "deploy\nginx\ai-landing-docker.conf",
     "backend\.env.production.example",
     "frontend\.env.production.example",
     "backend\app\main.py",
@@ -151,7 +149,8 @@ try {
         $_.FullName -match '(^|[\\/])\.env\.local$' -or
         $_.FullName -match 'node_modules' -or
         $_.FullName -match '(^|[\\/])\.venv([\\/]|$)' -or
-        $_.FullName -match '(^|[\\/])\.git([\\/]|$)'
+        $_.FullName -match '(^|[\\/])\.git([\\/]|$)' -or
+        $_.FullName -match '(^|[\\/])backend([\\/].*)?[\\/]data([\\/]|$)'
     }
     if ($envEntries) {
         $names = ($envEntries | Select-Object -First 10 | ForEach-Object { $_.FullName }) -join ", "
