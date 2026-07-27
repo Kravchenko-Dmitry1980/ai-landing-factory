@@ -5,6 +5,11 @@
 # separate frontend volume at runtime.
 
 FROM node:20-bookworm-slim AS wow-builder
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3 \
+      python3-pil \
+    && ln -sf /usr/bin/python3 /usr/bin/python \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
