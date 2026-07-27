@@ -32,10 +32,9 @@ def test_export_wow_bundle_returns_503_when_dist_wow_missing(tmp_path: Path) -> 
     patch_repo_with_fixture(repo, project_id, contract, landing)
     missing_assets = tmp_path / "missing-dist-wow" / "assets"
 
-    with patch("app.api.v1.projects.get_contract_repository", return_value=repo), patch.object(
-        wow_bundle_exporter,
-        "DEFAULT_ASSETS_DIR",
-        missing_assets,
+    with patch("app.api.v1.projects.get_contract_repository", return_value=repo), patch(
+        "app.services.export.wow_bundle_exporter.resolve_wow_assets_dir",
+        return_value=missing_assets,
     ):
         client = TestClient(app)
         response = client.get(f"/api/v1/projects/{project_id}/export/wow-bundle")

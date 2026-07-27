@@ -100,6 +100,49 @@ class WowBundleExportResult:
     has_cat_mascot: bool
 
 
+def _candidate_wow_assets_dirs() -> list[Path]:
+    """Ordered search paths for ``dist-wow/assets`` (dev checkout + Docker image)."""
+
+    base = settings.base_dir
+    repo_root = base.parent
+    candidates: list[Path] = []
+
+    env_raw = (settings.backend_wow_assets_dir_env or "").strip()
+    if env_raw:
+        override = Path(env_raw)
+        if not override.is_absolute():
+            override = (repo_root / override).resolve()
+        else:
+            override = override.resolve()
+        candidates.append(override)
+
+    candidates.extend(
+        [
+            repo_root / "frontend" / "dist-wow" / "assets",
+            repo_root / "dist-wow" / "assets",
+            Path("/app/frontend/dist-wow/assets"),
+            Path("/app/dist-wow/assets"),
+            base / "static" / "dist-wow" / "assets",
+        ]
+    )
+    return candidates
+
+
+def resolve_wow_assets_dir(explicit: Path | None = None) -> Path:
+    """Return the first ``dist-wow/assets`` directory that contains ``wow-app.js``."""
+
+    if explicit is not None:
+        return explicit.resolve()
+
+    for candidate in _candidate_wow_assets_dirs():
+        js_path = candidate / _SOURCE_JS_NAME
+        if js_path.is_file():
+            logger.debug("WOW bundle assets resolved: %s", candidate)
+            return candidate.resolve()
+
+    return DEFAULT_ASSETS_DIR.resolve()
+
+
 def _validate_wow_app_js(js_bytes: bytes) -> None:
     """Reject stale dist-wow builds that predate the cat mascot integration."""
 
@@ -311,7 +354,7 @@ def build_wow_bundle_zip_with_meta(
     """Build the interactive WOW bundle ZIP and return bytes plus metadata."""
 
     opts = options or WowBundleExportOptions()
-    resolved_assets = assets_dir or DEFAULT_ASSETS_DIR
+    resolved_assets = resolve_wow_assets_dir(assets_dir)
 
     js_bytes, css_bytes = _read_assets(resolved_assets)
     has_css = css_bytes is not None

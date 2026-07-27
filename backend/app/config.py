@@ -146,6 +146,11 @@ class Settings(BaseSettings):
     ocr_easyocr_gpu: bool = False
     ocr_engine_priority: str = "tesseract,easyocr,paddleocr"
     ocr_cache_dir_env: str = Field(default="", validation_alias="OCR_CACHE_DIR")
+    # Override dist-wow/assets location (Docker default: baked into /app/frontend/dist-wow).
+    backend_wow_assets_dir_env: str = Field(
+        default="",
+        validation_alias="BACKEND_WOW_ASSETS_DIR",
+    )
 
     @property
     def ocr_cache_dir(self) -> Path:
