@@ -56,7 +56,9 @@ export function getApiBaseUrl(): string {
     return "http://backend:8001/api/v1";
   }
 
-  const publicUrl = readEnv("NEXT_PUBLIC_API_URL");
+  // Literal access is required in the browser: Next.js inlines NEXT_PUBLIC_*
+  // only for `process.env.NEXT_PUBLIC_…` references, not for process.env[name].
+  const publicUrl = (process.env.NEXT_PUBLIC_API_URL ?? "").trim();
   if (publicUrl) {
     return trimSlash(publicUrl);
   }
