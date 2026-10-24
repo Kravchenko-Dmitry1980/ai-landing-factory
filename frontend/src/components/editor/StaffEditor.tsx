@@ -1,0 +1,705 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  exportHtml,
+  generateLanding,
+  getContract,
+  getTeamReview,
+  teamReviewManualText,
+  updateContract,
+} from "@/lib/api";
+import { getApiErrorStatus } from "@/lib/api-errors";
+import { resolvePreviewProfileId } from "@/lib/resolveStyleConfig";
+import { parseStyleConfigFromContract } from "@/lib/styleConfig";
+import {
+  blockHint,
+  editableBlocks,
+  insertAfter,
+  isBlockEmpty,
+  isRetryableError,
+  isSuspectRole,
+  removeAt,
+  replaceAt,
+  slugifyRu,
+  staffErrorMessage,
+} from "@/lib/staff";
+import type { LandingBlock, LandingContract, TeamReviewData } from "@/lib/types";
+import { CatLogoLink } from "@/components/shell/AppHeader";
+import { DownloadDialog, saveTextFile } from "@/components/shell/DownloadDialog";
+import { InlineText } from "./InlineText";
+import { TeamDialog } from "./TeamDialog";
+
+const SAVE_DELAY_MS = 900;
+
+type SaveState = "idle" | "saving" | "saved" | "error";
+type TeamStatus = "loading" | "ok" | "error";
+
+interface Header {
+  title: string;
+  quote: string;
+  client: string;
+  timeline: string;
+  lead: string;
+}
+
+interface Todo {
+  label: string;
+  targetId: string;
+}
+
+/**
+ * The hero description is what the site shows under the title. Preview and export read it from the
+ * "tagline" block, so the editor shows that block and writes both places on save.
+ */
+function headerFrom(c: LandingContract): Header {
+  const tagline = c.blocks.find((b) => b.key === "tagline")?.content.trim() ?? "";
+  const title = c.title ?? "";
+  return {
+    title,
+    quote: c.quote?.trim() || (tagline && tagline !== title.trim() ? tagline : ""),
+    client: c.client ?? "",
+    timeline: c.timeline ?? "",
+    lead: c.lead ?? "",
+  };
+}
+
+function blocksWithTagline(blocks: LandingBlock[], quote: string): LandingBlock[] {
+  const text = quote.trim();
+  if (!text) return blocks;
+  if (blocks.some((b) => b.key === "tagline")) {
+    return blocks.map((b) => (b.key === "tagline" ? { ...b, content: text } : b));
+  }
+  return [...blocks, { key: "tagline", title: "Фраза проекта", content: text, bullets: [] }];
+}
+
+function timeLabel(d: Date): string {
+  return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+}
+
+/** The staff editor: the page itself, edited in place, plus a narrow rail with what to fill in. */
+export function StaffEditor({ projectId, projectName = "" }: { projectId: string; projectName?: string }) {
+  const router = useRouter();
+  const [contract, setContract] = useState<LandingContract | null>(null);
+  const [header, setHeader] = useState<Header | null>(null);
+  const [blocks, setBlocks] = useState<LandingBlock[]>([]);
+  const [team, setTeam] = useState<TeamReviewData | null>(null);
+  const [teamStatus, setTeamStatus] = useState<TeamStatus>("loading");
+  const [loadError, setLoadError] = useState<{ message: string; noMaterials: boolean } | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [saveError, setSaveError] = useState<{ message: string; retryable: boolean } | null>(null);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
+  const [downloadOpen, setDownloadOpen] = useState(false);
+  const [downloadBusy, setDownloadBusy] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [teamOpen, setTeamOpen] = useState(false);
+  const [teamBusy, setTeamBusy] = useState(false);
+  const [teamError, setTeamError] = useState<string | null>(null);
+
+  const [editTick, setEditTick] = useState(0);
+  const handledTick = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveChain = useRef<Promise<boolean>>(Promise.resolve(true));
+  const latest = useRef<{ header: Header; blocks: LandingBlock[] } | null>(null);
+  /** Edits on screen that the server has not confirmed yet (also true after a failed save). */
+  const dirty = useRef(false);
+
+  const loadTeam = useCallback(async () => {
+    setTeamStatus("loading");
+    try {
+      setTeam(await getTeamReview(projectId));
+      setTeamStatus("ok");
+    } catch (err) {
+      console.error("Team review failed to load", projectId, err);
+      setTeamStatus("error");
+    }
+  }, [projectId]);
+
+  const load = useCallback(async () => {
+    setLoadError(null);
+    try {
+      const data = await getContract(projectId);
+      const loaded = headerFrom(data);
+      setContract(data);
+      setBlocks(data.blocks);
+      if (!loaded.title.trim() && projectName.trim()) {
+        // The parser found no title: start from the name the user typed on the home page and save it.
+        setHeader({ ...loaded, title: projectName.trim() });
+        setEditTick((t) => t + 1);
+      } else {
+        setHeader(loaded);
+      }
+    } catch (err) {
+      console.error("Contract failed to load", projectId, err);
+      // The route already checked that the project exists: a missing contract means no materials.
+      const noMaterials = getApiErrorStatus(err) === 404;
+      setLoadError({ message: staffErrorMessage(err, "Не удалось открыть лендинг"), noMaterials });
+      return;
+    }
+    void loadTeam();
+  }, [projectId, projectName, loadTeam]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  /** Queues a save of the latest committed edits; saves run one after another, never out of order. */
+  const persist = useCallback(
+    (keepalive = false): Promise<boolean> => {
+      const run = async (): Promise<boolean> => {
+        const snapshot = latest.current;
+        if (!snapshot) return true;
+        setSaveState("saving");
+        try {
+          const updated = await updateContract(
+            projectId,
+            { ...snapshot.header, blocks: blocksWithTagline(snapshot.blocks, snapshot.header.quote) },
+            { keepalive },
+          );
+          if (latest.current === snapshot) dirty.current = false;
+          setContract(updated);
+          setSaveState("saved");
+          setSaveError(null);
+          setActionError(null);
+          setSavedAt(new Date());
+          return true;
+        } catch (err) {
+          console.error("Autosave failed", projectId, err);
+          setSaveError({
+            message: staffErrorMessage(err, "Изменения не сохранились"),
+            retryable: isRetryableError(err),
+          });
+          setSaveState("error");
+          return false;
+        }
+      };
+      saveChain.current = saveChain.current.then(run, run);
+      return saveChain.current;
+    },
+    [projectId],
+  );
+
+  // After each committed edit: remember exactly what is on screen and restart the save timer.
+  useEffect(() => {
+    if (editTick === handledTick.current || !header) return;
+    handledTick.current = editTick;
+    latest.current = { header, blocks };
+    dirty.current = true;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      void persist();
+    }, SAVE_DELAY_MS);
+  }, [editTick, header, blocks, persist]);
+
+  /** Saves everything not yet confirmed (retrying a failed save); resolves false if it still fails. */
+  const flushSave = useCallback((): Promise<boolean> => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    return dirty.current ? persist() : saveChain.current;
+  }, [persist]);
+
+  // Closing the tab or reloading: send what is pending and ask the browser to confirm leaving.
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!dirty.current) return;
+      void persist(true);
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [persist]);
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+      if (dirty.current) void persist(true);
+    },
+    [persist],
+  );
+
+  async function leaveTo(href: string) {
+    if (await flushSave()) return router.push(href);
+    if (window.confirm("Последние изменения не сохранились. Всё равно уйти со страницы?")) router.push(href);
+  }
+
+  function editHeader(patch: Partial<Header>) {
+    setHeader((prev) => (prev ? { ...prev, ...patch } : prev));
+    setEditTick((t) => t + 1);
+  }
+
+  function editBlocks(update: (prev: LandingBlock[]) => LandingBlock[]) {
+    setBlocks(update);
+    setEditTick((t) => t + 1);
+  }
+
+  function editBlock(index: number, patch: Partial<LandingBlock>) {
+    editBlocks((prev) => replaceAt(prev, index, { ...prev[index], ...patch }));
+  }
+
+  /** Saves and refreshes the generated page; returns what went wrong, or null when ready. */
+  async function prepareOutput(): Promise<string | null> {
+    if (!(await flushSave())) {
+      return "Изменения не сохранились, поэтому страница не обновлена. Проверьте подключение и попробуйте ещё раз.";
+    }
+    try {
+      await generateLanding(projectId, { mode: "stub" });
+      return null;
+    } catch (err) {
+      console.error("Landing refresh failed", projectId, err);
+      return staffErrorMessage(err, "Изменения сохранены, но страницу не удалось обновить");
+    }
+  }
+
+  async function openPreview() {
+    if (leaving) return;
+    setLeaving(true);
+    setActionError(null);
+    const problem = await prepareOutput();
+    if (problem) {
+      setActionError(problem);
+      setLeaving(false);
+      return;
+    }
+    router.push(`/preview/${projectId}`);
+  }
+
+  const fileName = `${slugifyRu(header?.title || contract?.title || "landing")}.html`;
+
+  async function download() {
+    if (downloadBusy) return;
+    setDownloadBusy(true);
+    setDownloadError(null);
+    try {
+      const problem = await prepareOutput();
+      if (problem) {
+        setDownloadError(problem);
+        return;
+      }
+      const latestContract = await getContract(projectId);
+      const styleConfig = parseStyleConfigFromContract(
+        latestContract.style_config,
+        latestContract.presentation_style,
+        latestContract.style,
+      );
+      const html = await exportHtml(projectId, { theme: resolvePreviewProfileId(styleConfig), styleConfig });
+      saveTextFile(html, fileName);
+      setDownloadOpen(false);
+    } catch (err) {
+      console.error("Export failed", projectId, err);
+      setDownloadError(staffErrorMessage(err, "Не удалось собрать файл сайта"));
+    } finally {
+      setDownloadBusy(false);
+    }
+  }
+
+  async function saveTeam(text: string) {
+    if (teamBusy) return;
+    setTeamBusy(true);
+    setTeamError(null);
+    // Text edits go first so the full blocks list we send later carries the new team block.
+    await flushSave();
+    try {
+      await teamReviewManualText(projectId, text);
+    } catch (err) {
+      console.error("Team save failed", projectId, err);
+      setTeamError(staffErrorMessage(err, "Не удалось сохранить список команды"));
+      setTeamBusy(false);
+      return;
+    }
+    setTeamBusy(false);
+    setTeamOpen(false);
+    try {
+      const [review, fresh] = await Promise.all([getTeamReview(projectId), getContract(projectId)]);
+      setTeam(review);
+      setTeamStatus("ok");
+      const freshTeam = fresh.blocks.find((b) => b.key === "team");
+      if (freshTeam) setBlocks((prev) => prev.map((b) => (b.key === "team" ? freshTeam : b)));
+    } catch (err) {
+      console.error("Team refresh failed", projectId, err);
+      setActionError("Команда сохранена, но список на экране не обновился. Обновите страницу.");
+    }
+  }
+
+  const visible = useMemo(() => editableBlocks(blocks), [blocks]);
+  const members = useMemo(
+    () => (team?.candidates ?? []).filter((c) => c.status !== "rejected"),
+    [team],
+  );
+
+  const todos = useMemo((): Todo[] => {
+    const list: Todo[] = [];
+    if (header && !header.title.trim()) list.push({ label: "Нет заголовка страницы", targetId: "field-title" });
+    for (const { block } of visible) {
+      if (isBlockEmpty(block)) {
+        list.push({ label: `Раздел «${block.title || "Без названия"}» пустой`, targetId: `block-${block.key}-content` });
+      }
+    }
+    if (teamStatus === "error") {
+      list.push({ label: "Команда не загрузилась, проверить её нельзя", targetId: "team-retry" });
+    }
+    const suspects = members.filter((m) => isSuspectRole(m.role)).map((m) => m.display_name);
+    if (suspects.length > 0) {
+      list.push({ label: `Проверьте роль: ${suspects.join(", ")}`, targetId: "team-edit" });
+    }
+    return list;
+  }, [header, visible, members, teamStatus]);
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen">
+        <TopBar onLeave={(href) => router.push(href)} />
+        <main className="mx-auto flex max-w-[720px] flex-col gap-4 px-6 py-16">
+          <h1 className="font-display text-3xl font-semibold">
+            {loadError.noMaterials ? "У этого лендинга нет материалов" : "Не удалось открыть лендинг"}
+          </h1>
+          <p className="text-[17px] text-fur">
+            {loadError.noMaterials
+              ? "Похоже, загрузка файлов не завершилась. Загрузите материалы проекта заново на главной."
+              : loadError.message}
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/" className="inline-flex h-11 items-center rounded-[10px] border border-field bg-white px-5 text-[15px] text-ink no-underline hover:bg-paper">
+              {loadError.noMaterials ? "Загрузить материалы" : "Ваши лендинги"}
+            </Link>
+            {!loadError.noMaterials && (
+              <button type="button" onClick={() => void load()} className="h-11 rounded-[10px] bg-scheme px-5 text-[15px] font-semibold text-white hover:bg-scheme-hover">
+                Повторить
+              </button>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!contract || !header) {
+    return (
+      <div className="min-h-screen">
+        <TopBar onLeave={(href) => router.push(href)} />
+        <main className="mx-auto max-w-[1200px] px-6 py-16 text-fur">Открываю лендинг…</main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#EEF1F7]">
+      <TopBar title={header.title || contract.title || ""} onLeave={(href) => void leaveTo(href)}>
+        {saveState === "error" && (
+          <span role="alert" className="flex items-center gap-2 rounded-lg bg-marker px-3 py-1.5 text-sm text-ink">
+            Изменения не сохранились
+            {saveError?.retryable !== false && (
+              <button type="button" onClick={() => void persist()} className="font-semibold underline">
+                Повторить
+              </button>
+            )}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => void openPreview()}
+          disabled={leaving}
+          className="h-10 rounded-[10px] border border-field bg-white px-4 text-[15px] text-ink hover:bg-paper disabled:cursor-wait disabled:opacity-70"
+        >
+          {leaving ? "Обновляю страницу…" : "Посмотреть как посетитель"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setDownloadError(null);
+            setDownloadOpen(true);
+          }}
+          className="h-10 rounded-[10px] bg-scheme px-[18px] text-[15px] font-semibold text-white hover:bg-scheme-hover"
+        >
+          Скачать сайт
+        </button>
+      </TopBar>
+
+      <main>
+        <h1 className="sr-only">Редактор лендинга «{header.title || contract.title || "без названия"}»</h1>
+        {actionError && (
+          <p role="alert" className="mx-4 mt-4 rounded-xl border border-marker-line bg-white px-5 py-3 text-[15px] text-danger sm:mx-6">
+            {actionError}
+          </p>
+        )}
+
+        <div className="flex flex-wrap items-start gap-6 p-4 sm:p-6">
+          <article aria-label="Страница лендинга" className="min-w-0 flex-[999_1_640px] overflow-hidden rounded-2xl border border-line bg-white">
+            <div className="flex items-center gap-2 border-b border-grid-soft px-6 py-3.5 text-[13px] text-fur sm:px-8">
+              {/* eslint-disable-next-line @next/next/no-img-element -- статичный логотип */}
+              <img src="/brand/cat-mark.webp" alt="" width={24} height={24} />
+              Проект на платформе УИИ
+            </div>
+
+            <header className="flex flex-col gap-5 bg-grid-paper bg-cell px-6 pb-8 pt-10 sm:px-12">
+              <InlineText
+                id="field-title"
+                label="Заголовок страницы"
+                value={header.title}
+                placeholder="Название проекта для заголовка страницы"
+                onChange={(title) => editHeader({ title })}
+                className={`max-w-[760px] font-display text-[30px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[40px] ${
+                  header.title.trim() ? "" : "bg-marker"
+                }`}
+              />
+              <InlineText
+                label="Короткое описание под заголовком"
+                value={header.quote}
+                placeholder="Одно-два предложения: что делает проект и для кого"
+                onChange={(quote) => editHeader({ quote })}
+                className="max-w-[680px] text-[17px] leading-relaxed"
+              />
+              <dl className="flex flex-wrap gap-x-8 gap-y-3 text-[15px]">
+                <Fact label="Заказчик" value={header.client} onChange={(client) => editHeader({ client })} />
+                <Fact label="Сроки" value={header.timeline} onChange={(timeline) => editHeader({ timeline })} />
+                <Fact label="Руководитель" value={header.lead} onChange={(lead) => editHeader({ lead })} />
+              </dl>
+            </header>
+
+            {visible.map(({ block, index }) => (
+              <BlockEditor key={block.key} block={block} onChange={(patch) => editBlock(index, patch)} />
+            ))}
+
+            <TeamSection
+              status={teamStatus}
+              members={members}
+              onRetry={() => void loadTeam()}
+              onEdit={() => {
+                setTeamError(null);
+                setTeamOpen(true);
+              }}
+            />
+          </article>
+
+          <aside aria-label="Подсказки" className="flex max-w-full flex-[1_1_300px] flex-col gap-4 lg:sticky lg:top-6 lg:max-w-[340px]">
+            <section className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-5">
+              <h2 className="font-display text-[19px] font-semibold">Что дополнить</h2>
+              {todos.length === 0 ? (
+                <p className="text-[15px] leading-relaxed text-fur">Всё заполнено. Можно смотреть и скачивать.</p>
+              ) : (
+                <ul className="flex flex-col gap-2.5">
+                  {todos.map((todo) => (
+                    <li key={todo.targetId + todo.label}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const el = document.getElementById(todo.targetId);
+                          el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                          el?.focus({ preventScroll: true });
+                        }}
+                        className="flex gap-2.5 text-left text-[15px] leading-snug text-ink hover:text-scheme"
+                      >
+                        <span aria-hidden="true" className="mt-1.5 h-2.5 w-2.5 flex-none rounded-full bg-marker-dot" />
+                        <span>{todo.label}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+            <p aria-live="polite" className="px-1 text-[13px] text-fur">
+              <SaveStatus state={saveState} savedAt={savedAt} error={saveError?.message ?? null} />
+            </p>
+          </aside>
+        </div>
+      </main>
+
+      <DownloadDialog
+        open={downloadOpen}
+        fileName={fileName}
+        busy={downloadBusy}
+        error={downloadError}
+        onDownload={() => void download()}
+        onClose={() => setDownloadOpen(false)}
+      />
+      <TeamDialog
+        open={teamOpen}
+        initialText={team?.editable_text ?? ""}
+        busy={teamBusy}
+        error={teamError}
+        onSave={(text) => void saveTeam(text)}
+        onClose={() => setTeamOpen(false)}
+      />
+    </div>
+  );
+}
+
+function TopBar({
+  title,
+  onLeave,
+  children,
+}: {
+  title?: string;
+  onLeave: (href: string) => void;
+  children?: React.ReactNode;
+}) {
+  const guard = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    onLeave("/");
+  };
+  return (
+    <header className="border-b border-grid bg-white">
+      <div className="flex flex-wrap items-center gap-4 px-6 py-2.5">
+        <CatLogoLink compact onClick={guard} />
+        <Link href="/" onClick={guard} className="text-[15px] text-scheme no-underline hover:text-scheme-hover">
+          Ваши лендинги
+        </Link>
+        <span className="min-w-0 flex-[1_1_200px] truncate text-[15px] font-semibold">{title}</span>
+        {children && <div className="flex flex-wrap items-center gap-2.5">{children}</div>}
+      </div>
+    </header>
+  );
+}
+
+function TeamSection({
+  status,
+  members,
+  onRetry,
+  onEdit,
+}: {
+  status: TeamStatus;
+  members: TeamReviewData["candidates"];
+  onRetry: () => void;
+  onEdit: () => void;
+}) {
+  return (
+    <section id="team" aria-labelledby="team-title" className="flex flex-col gap-4 border-t border-grid-soft px-6 py-8 sm:px-12">
+      <div className="flex flex-wrap items-baseline gap-3">
+        <h2 id="team-title" className="font-display text-[26px] font-semibold">
+          Команда
+        </h2>
+        {status === "ok" && (
+          <span className="text-[15px] text-fur">{members.length > 0 ? `${members.length} чел.` : "не найдена в материалах"}</span>
+        )}
+      </div>
+      {status === "loading" && <p className="text-[15px] text-fur">Загружаю команду…</p>}
+      {status === "error" && (
+        <div role="alert" className="flex flex-wrap items-center gap-3 text-[15px]">
+          <span>Не удалось загрузить команду. Список не изменён.</span>
+          <button id="team-retry" type="button" onClick={onRetry} className="h-10 rounded-lg border border-field bg-white px-4 hover:bg-paper">
+            Повторить
+          </button>
+        </div>
+      )}
+      {status === "ok" && members.length > 0 && (
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-x-8 gap-y-3">
+          {members.map((m) => (
+            <li key={m.id} className="flex flex-col">
+              <span className="font-semibold">{m.display_name}</span>
+              <span className={`text-sm leading-snug ${isSuspectRole(m.role) ? "self-start rounded bg-marker px-1" : "text-fur"}`}>
+                {m.role?.trim() || "Роль не указана"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {status === "ok" && (
+        <div>
+          <button id="team-edit" type="button" onClick={onEdit} className="h-10 rounded-lg border border-field bg-white px-4 text-[15px] hover:bg-paper">
+            {members.length > 0 ? "Изменить список" : "Добавить команду"}
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Fact({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex min-w-[180px] flex-col">
+      <dt className="text-fur">{label}</dt>
+      <dd className="m-0 font-medium">
+        <InlineText label={label} value={value} placeholder="Не указано" onChange={onChange} />
+      </dd>
+    </div>
+  );
+}
+
+function BlockEditor({ block, onChange }: { block: LandingBlock; onChange: (patch: Partial<LandingBlock>) => void }) {
+  const empty = isBlockEmpty(block);
+  const name = block.title || "раздела";
+
+  function focusBullet(i: number) {
+    requestAnimationFrame(() => document.getElementById(`block-${block.key}-b${i}`)?.focus());
+  }
+
+  function onBulletKey(i: number, e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      onChange({ bullets: insertAfter(block.bullets, i, "") });
+      focusBullet(i + 1);
+    } else if (e.key === "Backspace" && block.bullets[i] === "" && block.bullets.length > 0) {
+      e.preventDefault();
+      onChange({ bullets: removeAt(block.bullets, i) });
+      if (i > 0) focusBullet(i - 1);
+    }
+  }
+
+  return (
+    <section
+      aria-label={block.title || "Раздел без названия"}
+      className={`flex flex-col gap-3 border-t border-grid-soft px-6 py-8 sm:px-12 ${empty ? "bg-[#FFF7F8]" : ""}`}
+    >
+      <InlineText
+        label={`Заголовок раздела «${name}»`}
+        value={block.title}
+        placeholder="Заголовок раздела"
+        onChange={(title) => onChange({ title })}
+        className={`max-w-[700px] font-display text-[24px] font-semibold leading-tight sm:text-[26px] ${empty ? "self-start bg-marker" : ""}`}
+      />
+      {(block.content || empty || block.bullets.length === 0) && (
+        <InlineText
+          id={`block-${block.key}-content`}
+          label={`Текст раздела «${name}»`}
+          value={block.content}
+          placeholder={blockHint(block.key)}
+          onChange={(content) => onChange({ content })}
+          className="max-w-[700px] text-base leading-relaxed"
+        />
+      )}
+      {block.bullets.length > 0 && (
+        <ul className="flex max-w-[700px] list-disc flex-col gap-1.5 pl-5 text-base leading-relaxed marker:text-scheme">
+          {block.bullets.map((bullet, i) => (
+            <li key={i}>
+              <InlineText
+                id={`block-${block.key}-b${i}`}
+                label={`Пункт ${i + 1} раздела «${name}»`}
+                value={bullet}
+                placeholder="Новый пункт"
+                onChange={(value) => onChange({ bullets: replaceAt(block.bullets, i, value) })}
+                onKeyDown={(e) => onBulletKey(i, e)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+      <div>
+        <button
+          type="button"
+          onClick={() => {
+            onChange({ bullets: [...block.bullets, ""] });
+            focusBullet(block.bullets.length);
+          }}
+          className="rounded-md px-1.5 py-1 text-sm text-fur hover:bg-scheme-soft hover:text-scheme"
+        >
+          Добавить пункт
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function SaveStatus({ state, savedAt, error }: { state: SaveState; savedAt: Date | null; error: string | null }) {
+  if (state === "saving") return <>Сохраняю…</>;
+  if (state === "error") return <span className="text-danger">{error ?? "Изменения не сохранились."}</span>;
+  if (state === "saved" && savedAt) return <>Изменения сохраняются сами, последнее в {timeLabel(savedAt)}.</>;
+  return <>Изменения сохраняются сами.</>;
+}

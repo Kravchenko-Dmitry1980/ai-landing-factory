@@ -13,6 +13,8 @@
     "build:wow-bundle": "node scripts/build-wow-bundle.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/geologica": "^5.3.0",
+    "@fontsource/golos-text": "^5.3.0",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "@xyflow/react": "^12.10.2",

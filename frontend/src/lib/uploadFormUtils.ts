@@ -22,22 +22,3 @@ export function removeFileAt(files: File[], index: number): File[] {
   }
   return files.filter((_, i) => i !== index);
 }
-
-export function validateUploadSubmit(name: string, files: File[]): string | null {
-  if (!name.trim()) {
-    return "Укажите название проекта";
-  }
-  if (files.length === 0) {
-    return "Выберите хотя бы один файл";
-  }
-  return null;
-}
-
-export function appendFilesToFormData(files: File[], description?: string): FormData {
-  const form = new FormData();
-  files.forEach((f) => form.append("files", f));
-  if (description) {
-    form.append("description", description);
-  }
-  return form;
-}

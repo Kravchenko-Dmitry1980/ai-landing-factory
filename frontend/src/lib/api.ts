@@ -10,6 +10,7 @@ import type {
   PiiCleanupResponse,
   PrivacyStatusResponse,
   ProjectResponse,
+  ProjectSummary,
   ProjectKnowledgeGraph,
   SafeCloudPayloadPreview,
   SemanticDebugResponse,
@@ -107,6 +108,10 @@ export async function createProject(
   });
 }
 
+export async function listProjects(limit = 100): Promise<ProjectSummary[]> {
+  return request<ProjectSummary[]>(`/projects?limit=${limit}&sort=updated_desc`);
+}
+
 export async function uploadMaterials(
   projectId: string,
   files: File[],
@@ -148,14 +153,25 @@ export async function updateContract(
   payload: Partial<
     Pick<
       LandingContract,
-      "style" | "blocks" | "client" | "goals" | "presentation_style" | "style_config"
+      | "title"
+      | "timeline"
+      | "lead"
+      | "quote"
+      | "style"
+      | "blocks"
+      | "client"
+      | "goals"
+      | "presentation_style"
+      | "style_config"
     >
   >,
+  options?: { keepalive?: boolean },
 ): Promise<LandingContract> {
   return request<LandingContract>(`/projects/${projectId}/contract`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
+    keepalive: options?.keepalive,
   });
 }
 

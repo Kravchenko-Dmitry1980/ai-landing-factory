@@ -8,11 +8,8 @@ export default async function PreviewPage({
 }) {
   const { projectId } = await params;
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-bold">Интерактивный preview</h1>
-      <Suspense fallback={<p className="text-muted-foreground">Загрузка preview…</p>}>
-        <LandingPreview projectId={projectId} />
-      </Suspense>
-    </div>
+    <Suspense fallback={<p className="px-6 py-8 text-fur">Открываю страницу…</p>}>
+      <LandingPreview projectId={projectId} />
+    </Suspense>
   );
 }

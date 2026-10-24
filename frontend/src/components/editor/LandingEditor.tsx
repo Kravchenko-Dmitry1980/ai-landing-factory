@@ -64,6 +64,11 @@ interface Props {
   projectId: string;
 }
 
+/** This editor lives behind ?dev=1; links out of it keep the developer mode on. */
+function withDev(href: string): string {
+  return `${href}${href.includes("?") ? "&" : "?"}dev=1`;
+}
+
 export function LandingEditor({ projectId }: Props) {
   const router = useRouter();
   const [contract, setContract] = useState<LandingContract | null>(null);
@@ -175,7 +180,7 @@ export function LandingEditor({ projectId }: Props) {
       setSemanticInfo(result.semantic);
       setSemanticMessage(result.message);
       setContract(await getContract(projectId));
-      router.push(buildPreviewHref(projectId, previewProfileId));
+      router.push(withDev(buildPreviewHref(projectId, previewProfileId)));
     } catch (err) {
       setError(formatApiError(err, "Не удалось сформировать ленд"));
     } finally {
@@ -308,7 +313,7 @@ export function LandingEditor({ projectId }: Props) {
           <Button onClick={handleGenerateLanding} disabled={generating}>
             {generating ? "Формирование…" : "Сформировать ленд"}
           </Button>
-          <Link href={buildPreviewHref(projectId, previewProfileId)}>
+          <Link href={withDev(buildPreviewHref(projectId, previewProfileId))}>
             <Button variant="outline" type="button">
               Preview
             </Button>

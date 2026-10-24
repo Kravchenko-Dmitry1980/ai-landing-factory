@@ -619,6 +619,14 @@ export interface ProjectResponse {
   created_at: string;
 }
 
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  version: number;
+}
+
 export interface UploadResponse {
   project_id: string;
   files: { id: string; original_name: string; kind: string }[];
