@@ -131,7 +131,7 @@ function Test-HttpAvailable {
     }
     catch {
         $status = 0
-        if ($null -ne $_.Exception.Response) {
+        if ($null -ne $_.Exception.PSObject.Properties['Response']) {
             try { $status = [int]$_.Exception.Response.StatusCode.value__ } catch { }
         }
         $message = $_.Exception.Message

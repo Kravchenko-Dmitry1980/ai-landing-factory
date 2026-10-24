@@ -221,7 +221,7 @@ function Test-CorsPreflight {
     catch {
         $status = 0
         $allowOrigin = ""
-        if ($null -ne $_.Exception.Response) {
+        if ($null -ne $_.Exception.PSObject.Properties['Response']) {
             try { $status = [int]$_.Exception.Response.StatusCode.value__ } catch { }
             try { $allowOrigin = [string]$_.Exception.Response.Headers["Access-Control-Allow-Origin"] } catch { }
         }
@@ -266,7 +266,7 @@ function Wait-HttpReady {
         }
         catch {
             $status = 0
-            if ($null -ne $_.Exception.Response) {
+            if ($null -ne $_.Exception.PSObject.Properties['Response']) {
                 try { $status = [int]$_.Exception.Response.StatusCode.value__ } catch { }
             }
             if ($status -ge 200 -and $status -lt 500) {
