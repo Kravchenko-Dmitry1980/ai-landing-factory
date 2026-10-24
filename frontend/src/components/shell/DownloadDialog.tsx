@@ -74,9 +74,9 @@ export function DownloadDialog({ open, fileName, busy, error, onDownload, onClos
   );
 }
 
-/** Saves a string as a file through a temporary link. */
-export function saveTextFile(text: string, fileName: string, type = "text/html") {
-  const url = URL.createObjectURL(new Blob([text], { type }));
+/** Saves a blob as a file through a temporary link. */
+export function saveBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = fileName;

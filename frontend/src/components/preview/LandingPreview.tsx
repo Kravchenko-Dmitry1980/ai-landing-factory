@@ -31,9 +31,8 @@ import {
   saveRenderConfig,
 } from "@/rendering/contract_adapter";
 import type { RenderConfig } from "@/rendering/types";
-import { AppHeader, CatLogoLink } from "@/components/shell/AppHeader";
-import { DownloadDialog, saveTextFile } from "@/components/shell/DownloadDialog";
-import { slugifyRu, staffErrorMessage } from "@/lib/staff";
+import { AppHeader } from "@/components/shell/AppHeader";
+import { staffErrorMessage } from "@/lib/staff";
 
 interface Props {
   projectId: string;
@@ -50,11 +49,6 @@ export function LandingPreview({ projectId }: Props) {
   const [privacyStatus, setPrivacyStatus] = useState<PrivacyStatusResponse | null>(null);
   const [renderConfig, setRenderConfig] = useState<RenderConfig | null>(null);
   const [semantic, setSemantic] = useState<GeneratedSemanticLanding | null>(null);
-  const [downloadOpen, setDownloadOpen] = useState(false);
-  const [downloadBusy, setDownloadBusy] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [contractFailed, setContractFailed] = useState(false);
-  const devMode = searchParams.has("dev");
 
   const showDevPanel = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -119,13 +113,12 @@ export function LandingPreview({ projectId }: Props) {
           console.error("Preview: contract failed to load", projectId, err);
           return null;
         }),
-        // Privacy status only feeds the developer banner; it must not break the staff preview.
+        // Privacy status only feeds the banner; it must not break the preview.
         getPrivacyStatus().catch(() => null),
         getSemanticLanding(projectId).catch(() => null),
       ]);
       setLanding(landingData);
       setContract(contractData);
-      setContractFailed(contractData === null);
       setPrivacyStatus(privacy);
       setSemantic(semanticData);
     } catch (err) {
@@ -191,97 +184,6 @@ export function LandingPreview({ projectId }: Props) {
     } catch (err) {
       setError(formatApiError(err, "Не удалось собрать интерактивный WOW ZIP"));
     }
-  }
-
-  const fileName = `${slugifyRu(contract?.title || "landing")}.html`;
-
-  async function handleDownload() {
-    if (downloadBusy) return;
-    setDownloadBusy(true);
-    setDownloadError(null);
-    try {
-      const theme = resolveExportTheme(renderConfig, contract, urlStyle, landing);
-      const styleConfig = resolveExportStyleConfig(renderConfig, contract);
-      saveTextFile(await exportHtml(projectId, { theme, styleConfig }), fileName);
-      setDownloadOpen(false);
-    } catch (err) {
-      console.error("Export failed", projectId, err);
-      setDownloadError(staffErrorMessage(err, "Не удалось собрать файл сайта"));
-    } finally {
-      setDownloadBusy(false);
-    }
-  }
-
-  if (!devMode) {
-    return (
-      <div className="min-h-screen bg-white">
-        <header className="border-b border-grid bg-white">
-          <div className="flex flex-wrap items-center gap-4 px-6 py-2.5">
-            <CatLogoLink compact />
-            <span className="min-w-0 flex-[1_1_200px] truncate text-[15px] text-fur">
-              Так страницу увидят посетители
-            </span>
-            <div className="flex flex-wrap gap-2.5">
-              <Link
-                href={`/editor/${projectId}`}
-                className="inline-flex h-10 items-center rounded-[10px] border border-field bg-white px-4 text-[15px] text-ink no-underline hover:bg-paper"
-              >
-                Вернуться в редактор
-              </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  setDownloadError(null);
-                  setDownloadOpen(true);
-                }}
-                className="h-10 rounded-[10px] bg-scheme px-[18px] text-[15px] font-semibold text-white hover:bg-scheme-hover"
-              >
-                Скачать сайт
-              </button>
-            </div>
-          </div>
-        </header>
-        <main className="mx-auto max-w-6xl px-4 py-8">
-          {loading && <p className="text-fur">Открываю страницу…</p>}
-          {error && (
-            <div role="alert" className="flex flex-wrap items-center gap-3 text-danger">
-              {error}
-              <button type="button" onClick={() => void load()} className="rounded-lg border border-field px-3 py-1.5 text-ink hover:bg-paper">
-                Повторить
-              </button>
-            </div>
-          )}
-          {!loading && contractFailed && (
-            <div role="alert" className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-marker-line bg-white px-5 py-3 text-[15px]">
-              Не удалось загрузить данные проекта: страница ниже может быть неполной.
-              <button type="button" onClick={() => void load()} className="rounded-lg border border-field px-3 py-1.5 hover:bg-paper">
-                Обновить
-              </button>
-            </div>
-          )}
-          {landing && renderConfig && (
-            <InteractiveRenderer
-              landing={landing}
-              contract={contract}
-              projectId={projectId}
-              semantic={semantic}
-              config={renderConfig}
-              onConfigChange={handleConfigChange}
-              showDevPanel={false}
-              showFidelityDebug={false}
-            />
-          )}
-        </main>
-        <DownloadDialog
-          open={downloadOpen}
-          fileName={fileName}
-          busy={downloadBusy}
-          error={downloadError}
-          onDownload={() => void handleDownload()}
-          onClose={() => setDownloadOpen(false)}
-        />
-      </div>
-    );
   }
 
   if (loading) return <p className="text-muted-foreground">Загрузка preview…</p>;

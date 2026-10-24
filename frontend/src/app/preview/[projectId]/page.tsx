@@ -1,15 +1,23 @@
 import { Suspense } from "react";
 import { LandingPreview } from "@/components/preview/LandingPreview";
+import { StaffPreview } from "@/components/preview/StaffPreview";
 
 export default async function PreviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { projectId } = await params;
-  return (
-    <Suspense fallback={<p className="px-6 py-8 text-fur">Открываю страницу…</p>}>
-      <LandingPreview projectId={projectId} />
-    </Suspense>
-  );
+  const { dev } = await searchParams;
+  // ?dev=1 keeps the old renderer with its export panels and debug views for developers.
+  if (dev !== undefined) {
+    return (
+      <Suspense fallback={<p className="px-6 py-8 text-fur">Открываю страницу…</p>}>
+        <LandingPreview projectId={projectId} />
+      </Suspense>
+    );
+  }
+  return <StaffPreview projectId={projectId} />;
 }

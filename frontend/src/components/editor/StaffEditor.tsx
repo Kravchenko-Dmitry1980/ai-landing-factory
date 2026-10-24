@@ -4,16 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  exportHtml,
-  generateLanding,
   getContract,
   getTeamReview,
+  patchStyleConfig,
   teamReviewManualText,
   updateContract,
 } from "@/lib/api";
 import { getApiErrorStatus } from "@/lib/api-errors";
-import { resolvePreviewProfileId } from "@/lib/resolveStyleConfig";
-import { parseStyleConfigFromContract } from "@/lib/styleConfig";
+import { fetchLandingFile, landingErrorMessage } from "@/lib/landingFile";
+import { profileForTheme, themeFromContract, type LandingTheme } from "@/landing/model";
 import {
   blockHint,
   editableBlocks,
@@ -28,11 +27,13 @@ import {
 } from "@/lib/staff";
 import type { LandingBlock, LandingContract, TeamReviewData } from "@/lib/types";
 import { CatLogoLink } from "@/components/shell/AppHeader";
-import { DownloadDialog, saveTextFile } from "@/components/shell/DownloadDialog";
+import { DownloadDialog, saveBlob } from "@/components/shell/DownloadDialog";
 import { InlineText } from "./InlineText";
 import { TeamDialog } from "./TeamDialog";
 
 const SAVE_DELAY_MS = 900;
+const SAVE_FAILED_FOR_OUTPUT =
+  "Изменения не сохранились, поэтому страница не обновлена. Проверьте подключение и попробуйте ещё раз.";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 type TeamStatus = "loading" | "ok" | "error";
@@ -68,7 +69,8 @@ function headerFrom(c: LandingContract): Header {
 
 function blocksWithTagline(blocks: LandingBlock[], quote: string): LandingBlock[] {
   const text = quote.trim();
-  if (!text) return blocks;
+  // An emptied description must disappear from the page too, not fall back to the old tagline.
+  if (!text) return blocks.map((b) => (b.key === "tagline" ? { ...b, content: "" } : b));
   if (blocks.some((b) => b.key === "tagline")) {
     return blocks.map((b) => (b.key === "tagline" ? { ...b, content: text } : b));
   }
@@ -99,6 +101,8 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
   const [teamOpen, setTeamOpen] = useState(false);
   const [teamBusy, setTeamBusy] = useState(false);
   const [teamError, setTeamError] = useState<string | null>(null);
+  const [themeBusy, setThemeBusy] = useState(false);
+  const [themeError, setThemeError] = useState<string | null>(null);
 
   const [editTick, setEditTick] = useState(0);
   const handledTick = useRef(0);
@@ -244,27 +248,13 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
     editBlocks((prev) => replaceAt(prev, index, { ...prev[index], ...patch }));
   }
 
-  /** Saves and refreshes the generated page; returns what went wrong, or null when ready. */
-  async function prepareOutput(): Promise<string | null> {
-    if (!(await flushSave())) {
-      return "Изменения не сохранились, поэтому страница не обновлена. Проверьте подключение и попробуйте ещё раз.";
-    }
-    try {
-      await generateLanding(projectId, { mode: "stub" });
-      return null;
-    } catch (err) {
-      console.error("Landing refresh failed", projectId, err);
-      return staffErrorMessage(err, "Изменения сохранены, но страницу не удалось обновить");
-    }
-  }
-
+  // The page is rendered from the saved contract, so saving pending edits is all it takes.
   async function openPreview() {
     if (leaving) return;
     setLeaving(true);
     setActionError(null);
-    const problem = await prepareOutput();
-    if (problem) {
-      setActionError(problem);
+    if (!(await flushSave())) {
+      setActionError(SAVE_FAILED_FOR_OUTPUT);
       setLeaving(false);
       return;
     }
@@ -278,26 +268,49 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
     setDownloadBusy(true);
     setDownloadError(null);
     try {
-      const problem = await prepareOutput();
-      if (problem) {
-        setDownloadError(problem);
+      if (!(await flushSave())) {
+        setDownloadError(SAVE_FAILED_FOR_OUTPUT);
         return;
       }
-      const latestContract = await getContract(projectId);
-      const styleConfig = parseStyleConfigFromContract(
-        latestContract.style_config,
-        latestContract.presentation_style,
-        latestContract.style,
-      );
-      const html = await exportHtml(projectId, { theme: resolvePreviewProfileId(styleConfig), styleConfig });
-      saveTextFile(html, fileName);
+      const file = await fetchLandingFile(projectId);
+      saveBlob(new Blob([file.html], { type: "text/html;charset=utf-8" }), file.fileName);
       setDownloadOpen(false);
     } catch (err) {
       console.error("Export failed", projectId, err);
-      setDownloadError(staffErrorMessage(err, "Не удалось собрать файл сайта"));
+      setDownloadError(landingErrorMessage(err, "Не удалось собрать файл сайта"));
     } finally {
       setDownloadBusy(false);
     }
+  }
+
+  const theme = contract ? themeFromContract(contract) : "night";
+
+  /**
+   * The style endpoint rewrites the whole contract on the server, so it runs in the save queue:
+   * after pending text edits, and before any edit typed later.
+   */
+  async function chooseTheme(next: LandingTheme) {
+    if (!contract || themeBusy || next === theme) return;
+    setThemeBusy(true);
+    setThemeError(null);
+    await flushSave();
+    const run = async (): Promise<boolean> => {
+      try {
+        const result = await patchStyleConfig(projectId, {
+          ...(contract.style_config ?? { profile: profileForTheme(next) }),
+          profile: profileForTheme(next),
+        });
+        setContract((prev) => (prev ? { ...prev, style_config: result.style_config } : prev));
+        return true;
+      } catch (err) {
+        console.error("Theme change failed", projectId, err);
+        setThemeError(staffErrorMessage(err, "Не удалось сменить оформление"));
+        return false;
+      }
+    };
+    saveChain.current = saveChain.current.then(run, run);
+    await saveChain.current;
+    setThemeBusy(false);
   }
 
   async function saveTeam(text: string) {
@@ -408,7 +421,7 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
           disabled={leaving}
           className="h-10 rounded-[10px] border border-field bg-white px-4 text-[15px] text-ink hover:bg-paper disabled:cursor-wait disabled:opacity-70"
         >
-          {leaving ? "Обновляю страницу…" : "Посмотреть как посетитель"}
+          {leaving ? "Сохраняю…" : "Посмотреть как посетитель"}
         </button>
         <button
           type="button"
@@ -479,6 +492,7 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
           </article>
 
           <aside aria-label="Подсказки" className="flex max-w-full flex-[1_1_300px] flex-col gap-4 lg:sticky lg:top-6 lg:max-w-[340px]">
+            <ThemePicker value={theme} busy={themeBusy} error={themeError} onChange={(t) => void chooseTheme(t)} />
             <section className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-5">
               <h2 className="font-display text-[19px] font-semibold">Что дополнить</h2>
               {todos.length === 0 ? (
@@ -556,6 +570,60 @@ function TopBar({
         {children && <div className="flex flex-wrap items-center gap-2.5">{children}</div>}
       </div>
     </header>
+  );
+}
+
+const THEMES: { value: LandingTheme; label: string; swatch: string }[] = [
+  {
+    value: "night",
+    label: "Ночной",
+    swatch:
+      "bg-[#0C1222] [background-image:linear-gradient(rgba(122,164,255,.12)_1px,transparent_1px),linear-gradient(90deg,rgba(122,164,255,.12)_1px,transparent_1px)] [background-size:8px_8px]",
+  },
+  { value: "light", label: "Светлый", swatch: "bg-white bg-grid-paper [background-size:8px_8px]" },
+];
+
+function ThemePicker({
+  value,
+  busy,
+  error,
+  onChange,
+}: {
+  value: LandingTheme;
+  busy: boolean;
+  error: string | null;
+  onChange: (t: LandingTheme) => void;
+}) {
+  return (
+    <section className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-5">
+      <h2 className="font-display text-[19px] font-semibold">Оформление</h2>
+      <div className="grid grid-cols-2 gap-3">
+        {THEMES.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            aria-pressed={value === t.value}
+            disabled={busy}
+            onClick={() => onChange(t.value)}
+            className="flex flex-col gap-1.5 text-left text-[15px] disabled:cursor-wait"
+          >
+            <span
+              className={`relative h-16 overflow-hidden rounded-[10px] border-2 ${t.swatch} ${
+                value === t.value ? "border-scheme" : "border-line"
+              }`}
+            >
+              <span className="absolute bottom-2 left-2 right-8 h-1.5 rounded bg-[#3FDCFF] shadow-[0_0_8px_#3FDCFF]" />
+            </span>
+            <span className={value === t.value ? "font-semibold" : ""}>{t.label}</span>
+          </button>
+        ))}
+      </div>
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
+    </section>
   );
 }
 
