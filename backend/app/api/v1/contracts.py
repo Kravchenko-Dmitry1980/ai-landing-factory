@@ -18,7 +18,8 @@ from app.schemas.team_review import (
     TeamReviewActionResponse,
     TeamReviewResponse,
 )
-from app.schemas.fidelity import ContractCompletenessReport, SourceStructureReport
+from app.schemas.fidelity import ContractCompletenessReport, SourceStructureReport, TeamMember
+from app.services.export.public_team import publishable_team
 from app.services.evidence.evidence_visibility import EvidenceVisibilityBuilder
 from app.schemas.generation_responses import (
     ArchitectureResponse,
@@ -55,6 +56,16 @@ async def get_evidence_report(project_id: UUID) -> EvidenceVisibilityResponse:
     if not contract:
         raise HTTPException(404, "LandingContract not found")
     return EvidenceVisibilityBuilder().build(contract)
+
+
+@router.get("/{project_id}/public-team", response_model=list[TeamMember])
+async def get_public_team(project_id: UUID) -> list[TeamMember]:
+    """The team a public page may show: same verification and publication policy as the HTML export."""
+    contract = await get_contract_repository().get_contract(project_id)
+    if not contract:
+        raise HTTPException(404, "LandingContract not found")
+    block = next((b for b in contract.blocks if b.key == "team"), None)
+    return publishable_team(block, contract.fidelity)
 
 
 @router.get("/{project_id}/team-review", response_model=TeamReviewResponse)

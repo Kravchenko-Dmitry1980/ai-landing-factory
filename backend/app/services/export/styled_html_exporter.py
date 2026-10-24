@@ -336,18 +336,9 @@ class StyledHtmlExporter:
         fidelity: FidelityMetadata | None,
         theme: ExportTheme = ExportTheme.ENTERPRISE_DARK,
     ) -> str:
-        from app.services.orchestration.agents.export_guard_agent import guard_team_for_export
+        from app.services.export.public_team import publishable_team
 
-        verification_report = fidelity.team_verification_report if fidelity else None
-        publication_mode = fidelity.team_publication_mode if fidelity else "safe_public"
-        accepted_ids = list(fidelity.accepted_team_candidate_ids) if fidelity else []
-        members: list[TeamMember] = list(fidelity.team_structured) if fidelity else []
-        if not members and block and block.bullets:
-            members = self._members_from_team_bullets(block.bullets)
-        members, guard_warnings = guard_team_for_export(
-            members, verification_report, publication_mode, accepted_ids
-        )
-        members = filter_team_members(members)
+        members = publishable_team(block, fidelity)
         if members:
             cards = []
             for m in members:
@@ -381,19 +372,3 @@ class StyledHtmlExporter:
                 f"{intro}<div class='grid-2'>{''.join(cards)}</div></section>"
             )
         return self._list_section(block, "team", "Команда проекта")
-
-    @staticmethod
-    def _members_from_team_bullets(bullets: list[str]) -> list[TeamMember]:
-        members: list[TeamMember] = []
-        seen: set[str] = set()
-        for line in bullets:
-            header = line.strip()
-            if not header or header.startswith("·") or header.startswith("  ·"):
-                continue
-            name = header.split(" — ", 1)[0].strip()
-            role = header.split(" — ", 1)[1].strip() if " — " in header else ""
-            if len(name) < 5 or name.lower() in seen:
-                continue
-            seen.add(name.lower())
-            members.append(TeamMember(name=name, role=role, project_area="", contributions=[]))
-        return filter_team_members(members)
