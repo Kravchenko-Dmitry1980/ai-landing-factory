@@ -62,6 +62,10 @@ class LandingContract(BaseModel):
 
 
 class LandingContractUpdate(BaseModel):
+    title: str | None = None
+    timeline: str | None = None
+    lead: str | None = None
+    quote: str | None = None
     style: LandingStylePreset | None = None
     blocks: list[LandingBlock] | None = None
     client: str | None = None

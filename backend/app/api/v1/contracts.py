@@ -32,8 +32,11 @@ from app.schemas.responses import EnrichmentResponse
 from app.schemas.semantic_generation import GeneratedSemanticLanding
 from app.schemas.semantic_responses import SemanticGenerationResponse
 from app.services.contract_fidelity.completeness_gate import ContractCompletenessGate
+from app.config import settings
+from app.repositories.project_repository import ProjectRepository
 
 router = APIRouter()
+_project_repo = ProjectRepository(settings)
 
 
 @router.get("/{project_id}/contract-completeness", response_model=ContractCompletenessReport)
@@ -124,6 +127,10 @@ async def update_contract(
     updated = await builder.update_contract(
         project_id,
         blocks=body.blocks,
+        title=body.title,
+        timeline=body.timeline,
+        lead=body.lead,
+        quote=body.quote,
         style=body.style,
         client=body.client,
         goals=body.goals,
@@ -132,6 +139,8 @@ async def update_contract(
     )
     if not updated:
         raise HTTPException(404, "LandingContract not found")
+    # Edits count as a change of the project: "Изменён …" and list order follow them.
+    await _project_repo.touch(project_id)
     return updated
 
 

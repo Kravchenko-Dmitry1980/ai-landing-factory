@@ -75,15 +75,8 @@ class StyledHtmlExporter:
         blocks = {b.key: b for b in contract.blocks}
         fidelity: FidelityMetadata | None = contract.fidelity
 
+        # The downloaded page goes to site visitors: completeness is shown in the editor, not here.
         incomplete = ""
-        if fidelity and fidelity.completeness and fidelity.completeness.export_incomplete:
-            score = fidelity.completeness.score
-            missing = ", ".join(fidelity.completeness.missing_fields[:8])
-            incomplete = (
-                f'<div class="incomplete-banner">'
-                f"⚠ Export incomplete (score {score}/100). Missing: {escape(missing)}"
-                f"</div>"
-            )
 
         hero = self._hero(contract, blocks, style_config)
         modules = self._modules_section(fidelity)
@@ -95,10 +88,7 @@ class StyledHtmlExporter:
         stack = self._stack_section(blocks.get("tech_stack"), fidelity)
         team = self._team_section(blocks.get("team"), fidelity, theme)
         outlook = self._list_section(blocks.get("outlook"), "outlook", "Перспектива развития")
-        footer = (
-            f'<footer><p>AI Landing Factory · {escape(contract.title or "Проект")} '
-            f"· v{contract.version}</p></footer>"
-        )
+        footer = "<footer><p>Проект выполнен на платформе УИИ</p></footer>"
 
         present_ids = {
             sid
@@ -231,17 +221,23 @@ class StyledHtmlExporter:
         )
 
     def _block_section(self, block: LandingBlock | None, section_id: str) -> str:
-        if not block or not block.content.strip():
+        if not block:
             return ""
         content = block.content.strip()
-        if len(content) > LONG_TEXT_CHARS:
+        bullets = self._normalize_items(block.bullets)
+        if not content and not bullets:
+            return ""
+        body = ""
+        if content and len(content) > LONG_TEXT_CHARS:
             body = (
                 f"<details class='collapsible-section'>"
                 f"<summary>Показать полностью</summary>"
                 f"<p>{escape(content)}</p></details>"
             )
-        else:
+        elif content:
             body = f"<p>{escape(content)}</p>"
+        if bullets:
+            body += "<ul class='bullets'>" + "".join(f"<li>{escape(b)}</li>" for b in bullets) + "</ul>"
         return (
             f"<section id='{section_id}'><h2>{escape(block.title)}</h2>"
             f"{body}</section>"
@@ -249,6 +245,15 @@ class StyledHtmlExporter:
 
     def _normalize_items(self, items: list[str]) -> list[str]:
         return [normalize_bullet(item) for item in items if normalize_bullet(item)]
+
+    def _block_items(self, block: LandingBlock | None) -> list[str]:
+        """Bullets, or the block text line by line when the editor filled only the text."""
+        if not block:
+            return []
+        bullets = self._normalize_items(block.bullets)
+        if bullets:
+            return bullets
+        return self._normalize_items([ln.strip() for ln in block.content.splitlines() if ln.strip()])
 
     def _list_section(
         self,
@@ -258,10 +263,7 @@ class StyledHtmlExporter:
     ) -> str:
         if not block:
             return ""
-        raw_items = block.bullets or (
-            [ln.strip() for ln in block.content.splitlines() if ln.strip()]
-        )
-        items = self._normalize_items(raw_items)
+        items = self._block_items(block)
         if not items:
             return ""
         title = escape(block.title or fallback_title)
@@ -275,13 +277,17 @@ class StyledHtmlExporter:
         else:
             lis = "".join(f"<li>{escape(item)}</li>" for item in items)
             body = f"<ul class='bullets'>{lis}</ul>"
+        # Text written above real bullets is an intro paragraph, not list items.
+        intro = block.content.strip() if self._normalize_items(block.bullets) else ""
+        if intro:
+            body = f"<p>{escape(intro)}</p>{body}"
         return f"<section id='{section_id}'><h2>{title}</h2>{body}</section>"
 
     def _io_section(self, blocks: dict[str, LandingBlock]) -> str:
         inputs = blocks.get("inputs")
         outputs = blocks.get("outputs")
-        in_items = self._normalize_items(inputs.bullets if inputs else [])
-        out_items = self._normalize_items(outputs.bullets if outputs else [])
+        in_items = self._block_items(inputs)
+        out_items = self._block_items(outputs)
         if not in_items and not out_items:
             return ""
         in_html = "".join(f"<li>{escape(i)}</li>" for i in in_items)

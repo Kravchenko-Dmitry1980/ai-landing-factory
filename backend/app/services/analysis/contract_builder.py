@@ -1235,7 +1235,15 @@ class ContractBuilderService:
 
         if blocks is not None:
 
+            stack_before = _block_signature(contract.blocks, "tech_stack")
+
             contract.blocks = blocks
+
+            # A hand-edited stack must win over the grouping parsed from the sources.
+
+            if contract.fidelity and _block_signature(blocks, "tech_stack") != stack_before:
+
+                contract.fidelity.tech_stack_grouped = {}
 
         for key, value in fields.items():
 
@@ -1254,6 +1262,20 @@ class ContractBuilderService:
         await self._repo.save_contract(contract)
 
         return contract
+
+
+
+
+
+def _block_signature(blocks: list[LandingBlock], key: str) -> tuple[str, tuple[str, ...]] | None:
+
+    for block in blocks:
+
+        if block.key == key:
+
+            return block.content, tuple(block.bullets)
+
+    return None
 
 
 
