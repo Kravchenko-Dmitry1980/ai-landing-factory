@@ -12,7 +12,13 @@ describe("editor route preflight", () => {
   it("uses backend preflight and notFound for missing project", () => {
     const src = source();
     expect(src).toContain("notFound()");
-    expect(src).toContain("/projects/${projectId}");
+    expect(src).toContain("/projects/${encodeURIComponent(projectId)}");
     expect(src).toContain("Editor preflight failed");
+  });
+
+  it("opens only for editors, on behalf of the signed-in visitor", () => {
+    const src = source();
+    expect(src).toContain('requireUser(`/editor/${projectId}`, "editor")');
+    expect(src).toContain("backendFetch(");
   });
 });

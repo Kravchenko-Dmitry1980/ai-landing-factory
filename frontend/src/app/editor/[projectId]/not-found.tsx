@@ -10,7 +10,7 @@ export default function EditorProjectNotFound() {
         <p className="text-[17px] text-fur">Возможно, ссылка устарела или лендинг удалили. Откройте нужный из списка.</p>
         <div>
           <Link
-            href="/"
+            href="/studio"
             className="inline-flex h-11 items-center rounded-[10px] border border-field bg-white px-5 text-[15px] text-ink no-underline hover:bg-paper"
           >
             Ваши лендинги

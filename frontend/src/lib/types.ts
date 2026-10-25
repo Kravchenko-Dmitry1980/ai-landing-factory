@@ -302,6 +302,8 @@ export interface TeamReviewActionResult {
   publication_mode: string;
   summary: TeamReviewSummary;
   team_count: number;
+  /** The contract version after the change (absent on old backends). */
+  contract_version?: number | null;
 }
 
 export interface FidelityMetadata {
@@ -625,6 +627,10 @@ export interface ProjectSummary {
   created_at: string;
   updated_at: string;
   version: number;
+  /** Library state of the landing; null when it was never published. */
+  publication_status?: "published" | "withdrawn" | null;
+  published_path?: string | null;
+  published_contract_version?: number | null;
 }
 
 export interface UploadResponse {

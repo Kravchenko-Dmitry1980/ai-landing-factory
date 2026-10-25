@@ -1,7 +1,7 @@
 import { LandingEditor } from "@/components/editor/LandingEditor";
 import { StaffEditor } from "@/components/editor/StaffEditor";
 import { AppHeader } from "@/components/shell/AppHeader";
-import { getApiBaseUrl } from "@/lib/api";
+import { backendFetch, requireUser } from "@/lib/session.server";
 import { notFound } from "next/navigation";
 
 export default async function EditorPage({
@@ -13,12 +13,11 @@ export default async function EditorPage({
 }) {
   const { projectId } = await params;
   const { dev } = await searchParams;
-  // SSR: getApiBaseUrl() uses INTERNAL_API_URL (Docker: http://backend:8001/api/v1)
-  const apiBase = getApiBaseUrl();
-  const preflight = await fetch(`${apiBase}/projects/${projectId}`, {
-    cache: "no-store",
-  });
-  if (preflight.status === 404) {
+  const user = await requireUser(`/editor/${projectId}`, "editor");
+  // SSR: the backend address comes from INTERNAL_API_URL (Docker: http://backend:8001/api/v1).
+  const preflight = await backendFetch(`/projects/${encodeURIComponent(projectId)}`);
+  // 422: not a project id at all, which for a visitor is the same as a missing landing.
+  if (preflight.status === 404 || preflight.status === 422) {
     notFound();
   }
   if (!preflight.ok) {
@@ -28,7 +27,7 @@ export default async function EditorPage({
   if (dev !== undefined) {
     return (
       <>
-        <AppHeader />
+        <AppHeader user={user} current="studio" />
         <main className="mx-auto max-w-6xl px-4 py-8">
           <LandingEditor projectId={projectId} />
         </main>

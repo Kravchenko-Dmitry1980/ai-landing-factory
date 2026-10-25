@@ -71,6 +71,13 @@ describe("staff errors", () => {
     expect(staffErrorMessage(new ApiRequestError("{}", 422), "X")).not.toMatch(/uvicorn|API|422 Unprocessable/);
   });
 
+  it("tells how to recover from an ended session without losing the text on screen", () => {
+    const ended = new ApiRequestError(JSON.stringify({ detail: "Войдите в учётную запись." }), 401);
+    expect(staffErrorMessage(ended, "Изменения не сохранились")).toMatch(/Войдите в новой вкладке и нажмите «Повторить»/);
+    expect(isRetryableError(ended)).toBe(true);
+    expect(staffErrorMessage(new ApiRequestError("{}", 403), "X")).toMatch(/нет прав/);
+  });
+
   it("offers a retry only when it can help", () => {
     expect(isRetryableError(new ApiRequestError("x", null))).toBe(true);
     expect(isRetryableError(new ApiRequestError("x", 503))).toBe(true);

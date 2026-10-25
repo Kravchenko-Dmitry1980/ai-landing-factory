@@ -12,6 +12,14 @@ import {
 } from "@/lib/api";
 import { getApiErrorStatus } from "@/lib/api-errors";
 import { fetchLandingFile, landingErrorMessage } from "@/lib/landingFile";
+import {
+  apiDetail,
+  getPublication,
+  platformErrorMessage,
+  publicationState,
+  publishLanding,
+  withdrawPublication,
+} from "@/lib/platform";
 import { profileForTheme, themeFromContract, type LandingTheme } from "@/landing/model";
 import {
   blockHint,
@@ -29,6 +37,7 @@ import type { LandingBlock, LandingContract, TeamReviewData } from "@/lib/types"
 import { CatLogoLink } from "@/components/shell/AppHeader";
 import { DownloadDialog, saveBlob } from "@/components/shell/DownloadDialog";
 import { InlineText } from "./InlineText";
+import { PublishPanel, publishButtonLabel, type PublicationLoad } from "./PublishPanel";
 import { TeamDialog } from "./TeamDialog";
 
 const SAVE_DELAY_MS = 900;
@@ -91,7 +100,8 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
   const [teamStatus, setTeamStatus] = useState<TeamStatus>("loading");
   const [loadError, setLoadError] = useState<{ message: string; noMaterials: boolean } | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [saveError, setSaveError] = useState<{ message: string; retryable: boolean } | null>(null);
+  /** stale: someone else saved this landing first; only a reload can bring their text in. */
+  const [saveError, setSaveError] = useState<{ message: string; retryable: boolean; stale?: boolean } | null>(null);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
@@ -103,6 +113,10 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
   const [teamError, setTeamError] = useState<string | null>(null);
   const [themeBusy, setThemeBusy] = useState(false);
   const [themeError, setThemeError] = useState<string | null>(null);
+  const [publication, setPublication] = useState<PublicationLoad>({ status: "loading" });
+  const [publishBusy, setPublishBusy] = useState<"publish" | "withdraw" | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [justPublished, setJustPublished] = useState(false);
 
   const [editTick, setEditTick] = useState(0);
   const handledTick = useRef(0);
@@ -111,6 +125,29 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
   const latest = useRef<{ header: Header; blocks: LandingBlock[] } | null>(null);
   /** Edits on screen that the server has not confirmed yet (also true after a failed save). */
   const dirty = useRef(false);
+  /** The contract version the screen is based on; every change sends it and gets the next one back. */
+  const version = useRef<number | null>(null);
+  /**
+   * The screen no longer matches the server (someone else saved, or the team changed but did not
+   * reload here). Saving it would undo newer text, so saves stop until the page is reloaded.
+   */
+  const screenStale = useRef(false);
+
+  const adoptVersion = useCallback((next: number | null | undefined) => {
+    if (typeof next !== "number") return;
+    version.current = next;
+    setContract((prev) => (prev ? { ...prev, version: next } : prev));
+  }, []);
+
+  const loadPublication = useCallback(async () => {
+    setPublication({ status: "loading" });
+    try {
+      setPublication({ status: "ok", info: await getPublication(projectId) });
+    } catch (err) {
+      console.error("Publication status failed to load", projectId, err);
+      setPublication({ status: "error", message: platformErrorMessage(err, "Не удалось узнать, опубликован ли лендинг") });
+    }
+  }, [projectId]);
 
   const loadTeam = useCallback(async () => {
     setTeamStatus("loading");
@@ -128,6 +165,7 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
     try {
       const data = await getContract(projectId);
       const loaded = headerFrom(data);
+      version.current = data.version;
       setContract(data);
       setBlocks(data.blocks);
       if (!loaded.title.trim() && projectName.trim()) {
@@ -145,7 +183,8 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
       return;
     }
     void loadTeam();
-  }, [projectId, projectName, loadTeam]);
+    void loadPublication();
+  }, [projectId, projectName, loadTeam, loadPublication]);
 
   useEffect(() => {
     void load();
@@ -157,14 +196,28 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
       const run = async (): Promise<boolean> => {
         const snapshot = latest.current;
         if (!snapshot) return true;
+        if (screenStale.current) {
+          setSaveError((prev) =>
+            prev?.stale
+              ? prev
+              : { message: "Страница устарела: обновите её, прежде чем править дальше.", retryable: false, stale: true },
+          );
+          setSaveState("error");
+          return false;
+        }
         setSaveState("saving");
         try {
           const updated = await updateContract(
             projectId,
-            { ...snapshot.header, blocks: blocksWithTagline(snapshot.blocks, snapshot.header.quote) },
+            {
+              ...snapshot.header,
+              blocks: blocksWithTagline(snapshot.blocks, snapshot.header.quote),
+              expected_version: version.current ?? undefined,
+            },
             { keepalive },
           );
           if (latest.current === snapshot) dirty.current = false;
+          version.current = updated.version;
           setContract(updated);
           setSaveState("saved");
           setSaveError(null);
@@ -173,9 +226,14 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
           return true;
         } catch (err) {
           console.error("Autosave failed", projectId, err);
+          const stale = getApiErrorStatus(err) === 409;
+          if (stale) screenStale.current = true;
           setSaveError({
-            message: staffErrorMessage(err, "Изменения не сохранились"),
-            retryable: isRetryableError(err),
+            message: stale
+              ? (apiDetail(err) ?? "Этот лендинг изменил другой сотрудник. Обновите страницу.")
+              : staffErrorMessage(err, "Изменения не сохранились"),
+            retryable: !stale && isRetryableError(err),
+            stale,
           });
           setSaveState("error");
           return false;
@@ -283,6 +341,54 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
     }
   }
 
+  /** Saves pending edits, then renders and publishes exactly what is saved. */
+  async function publish() {
+    if (publishBusy) return;
+    setPublishBusy("publish");
+    setPublishError(null);
+    setJustPublished(false);
+    try {
+      if (!(await flushSave())) {
+        setPublishError(SAVE_FAILED_FOR_OUTPUT);
+        return;
+      }
+      setPublication({ status: "ok", info: await publishLanding(projectId, version.current) });
+      setJustPublished(true);
+    } catch (err) {
+      console.error("Publish failed", projectId, err);
+      setPublishError(platformErrorMessage(err, "Не удалось опубликовать лендинг"));
+      // A timeout or a lost answer may still have published: show what the library really has.
+      void loadPublication();
+    } finally {
+      setPublishBusy(null);
+    }
+  }
+
+  async function withdraw() {
+    if (publishBusy) return;
+    const sure = window.confirm(
+      "Снять лендинг с публикации? Он пропадёт из библиотеки, а ссылка перестанет открываться. Опубликовать снова можно в любой момент.",
+    );
+    if (!sure) return;
+    setPublishBusy("withdraw");
+    setPublishError(null);
+    setJustPublished(false);
+    try {
+      setPublication({ status: "ok", info: await withdrawPublication(projectId) });
+    } catch (err) {
+      console.error("Withdraw failed", projectId, err);
+      setPublishError(platformErrorMessage(err, "Не удалось снять лендинг с публикации"));
+    } finally {
+      setPublishBusy(null);
+    }
+  }
+
+  /** After a conflict the screen holds an old version: only a fresh load shows the colleague's text. */
+  function reloadAfterConflict() {
+    dirty.current = false;
+    window.location.reload();
+  }
+
   const theme = contract ? themeFromContract(contract) : "night";
 
   /**
@@ -293,18 +399,31 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
     if (!contract || themeBusy || next === theme) return;
     setThemeBusy(true);
     setThemeError(null);
-    await flushSave();
+    if (!(await flushSave())) {
+      setThemeError("Сначала должны сохраниться правки текста, а они не сохранились. Попробуйте ещё раз.");
+      setThemeBusy(false);
+      return;
+    }
     const run = async (): Promise<boolean> => {
       try {
-        const result = await patchStyleConfig(projectId, {
-          ...(contract.style_config ?? { profile: profileForTheme(next) }),
-          profile: profileForTheme(next),
-        });
+        const result = await patchStyleConfig(
+          projectId,
+          {
+            ...(contract.style_config ?? { profile: profileForTheme(next) }),
+            profile: profileForTheme(next),
+          },
+          version.current ?? undefined,
+        );
         setContract((prev) => (prev ? { ...prev, style_config: result.style_config } : prev));
+        adoptVersion(result.contract_version);
         return true;
       } catch (err) {
         console.error("Theme change failed", projectId, err);
-        setThemeError(staffErrorMessage(err, "Не удалось сменить оформление"));
+        setThemeError(
+          getApiErrorStatus(err) === 409
+            ? (apiDetail(err) ?? "Этот лендинг изменил другой сотрудник. Обновите страницу.")
+            : staffErrorMessage(err, "Не удалось сменить оформление"),
+        );
         return false;
       }
     };
@@ -317,13 +436,32 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
     if (teamBusy) return;
     setTeamBusy(true);
     setTeamError(null);
-    // Text edits go first so the full blocks list we send later carries the new team block.
-    await flushSave();
-    try {
-      await teamReviewManualText(projectId, text);
-    } catch (err) {
-      console.error("Team save failed", projectId, err);
-      setTeamError(staffErrorMessage(err, "Не удалось сохранить список команды"));
+    // Text edits go first: a pending snapshot saved later would carry the old team block back.
+    if (!(await flushSave())) {
+      setTeamError("Сначала должны сохраниться правки текста, а они не сохранились. Попробуйте ещё раз.");
+      setTeamBusy(false);
+      return;
+    }
+    let failure: unknown = null;
+    // In the save queue too: the team change bumps the version that the next text save must send.
+    const run = async (): Promise<boolean> => {
+      try {
+        const result = await teamReviewManualText(projectId, text, version.current ?? undefined);
+        adoptVersion(result.contract_version);
+        return true;
+      } catch (err) {
+        failure = err;
+        return false;
+      }
+    };
+    saveChain.current = saveChain.current.then(run, run);
+    if (!(await saveChain.current)) {
+      console.error("Team save failed", projectId, failure);
+      setTeamError(
+        getApiErrorStatus(failure) === 409
+          ? (apiDetail(failure) ?? "Этот лендинг изменил другой сотрудник. Обновите страницу.")
+          : staffErrorMessage(failure, "Не удалось сохранить список команды"),
+      );
       setTeamBusy(false);
       return;
     }
@@ -337,7 +475,9 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
       if (freshTeam) setBlocks((prev) => prev.map((b) => (b.key === "team" ? freshTeam : b)));
     } catch (err) {
       console.error("Team refresh failed", projectId, err);
-      setActionError("Команда сохранена, но список на экране не обновился. Обновите страницу.");
+      // The old team block is still on screen; saving it would undo the new team.
+      screenStale.current = true;
+      setActionError("Команда сохранена, но страница не обновилась. Обновите страницу, прежде чем править дальше.");
     }
   }
 
@@ -379,7 +519,7 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
               : loadError.message}
           </p>
           <div className="flex flex-wrap gap-3">
-            <Link href="/" className="inline-flex h-11 items-center rounded-[10px] border border-field bg-white px-5 text-[15px] text-ink no-underline hover:bg-paper">
+            <Link href="/studio" className="inline-flex h-11 items-center rounded-[10px] border border-field bg-white px-5 text-[15px] text-ink no-underline hover:bg-paper">
               {loadError.noMaterials ? "Загрузить материалы" : "Ваши лендинги"}
             </Link>
             {!loadError.noMaterials && (
@@ -402,16 +542,26 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
     );
   }
 
+  const publicationInfo = publication.status === "ok" ? publication.info : null;
+  const pubState = publicationState(publicationInfo?.status, publicationInfo?.contract_version, contract.version);
+  const publishLabel = publishButtonLabel(pubState);
+
   return (
     <div className="min-h-screen bg-[#EEF1F7]">
       <TopBar title={header.title || contract.title || ""} onLeave={(href) => void leaveTo(href)}>
         {saveState === "error" && (
           <span role="alert" className="flex items-center gap-2 rounded-lg bg-marker px-3 py-1.5 text-sm text-ink">
-            Изменения не сохранились
-            {saveError?.retryable !== false && (
-              <button type="button" onClick={() => void persist()} className="font-semibold underline">
-                Повторить
+            {saveError?.stale ? "Лендинг изменил другой сотрудник" : "Изменения не сохранились"}
+            {saveError?.stale ? (
+              <button type="button" onClick={reloadAfterConflict} className="font-semibold underline">
+                Обновить страницу
               </button>
+            ) : (
+              saveError?.retryable !== false && (
+                <button type="button" onClick={() => void persist()} className="font-semibold underline">
+                  Повторить
+                </button>
+              )
             )}
           </span>
         )}
@@ -429,9 +579,17 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
             setDownloadError(null);
             setDownloadOpen(true);
           }}
-          className="h-10 rounded-[10px] bg-scheme px-[18px] text-[15px] font-semibold text-white hover:bg-scheme-hover"
+          className="h-10 rounded-[10px] border border-field bg-white px-4 text-[15px] text-ink hover:bg-paper"
         >
           Скачать сайт
+        </button>
+        <button
+          type="button"
+          onClick={() => void publish()}
+          disabled={publishBusy !== null || publishLabel === null}
+          className="h-10 rounded-[10px] bg-scheme px-[18px] text-[15px] font-semibold text-white hover:bg-scheme-hover disabled:cursor-default disabled:opacity-60"
+        >
+          {publishBusy === "publish" ? "Публикую…" : (publishLabel ?? "Опубликовано")}
         </button>
       </TopBar>
 
@@ -492,11 +650,20 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
           </article>
 
           <aside aria-label="Подсказки" className="flex max-w-full flex-[1_1_300px] flex-col gap-4 lg:sticky lg:top-6 lg:max-w-[340px]">
+            <PublishPanel
+              load={publication}
+              state={pubState}
+              busy={publishBusy}
+              error={publishError}
+              justPublished={justPublished}
+              onWithdraw={() => void withdraw()}
+              onRetry={() => void loadPublication()}
+            />
             <ThemePicker value={theme} busy={themeBusy} error={themeError} onChange={(t) => void chooseTheme(t)} />
             <section className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-5">
               <h2 className="font-display text-[19px] font-semibold">Что дополнить</h2>
               {todos.length === 0 ? (
-                <p className="text-[15px] leading-relaxed text-fur">Всё заполнено. Можно смотреть и скачивать.</p>
+                <p className="text-[15px] leading-relaxed text-fur">Всё заполнено. Можно смотреть и публиковать.</p>
               ) : (
                 <ul className="flex flex-col gap-2.5">
                   {todos.map((todo) => (
@@ -554,16 +721,16 @@ function TopBar({
   onLeave: (href: string) => void;
   children?: React.ReactNode;
 }) {
-  const guard = (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const guard = (href: string) => (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
-    onLeave("/");
+    onLeave(href);
   };
   return (
     <header className="border-b border-grid bg-white">
       <div className="flex flex-wrap items-center gap-4 px-6 py-2.5">
-        <CatLogoLink compact onClick={guard} />
-        <Link href="/" onClick={guard} className="text-[15px] text-scheme no-underline hover:text-scheme-hover">
+        <CatLogoLink compact onClick={guard("/")} />
+        <Link href="/studio" onClick={guard("/studio")} className="text-[15px] text-scheme no-underline hover:text-scheme-hover">
           Ваши лендинги
         </Link>
         <span className="min-w-0 flex-[1_1_200px] truncate text-[15px] font-semibold">{title}</span>

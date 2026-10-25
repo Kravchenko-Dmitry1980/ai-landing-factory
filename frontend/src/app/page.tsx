@@ -1,37 +1,50 @@
-import { NewLanding } from "@/components/home/NewLanding";
-import { ProjectList } from "@/components/home/ProjectList";
+import type { Metadata } from "next";
+import { LibraryView } from "@/components/library/LibraryView";
 import { AppHeader } from "@/components/shell/AppHeader";
+import { hasRole, type LibraryPage } from "@/lib/platform";
+import { backendFetch, requireUser } from "@/lib/session.server";
 
-const HOW_IT_WORKS = [
-  "Загрузите материалы проекта: презентацию, документ или отчёт.",
-  "Поправьте текст прямо на странице. Что нужно дополнить, выделено розовым маркером.",
-  "Скачайте сайт одним файлом и передайте его администратору сайта университета.",
-];
+export const metadata: Metadata = { title: "Библиотека — Ленд" };
 
-export default function HomePage() {
+const LIBRARY_TIMEOUT_MS = 10_000;
+
+async function loadLibrary(query: string): Promise<LibraryPage> {
+  const res = await backendFetch(`/library${query ? `?q=${encodeURIComponent(query)}` : ""}`, {
+    signal: AbortSignal.timeout(LIBRARY_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`Library request failed: HTTP ${res.status}`);
+  return (await res.json()) as LibraryPage;
+}
+
+/** Главная: библиотека опубликованных лендингов, открыта любой учётной записи. */
+export default async function LibraryHome({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const raw = (await searchParams).q;
+  const query = (Array.isArray(raw) ? raw[0] : raw)?.trim() ?? "";
+  const user = await requireUser(query ? `/?q=${encodeURIComponent(query)}` : "/");
+
+  let library: LibraryPage | null = null;
+  let error: string | null = null;
+  try {
+    library = await loadLibrary(query);
+  } catch (err) {
+    console.error("Library page: backend request failed", err);
+    error = "Не удалось загрузить библиотеку. Обновите страницу через минуту.";
+  }
+
   return (
     <>
-      <AppHeader>
-        <a href="#how" className="text-[15px] text-scheme no-underline hover:text-scheme-hover">
-          Как это работает
-        </a>
-      </AppHeader>
-      <main className="mx-auto flex max-w-[1200px] flex-col gap-14 px-6 pb-20 pt-10">
-        <NewLanding />
-        <ProjectList />
-        <section id="how" aria-labelledby="how-title" className="flex max-w-[760px] flex-col gap-4 scroll-mt-6">
-          <h2 id="how-title" className="font-display text-[30px] font-semibold">
-            Как это работает
-          </h2>
-          <ol className="flex flex-col gap-3 pl-6 text-[17px] leading-relaxed marker:font-semibold marker:text-scheme">
-            {HOW_IT_WORKS.map((step) => (
-              <li key={step} className="list-decimal pl-1">
-                {step}
-              </li>
-            ))}
-          </ol>
-        </section>
-      </main>
+      <AppHeader user={user} current="library" />
+      <LibraryView
+        initialQuery={query}
+        initialCards={library?.cards ?? null}
+        initialError={error}
+        initialTotal={library?.total ?? null}
+        canEdit={hasRole(user, "editor")}
+      />
     </>
   );
 }

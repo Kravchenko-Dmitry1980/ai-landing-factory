@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { listProjects } from "@/lib/api";
+import { PUBLICATION_STATE_LABELS, publicationState } from "@/lib/platform";
 import { formatEditedAt, staffErrorMessage } from "@/lib/staff";
 import type { ProjectSummary } from "@/lib/types";
 
@@ -119,7 +120,14 @@ export function ProjectList() {
   );
 }
 
+const STATE_STYLES = {
+  published: "bg-[#E7F4EC] text-ok",
+  outdated: "bg-marker text-ink",
+  withdrawn: "bg-grid-soft text-fur",
+} as const;
+
 function ProjectCard({ project }: { project: ProjectSummary }) {
+  const state = publicationState(project.publication_status, project.published_contract_version, project.version);
   return (
     <Link href={`/editor/${project.id}`} className="group flex flex-col gap-3 text-ink no-underline">
       <div
@@ -142,6 +150,11 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
       <div className="flex flex-col gap-1">
         <span className="line-clamp-2 text-base font-semibold leading-snug group-hover:text-scheme">{project.name}</span>
         <span className="text-sm text-fur">{formatEditedAt(project.updated_at)}</span>
+        {state !== "none" && (
+          <span className={`w-fit rounded-md px-2 py-0.5 text-[13px] font-semibold ${STATE_STYLES[state]}`}>
+            {PUBLICATION_STATE_LABELS[state]}
+          </span>
+        )}
       </div>
     </Link>
   );

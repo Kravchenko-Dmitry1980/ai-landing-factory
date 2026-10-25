@@ -8,16 +8,20 @@ export function staffErrorMessage(err: unknown, action: string): string {
   if (!(err instanceof ApiRequestError)) return `${action}. Попробуйте ещё раз.`;
   const { status } = err;
   if (status === null) return `${action}: нет связи с сервером. Проверьте подключение и попробуйте ещё раз.`;
+  if (status === 401) {
+    return `${action}: вы вышли из учётной записи. Войдите в новой вкладке и нажмите «Повторить» — правки на этой странице не пропадут.`;
+  }
+  if (status === 403) return `${action}: у вашей учётной записи нет прав на это действие.`;
   if (status === 404) return `${action}: на сервере нет такого лендинга.`;
   if (status === 413) return `${action}: файлы слишком большие для сервера. Уберите часть файлов.`;
   if (status >= 500) return `${action}: сервер не справился. Попробуйте ещё раз через минуту.`;
   return `${action}: сервер не принял данные (код ${status}). Обновите страницу и попробуйте снова.`;
 }
 
-/** Whether repeating the same request can help (network trouble or a temporary server failure). */
+/** Whether repeating the same request can help (network trouble, a temporary server failure, signing in again). */
 export function isRetryableError(err: unknown): boolean {
   if (!(err instanceof ApiRequestError)) return true;
-  return err.status === null || err.status >= 500;
+  return err.status === null || err.status === 401 || err.status >= 500;
 }
 
 export const ACCEPTED_EXTENSIONS = [".pptx", ".docx", ".pdf", ".txt", ".md"] as const;

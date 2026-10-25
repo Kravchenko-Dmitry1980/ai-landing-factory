@@ -94,8 +94,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiRequestError(text || `HTTP ${res.status}`, res.status);
   }
 
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
+
+/** For API modules next to this one: same base URL, logging and errors. */
+export { request as apiRequest };
 
 export async function createProject(
   name: string,
@@ -133,8 +137,9 @@ export async function getContract(projectId: string): Promise<LandingContract> {
 export async function patchStyleConfig(
   projectId: string,
   styleConfig: LandingStyleConfig,
-): Promise<{ project_id: string; style_config: LandingStyleConfig }> {
-  return request<{ project_id: string; style_config: LandingStyleConfig }>(
+  expectedVersion?: number,
+): Promise<StyleConfigResult> {
+  return request<StyleConfigResult>(
     `/projects/${projectId}/style-config`,
     {
       method: "PATCH",
@@ -143,9 +148,17 @@ export async function patchStyleConfig(
         profile: styleConfig.profile,
         custom_style_prompt: styleConfig.custom_style_prompt ?? null,
         theme_tokens: styleConfig.theme_tokens ?? null,
+        expected_version: expectedVersion ?? null,
       }),
     },
   );
+}
+
+export interface StyleConfigResult {
+  project_id: string;
+  style_config: LandingStyleConfig;
+  /** The contract version after the change (absent on old backends). */
+  contract_version?: number | null;
 }
 
 export async function updateContract(
@@ -164,7 +177,10 @@ export async function updateContract(
       | "presentation_style"
       | "style_config"
     >
-  >,
+  > & {
+    /** The version these edits are based on; the server answers 409 if someone saved since. */
+    expected_version?: number;
+  },
   options?: { keepalive?: boolean },
 ): Promise<LandingContract> {
   return request<LandingContract>(`/projects/${projectId}/contract`, {
@@ -389,13 +405,14 @@ export async function teamReviewBulkAction(
 export async function teamReviewManualText(
   projectId: string,
   text: string,
+  expectedVersion?: number,
 ): Promise<TeamReviewActionResult> {
   return request<TeamReviewActionResult>(
     `/projects/${projectId}/team-review/manual-text`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, expected_version: expectedVersion ?? null }),
     },
   );
 }
