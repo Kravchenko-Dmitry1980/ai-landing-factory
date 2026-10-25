@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 import aiofiles
 
 from app.config import Settings
+from app.repositories.atomic_io import write_text_atomic_async
 from app.schemas.upload import FileKind, UploadedFileMeta
 from app.models.domain import utc_now
 
@@ -79,8 +80,7 @@ class FileStore:
         existing = await self.list_files(project_id)
         existing.append(meta)
         payload = [m.model_dump(mode="json") for m in existing]
-        async with aiofiles.open(self._meta_path(project_id), "w", encoding="utf-8") as f:
-            await f.write(json.dumps(payload, ensure_ascii=False, indent=2))
+        await write_text_atomic_async(self._meta_path(project_id), json.dumps(payload, ensure_ascii=False, indent=2))
 
     async def list_files(self, project_id: UUID) -> list[UploadedFileMeta]:
         path = self._meta_path(project_id)

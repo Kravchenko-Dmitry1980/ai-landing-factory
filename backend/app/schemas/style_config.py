@@ -105,11 +105,13 @@ class StyleConfigPatch(BaseModel):
     profile: LandingStyleProfile
     custom_style_prompt: str | None = None
     theme_tokens: ThemeTokensModel | None = None
+    expected_version: int | None = None
 
 
 class StyleConfigResponse(BaseModel):
     project_id: str
     style_config: LandingStyleConfigModel
+    contract_version: int | None = None
 
 
 def parse_style_config_query(raw: str | None) -> LandingStyleConfigModel | None:

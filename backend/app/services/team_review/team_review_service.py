@@ -102,6 +102,8 @@ class TeamReviewService:
 
         self._sync_team_blocks(contract)
         fidelity.completeness = self._completeness_gate.evaluate(contract)
+        # A team change is an edit like any other: editors holding the old version get a 409.
+        contract.version += 1
         await self._repo.save_contract(contract)
 
         response = self.build_response(contract)
@@ -117,6 +119,7 @@ class TeamReviewService:
             publication_mode=fidelity.team_publication_mode,
             summary=response.summary,
             team_count=len(fidelity.team_structured),
+            contract_version=contract.version,
         )
 
     async def apply_manual_text(
@@ -143,6 +146,8 @@ class TeamReviewService:
 
         self._sync_team_blocks(contract)
         fidelity.completeness = self._completeness_gate.evaluate(contract)
+        # A team change is an edit like any other: editors holding the old version get a 409.
+        contract.version += 1
         await self._repo.save_contract(contract)
 
         response = self.build_response(contract)
@@ -151,6 +156,7 @@ class TeamReviewService:
             publication_mode=TeamPublicationMode.manual_edited,
             summary=response.summary,
             team_count=len(members),
+            contract_version=contract.version,
         )
 
     def _apply_accept_all(

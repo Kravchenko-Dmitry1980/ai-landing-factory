@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
@@ -34,8 +35,10 @@ from app.schemas.semantic_generation import GeneratedSemanticLanding
 from app.schemas.semantic_responses import SemanticGenerationResponse
 from app.services.contract_fidelity.completeness_gate import ContractCompletenessGate
 from app.config import settings
+from app.core.locks import check_expected_version, project_lock
 from app.repositories.project_repository import ProjectRepository
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 _project_repo = ProjectRepository(settings)
 
@@ -76,6 +79,14 @@ async def get_team_review(project_id: UUID) -> TeamReviewResponse:
         raise HTTPException(404, str(exc)) from exc
 
 
+async def _regenerate_after_team_change(project_id: UUID) -> None:
+    """The team is saved by now; the old renderer's landing.json is a by-product and must not undo that."""
+    try:
+        await get_generation_service().generate(project_id)
+    except Exception:
+        logger.exception("Team of %s saved, but landing.json was not rebuilt", project_id)
+
+
 @router.post(
     "/{project_id}/team-review/bulk-action",
     response_model=TeamReviewActionResponse,
@@ -84,13 +95,15 @@ async def team_review_bulk_action(
     project_id: UUID,
     body: TeamBulkActionRequest,
 ) -> TeamReviewActionResponse:
-    try:
-        result = await get_team_review_service().apply_bulk_action(
-            project_id, body.action
-        )
-    except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    await get_generation_service().generate(project_id)
+    async with project_lock(project_id):
+        await check_expected_version(project_id, body.expected_version)
+        try:
+            result = await get_team_review_service().apply_bulk_action(
+                project_id, body.action
+            )
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        await _regenerate_after_team_change(project_id)
     return result
 
 
@@ -102,13 +115,15 @@ async def team_review_manual_text(
     project_id: UUID,
     body: ManualTeamUpdateRequest,
 ) -> TeamReviewActionResponse:
-    try:
-        result = await get_team_review_service().apply_manual_text(
-            project_id, body.text
-        )
-    except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
-    await get_generation_service().generate(project_id)
+    async with project_lock(project_id):
+        await check_expected_version(project_id, body.expected_version)
+        try:
+            result = await get_team_review_service().apply_manual_text(
+                project_id, body.text
+            )
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        await _regenerate_after_team_change(project_id)
     return result
 
 
@@ -122,10 +137,11 @@ async def get_source_structure(project_id: UUID) -> SourceStructureReport:
 
 @router.post("/{project_id}/reparse-structured-landing", response_model=LandingContract)
 async def reparse_structured_landing(project_id: UUID) -> LandingContract:
-    contract = await get_contract_builder().reparse_structured(project_id)
-    if not contract:
-        raise HTTPException(404, "ExtractionResult not found")
-    await get_generation_service().generate(project_id)
+    async with project_lock(project_id):
+        contract = await get_contract_builder().reparse_structured(project_id)
+        if not contract:
+            raise HTTPException(404, "ExtractionResult not found")
+        await get_generation_service().generate(project_id)
     return contract
 
 
@@ -135,33 +151,42 @@ async def update_contract(
     body: LandingContractUpdate,
 ) -> LandingContract:
     builder = get_contract_builder()
-    updated = await builder.update_contract(
-        project_id,
-        blocks=body.blocks,
-        title=body.title,
-        timeline=body.timeline,
-        lead=body.lead,
-        quote=body.quote,
-        style=body.style,
-        client=body.client,
-        goals=body.goals,
-        presentation_style=body.presentation_style,
-        style_config=body.style_config,
-    )
+    async with project_lock(project_id):
+        await check_expected_version(project_id, body.expected_version)
+        updated = await builder.update_contract(
+            project_id,
+            blocks=body.blocks,
+            title=body.title,
+            timeline=body.timeline,
+            lead=body.lead,
+            quote=body.quote,
+            style=body.style,
+            client=body.client,
+            goals=body.goals,
+            presentation_style=body.presentation_style,
+            style_config=body.style_config,
+        )
     if not updated:
         raise HTTPException(404, "LandingContract not found")
     # Edits count as a change of the project: "Изменён …" and list order follow them.
-    await _project_repo.touch(project_id)
+    # The edit is already saved: a failure here must not make the editor think it was not.
+    try:
+        await _project_repo.touch(project_id)
+    except OSError:
+        logger.exception("Contract %s saved, but projects.json was not updated", project_id)
     return updated
 
 
 @router.post("/{project_id}/contract/enrich", response_model=EnrichmentResponse)
 async def enrich_contract(project_id: UUID) -> EnrichmentResponse:
-    try:
-        result = await get_llm_contract_builder().enrich(project_id)
-    except ValueError as exc:
-        raise HTTPException(404, str(exc)) from exc
-    await get_generation_service().generate(project_id)
+    # Long operations that rewrite the contract hold the project lock, so they never overwrite
+    # an edit saved meanwhile (and the edit waits instead of being lost).
+    async with project_lock(project_id):
+        try:
+            result = await get_llm_contract_builder().enrich(project_id)
+        except ValueError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        await get_generation_service().generate(project_id)
     return result
 
 
@@ -171,7 +196,8 @@ async def semantic_generate(project_id: UUID) -> SemanticGenerationResponse:
     if not contract:
         raise HTTPException(404, "LandingContract not found")
     try:
-        return await get_semantic_engine().generate(project_id)
+        async with project_lock(project_id):
+            return await get_semantic_engine().generate(project_id)
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
 
@@ -198,7 +224,8 @@ async def regenerate_landing(
 
     if req.mode == "stub":
         try:
-            landing = await unified.generate_stub(project_id)
+            async with project_lock(project_id):
+                landing = await unified.generate_stub(project_id)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
         semantic = await get_contract_repository().get_semantic(project_id)
@@ -210,7 +237,8 @@ async def regenerate_landing(
         )
 
     try:
-        result = await unified.generate_full(project_id, enrich=req.enrich)
+        async with project_lock(project_id):
+            result = await unified.generate_full(project_id, enrich=req.enrich)
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
 

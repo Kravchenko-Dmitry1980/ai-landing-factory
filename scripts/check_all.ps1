@@ -359,7 +359,8 @@ if ($Simple) {
     Write-Log "Mode: Simple (skip OCR/VLM/visual/live multifile/full pytest)"
 }
 
-$backendPrivacyUrl = "$BackendUrl/api/v1/projects/privacy"
+# /health needs no session; the API itself answers 401 until someone signs in.
+$backendPrivacyUrl = "$BackendUrl/health"
 Write-Log ""
 Write-Log "=== Server availability ==="
 

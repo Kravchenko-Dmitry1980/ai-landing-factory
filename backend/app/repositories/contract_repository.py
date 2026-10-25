@@ -10,6 +10,8 @@ import aiofiles
 
 from app.config import Settings
 
+from app.repositories.atomic_io import write_text_atomic_async
+
 from app.schemas.extraction import ExtractionResult
 
 from app.schemas.generation import GeneratedLanding
@@ -74,13 +76,7 @@ class ContractRepository:
 
     async def save_extraction(self, result: ExtractionResult) -> None:
 
-        async with aiofiles.open(
-
-            self._extraction_path(result.project_id), "w", encoding="utf-8"
-
-        ) as f:
-
-            await f.write(result.model_dump_json(indent=2))
+        await write_text_atomic_async(self._extraction_path(result.project_id), result.model_dump_json(indent=2))
 
 
 
@@ -104,13 +100,7 @@ class ContractRepository:
 
     async def save_contract(self, contract: LandingContract) -> None:
 
-        async with aiofiles.open(
-
-            self._contract_path(contract.project_id), "w", encoding="utf-8"
-
-        ) as f:
-
-            await f.write(contract.model_dump_json(indent=2))
+        await write_text_atomic_async(self._contract_path(contract.project_id), contract.model_dump_json(indent=2))
 
         logger.info("Contract saved for project %s", contract.project_id)
 
@@ -136,13 +126,7 @@ class ContractRepository:
 
     async def save_landing(self, landing: GeneratedLanding) -> None:
 
-        async with aiofiles.open(
-
-            self._landing_path(landing.project_id), "w", encoding="utf-8"
-
-        ) as f:
-
-            await f.write(landing.model_dump_json(indent=2))
+        await write_text_atomic_async(self._landing_path(landing.project_id), landing.model_dump_json(indent=2))
 
 
 
@@ -166,13 +150,7 @@ class ContractRepository:
 
     async def save_semantic(self, semantic: GeneratedSemanticLanding) -> None:
 
-        async with aiofiles.open(
-
-            self._semantic_path(semantic.project_id), "w", encoding="utf-8"
-
-        ) as f:
-
-            await f.write(semantic.model_dump_json(indent=2))
+        await write_text_atomic_async(self._semantic_path(semantic.project_id), semantic.model_dump_json(indent=2))
 
 
 
@@ -198,13 +176,7 @@ class ContractRepository:
 
         payload = serialize_full_report(self._settings, report)
 
-        async with aiofiles.open(
-
-            self._pii_report_path(report.project_id), "w", encoding="utf-8"
-
-        ) as f:
-
-            await f.write(payload)
+        await write_text_atomic_async(self._pii_report_path(report.project_id), payload)
 
 
 

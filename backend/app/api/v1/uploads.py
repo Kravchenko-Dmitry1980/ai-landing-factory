@@ -26,6 +26,8 @@ from app.repositories.project_repository import ProjectRepository
 
 from app.config import settings
 
+from app.core.locks import project_lock
+
 from app.schemas.pii import PiiSummary
 
 from app.schemas.upload import UploadResponse
@@ -127,7 +129,11 @@ async def upload_materials(
 
 
 
-    pii_raw = await _pipeline().run_after_upload(project_id)
+    # Rebuilding the contract is an edit too: it waits for saves of the same landing.
+
+    async with project_lock(project_id):
+
+        pii_raw = await _pipeline().run_after_upload(project_id)
 
     pii_summary = PiiSummary.model_validate(pii_raw) if pii_raw else None
 

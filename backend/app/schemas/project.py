@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -23,3 +24,7 @@ class ProjectSummary(BaseModel):
     created_at: datetime
     updated_at: datetime
     version: int = 1
+    # Library state of the landing; None when it was never published.
+    publication_status: Literal["published", "withdrawn"] | None = None
+    published_path: str | None = None
+    published_contract_version: int | None = None

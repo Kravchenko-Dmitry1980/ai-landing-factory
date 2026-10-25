@@ -1,9 +1,14 @@
+import threading
 from functools import lru_cache
+from pathlib import Path
 
 from app.config import Settings, settings
+from app.repositories.account_repository import AccountRepository
 from app.repositories.contract_repository import ContractRepository
+from app.repositories.database import Database
 from app.repositories.domain_repository import DomainRepository
 from app.repositories.file_store import FileStore
+from app.repositories.publication_repository import PublicationRepository
 from app.services.analysis.contract_builder import ContractBuilderService
 from app.services.analysis.llm_contract_builder import LLMContractBuilderService
 from app.services.extraction.base import DocumentExtractor
@@ -100,3 +105,27 @@ def get_unified_generator():
         get_llm_contract_builder(),
         get_domain_engine(),
     )
+
+
+# Stage 3: accounts and publications live in one SQLite file, migrated on first use
+# (TestClient without a lifespan never runs the startup hook).
+_migrated_databases: set[Path] = set()
+_migration_lock = threading.Lock()
+
+
+def get_database() -> Database:
+    db = Database(get_settings().database_path)
+    if db.path not in _migrated_databases:
+        with _migration_lock:
+            if db.path not in _migrated_databases:
+                db.migrate()
+                _migrated_databases.add(db.path)
+    return db
+
+
+def get_account_repository() -> AccountRepository:
+    return AccountRepository(get_database())
+
+
+def get_publication_repository() -> PublicationRepository:
+    return PublicationRepository(get_database(), get_settings().published_dir)

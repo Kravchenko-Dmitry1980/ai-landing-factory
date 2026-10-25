@@ -90,7 +90,14 @@ function Write-FrontendEnvLocal {
         [int]$BackendPort
     )
 
-    $content = "NEXT_PUBLIC_API_URL=http://127.0.0.1:$BackendPort/api/v1`n"
+    # The browser calls the API on the frontend's own address (Next.js proxies /api/v1 to the backend),
+    # so the HttpOnly session cookie works exactly as behind nginx in production.
+    $content = @(
+        "NEXT_PUBLIC_API_URL=/api/v1",
+        "INTERNAL_API_URL=http://127.0.0.1:$BackendPort/api/v1",
+        "API_PROXY_TARGET=http://127.0.0.1:$BackendPort",
+        ""
+    ) -join "`n"
     Set-Content -Path $EnvLocalPath -Value $content -Encoding UTF8 -NoNewline
 }
 
@@ -277,7 +284,7 @@ Write-ProcessesJson `
 
 Write-Info ""
 Write-Info "Waiting for backend health (timeout 60s)..."
-$backendHealthUrl = "$backendUrl/api/v1/projects/privacy"
+$backendHealthUrl = "$backendUrl/health"
 $backendHealth = Wait-HttpReady -Url $backendHealthUrl -TimeoutSec 60
 
 if (-not $backendHealth.Ok) {

@@ -41,10 +41,12 @@ class TeamReviewCandidate(BaseModel):
 
 class ManualTeamUpdateRequest(BaseModel):
     text: str
+    expected_version: int | None = None
 
 
 class TeamBulkActionRequest(BaseModel):
     action: str  # accept_all | keep_verified_only | reset_to_auto
+    expected_version: int | None = None
 
 
 class TeamReviewResponse(BaseModel):
@@ -60,3 +62,5 @@ class TeamReviewActionResponse(BaseModel):
     publication_mode: str
     summary: TeamReviewSummary
     team_count: int = 0
+    # The contract version after the change, for editors that send expected_version next.
+    contract_version: int | None = None

@@ -12,6 +12,8 @@ cd C:\Dima\Projects\CURSOR\Lend
 
 **OCR/VLM по умолчанию выключены.** Подробнее для оператора: [docs/USER_QUICKSTART.md](docs/USER_QUICKSTART.md).
 
+**Вход по учётным записям.** Без входа сайт открывает только страницу входа. Первого администратора создаёт `python -m app.cli create-admin` в папке `backend`, тестовые учётки для разработки — `python -m app.cli dev-seed`. Роли, приглашения, публикация в библиотеку и изменения для сервера описаны в [docs/ACCOUNTS_AND_LIBRARY.md](docs/ACCOUNTS_AND_LIBRARY.md).
+
 ## Release / QA
 
 Перед push:

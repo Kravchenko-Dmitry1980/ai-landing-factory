@@ -10,7 +10,8 @@ Group=www-data
 WorkingDirectory=/opt/ai-landing-factory/current/backend
 Environment=PYTHONUNBUFFERED=1
 EnvironmentFile=/opt/ai-landing-factory/shared/backend.env
-ExecStart=/opt/ai-landing-factory/current/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 2
+# One worker: edit locks and the login throttle live in the process memory.
+ExecStart=/opt/ai-landing-factory/current/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 1
 Restart=always
 RestartSec=5
 TimeoutStopSec=30

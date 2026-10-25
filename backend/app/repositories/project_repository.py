@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from datetime import datetime
@@ -7,8 +8,13 @@ import aiofiles
 
 from app.config import Settings
 from app.models.domain import ProjectRecord, utc_now
+from app.repositories.atomic_io import write_text_atomic_async
 
 logger = logging.getLogger(__name__)
+
+# Every router builds its own repository over the same projects.json: one lock for all of them,
+# so two requests never load-modify-save the index at the same time.
+_index_lock = asyncio.Lock()
 
 
 class ProjectRepository:
@@ -24,9 +30,9 @@ class ProjectRepository:
         return json.loads(raw) if raw else {}
 
     async def _save(self, data: dict[str, dict]) -> None:
-        self._settings.data_dir.mkdir(parents=True, exist_ok=True)
-        async with aiofiles.open(self._index_path, "w", encoding="utf-8") as f:
-            await f.write(json.dumps(data, ensure_ascii=False, indent=2, default=str))
+        await write_text_atomic_async(
+            self._index_path, json.dumps(data, ensure_ascii=False, indent=2, default=str)
+        )
 
     @staticmethod
     def _parse_record(item: dict) -> ProjectRecord:
@@ -44,24 +50,26 @@ class ProjectRepository:
     async def create(self, name: str, description: str | None) -> ProjectRecord:
         record = ProjectRecord(name=name, description=description, created_at=utc_now())
         record.updated_at = record.created_at
-        data = await self._load()
-        data[str(record.id)] = {
-            "id": str(record.id),
-            "name": record.name,
-            "description": record.description,
-            "created_at": record.created_at.isoformat(),
-            "updated_at": record.updated_at.isoformat(),
-        }
-        await self._save(data)
+        async with _index_lock:
+            data = await self._load()
+            data[str(record.id)] = {
+                "id": str(record.id),
+                "name": record.name,
+                "description": record.description,
+                "created_at": record.created_at.isoformat(),
+                "updated_at": record.updated_at.isoformat(),
+            }
+            await self._save(data)
         return record
 
     async def touch(self, project_id: UUID) -> None:
-        data = await self._load()
-        key = str(project_id)
-        if key not in data:
-            return
-        data[key]["updated_at"] = utc_now().isoformat()
-        await self._save(data)
+        async with _index_lock:
+            data = await self._load()
+            key = str(project_id)
+            if key not in data:
+                return
+            data[key]["updated_at"] = utc_now().isoformat()
+            await self._save(data)
 
     async def get(self, project_id: UUID) -> ProjectRecord | None:
         data = await self._load()

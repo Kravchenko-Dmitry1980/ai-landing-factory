@@ -3,11 +3,13 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, Response
 
 from app.config import settings
-from app.core.dependencies import get_contract_repository
+from app.core.dependencies import get_contract_repository, get_publication_repository
+from app.core.locks import check_expected_version, project_lock
 from app.repositories.project_repository import ProjectRepository
 from app.schemas.generation import GeneratedLanding
 from app.schemas.landing_contract import LandingContract
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectSummary
+from app.schemas.publication import publication_path
 from app.services.diagnostics.last_project_tracker import write_last_project
 from app.schemas.style_config import StyleConfigPatch, StyleConfigResponse
 from app.core.dependencies import get_contract_builder
@@ -37,12 +39,14 @@ async def list_projects(
         raise HTTPException(400, "Invalid sort. Use updated_desc, updated_asc, created_desc, created_asc.")
     records = await _project_repo.list_projects(limit=limit, sort=sort)
     contract_repo = get_contract_repository()
+    publications = {p.project_id: p for p in get_publication_repository().list_all()}
     summaries: list[ProjectSummary] = []
     for rec in records:
         version = 1
         contract = await contract_repo.get_contract(rec.id)
         if contract:
             version = contract.version
+        publication = publications.get(str(rec.id))
         summaries.append(
             ProjectSummary(
                 id=rec.id,
@@ -50,6 +54,9 @@ async def list_projects(
                 created_at=rec.created_at,
                 updated_at=rec.updated_at,
                 version=version,
+                publication_status=publication.status if publication else None,
+                published_path=publication_path(publication.slug) if publication else None,
+                published_contract_version=publication.contract_version if publication else None,
             )
         )
     return summaries
@@ -117,17 +124,20 @@ async def patch_style_config(
     presentation = body.profile.value
     if body.profile.value == "custom":
         presentation = "university_platform"
-    updated = await get_contract_builder().update_contract(
-        project_id,
-        blocks=None,
-        style_config=cfg,
-        presentation_style=presentation,
-    )
+    async with project_lock(project_id):
+        await check_expected_version(project_id, body.expected_version)
+        updated = await get_contract_builder().update_contract(
+            project_id,
+            blocks=None,
+            style_config=cfg,
+            presentation_style=presentation,
+        )
     if not updated:
         raise HTTPException(404, "LandingContract not found")
     return StyleConfigResponse(
         project_id=str(project_id),
         style_config=updated.style_config or cfg,
+        contract_version=updated.version,
     )
 
 

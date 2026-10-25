@@ -130,6 +130,21 @@ class Settings(BaseSettings):
     def knowledge_graphs_dir(self) -> Path:
         return self.data_dir / "knowledge_graphs"
 
+    # Accounts, sessions and publications (Stage 3)
+    session_cookie_name: str = "lend_session"
+    session_ttl_days: int = 30
+    invite_ttl_days: int = 7
+    # auto: Secure cookie when the request came over HTTPS (directly or via X-Forwarded-Proto).
+    session_cookie_secure: str = Field(default="auto", validation_alias="SESSION_COOKIE_SECURE")
+
+    @property
+    def database_path(self) -> Path:
+        return self.data_dir / "lend.sqlite3"
+
+    @property
+    def published_dir(self) -> Path:
+        return self.data_dir / "published"
+
     # OCR layer (Stage H.8)
     ocr_enabled: bool = False
     ocr_engine: str = "paddleocr"
@@ -187,6 +202,14 @@ class Settings(BaseSettings):
     @classmethod
     def normalize_product_mode_field(cls, value: Any) -> str:
         return normalize_product_mode(str(value) if value is not None else None)
+
+    @model_validator(mode="after")
+    def place_data_subdirs(self) -> Settings:
+        """DATA_DIR alone moves everything (uploads, contracts, extractions) unless they are set too."""
+        for name, folder in (("uploads_dir", "uploads"), ("contracts_dir", "contracts"), ("extractions_dir", "extractions")):
+            if name not in self.model_fields_set:
+                object.__setattr__(self, name, self.data_dir / folder)
+        return self
 
     @model_validator(mode="after")
     def apply_product_mode_defaults(self) -> Settings:

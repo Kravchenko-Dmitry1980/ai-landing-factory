@@ -72,3 +72,5 @@ class LandingContractUpdate(BaseModel):
     goals: list[str] | None = None
     presentation_style: str | None = None
     style_config: LandingStyleConfigModel | None = None
+    # The version the editor's text is based on; a different current version answers 409.
+    expected_version: int | None = None

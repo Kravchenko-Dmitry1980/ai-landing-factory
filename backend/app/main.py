@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.config import settings
+from app.core.dependencies import get_account_repository, get_database
 from app.product_mode import log_product_mode_warnings
 
 logging.basicConfig(level=logging.INFO)
@@ -19,9 +20,17 @@ async def lifespan(app: FastAPI):
         settings.uploads_dir,
         settings.contracts_dir,
         settings.extractions_dir,
+        settings.published_dir,
     ):
         path.mkdir(parents=True, exist_ok=True)
     logger.info("Data directories ready: %s", settings.data_dir)
+    get_database()
+    logger.info("Database ready: %s", settings.database_path)
+    if get_account_repository().count_users() == 0:
+        logger.warning(
+            "No accounts yet: nobody can sign in. Create the first administrator with "
+            "`python -m app.cli create-admin --login <login> --name \"<name>\"` in backend/."
+        )
     logger.info("CORS origins: %s", settings.cors_origins)
     logger.info("Product mode: %s", settings.normalized_product_mode)
     log_product_mode_warnings(settings)
