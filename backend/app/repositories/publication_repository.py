@@ -43,6 +43,12 @@ _SELECT = """
     SELECT p.*, u.name AS published_by_name
     FROM publications p LEFT JOIN users u ON u.id = p.published_by
 """
+# Every column but the long body text, which only the search index reads.
+_LIGHT_COLUMNS = (
+    "p.project_id, p.slug, p.status, p.version, p.contract_version, p.theme, p.title, p.summary, "
+    "p.customer, p.lead, p.people, p.first_published_at, p.published_at, p.published_by, "
+    "p.withdrawn_at, '' AS body_text"
+)
 
 
 def _publication(row: sqlite3.Row) -> Publication:
@@ -90,9 +96,15 @@ class PublicationRepository:
             rows = conn.execute(_SELECT).fetchall()
         return [_publication(row) for row in rows]
 
-    def list_published(self) -> list[Publication]:
+    def list_published(self, *, with_texts: bool = True) -> list[Publication]:
+        """Newest first. Without texts the rows stay small: enough for cards and change detection."""
+        columns = "p.*" if with_texts else _LIGHT_COLUMNS
         with self._db.read() as conn:
-            rows = conn.execute(f"{_SELECT} WHERE p.status = 'published' ORDER BY p.published_at DESC").fetchall()
+            rows = conn.execute(
+                f"SELECT {columns}, u.name AS published_by_name FROM publications p "
+                "LEFT JOIN users u ON u.id = p.published_by "
+                "WHERE p.status = 'published' ORDER BY p.published_at DESC"
+            ).fetchall()
         return [_publication(row) for row in rows]
 
     def read_html(self, publication: Publication) -> str:

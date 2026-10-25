@@ -1,46 +1,89 @@
-"""Library search without models: word prefixes with light Russian ending trimming.
+"""Words, stems and word lookups for library search: Snowball stemmers, no models.
 
-"контроля" finds "контроль", "Иванова" finds "Иванов". Real morphology and
-"similar topic" search come later; this is enough for titles, surnames and customers.
+"контроля" and "контроль" share the stem "контрол". Words of three letters or fewer
+stay whole: the stemmer would cut "ИИ" to "и" and "УИИ" to "у", which match everything.
 """
 
 import re
+import threading
+from bisect import bisect_left
+from dataclasses import dataclass
+from functools import lru_cache
+
+import snowballstemmer
 
 _WORD = re.compile(r"[0-9a-zа-я]+")
-_SOFT_ENDINGS = frozenset("аяоеуюыиьй")
-MAX_TERMS = 12
+_RUSSIAN = snowballstemmer.stemmer("russian")
+_ENGLISH = snowballstemmer.stemmer("english")
+# Snowball stemmers keep the word being processed inside the object; sync endpoints run in threads.
+_STEM_LOCK = threading.Lock()
+SHORT_WORD = 3
+MAX_QUERY_TERMS = 12
+# Case endings of Russian surnames: "Петровой" → "петров", "Кусу" → "кус".
+_NAME_ENDINGS = ("ой", "ым", "ом", "ою", "ую", "ая", "ых", "их", "а", "у", "е", "ы")
 
 
 def words(text: str) -> list[str]:
     return _WORD.findall(text.lower().replace("ё", "е"))
 
 
-def _stem(term: str) -> str:
-    # Russian endings are one or two letters; trimming them lets other forms of the word match.
-    if len(term) >= 7:
-        return term[:-2]
-    if len(term) >= 5:
-        return term[:-1]
-    # Short surnames and nouns: "куса" finds "Кус", "бота" finds "бот", "сайт" stays whole.
-    if len(term) == 4 and term[-1] in _SOFT_ENDINGS:
-        return term[:-1]
-    return term
+@lru_cache(maxsize=100_000)
+def stem(word: str) -> str:
+    if word.isdigit() or len(word) <= SHORT_WORD:
+        return word
+    stemmer = _ENGLISH if word.isascii() else _RUSSIAN
+    with _STEM_LOCK:
+        return stemmer.stemWord(word) or word
 
 
-def query_terms(query: str) -> list[str]:
-    seen: list[str] = []
+def stems(text: str) -> list[str]:
+    return [stem(word) for word in words(text)]
+
+
+def name_forms(word: str) -> tuple[str, ...]:
+    """
+    The word and its base without a case ending, for matching surnames as written:
+    "петровой" → ("петровой", "петров"). Unlike stems, "Петров" does not shrink to "петр",
+    so a search for Петрова never finds Пётр.
+    """
+    forms = [word]
+    for ending in _NAME_ENDINGS:
+        if word.endswith(ending) and len(word) - len(ending) >= SHORT_WORD:
+            forms.append(word[: -len(ending)])
+    return tuple(dict.fromkeys(forms))
+
+
+@dataclass(frozen=True)
+class QueryTerm:
+    word: str
+    stem: str
+    name_forms: tuple[str, ...]
+
+
+def query_terms(query: str) -> list[QueryTerm]:
+    """Distinct words of the query; one-letter words carry no meaning and are dropped."""
+    found: dict[str, QueryTerm] = {}
     for word in words(query):
-        if (len(word) >= 2 or word.isdigit()) and word not in seen:
-            seen.append(word)
-    return [_stem(word) for word in seen[:MAX_TERMS]]
+        if (len(word) >= 2 or word.isdigit()) and word not in found:
+            found[word] = QueryTerm(word, stem(word), name_forms(word))
+    return list(found.values())[:MAX_QUERY_TERMS]
 
 
-def score(terms: list[str], fields: list[tuple[float, list[str]]]) -> float:
-    """Every term has to match some word; a match in a heavier field counts more. 0 means no match."""
-    total = 0.0
-    for term in terms:
-        best = max((weight for weight, field_words in fields if any(w.startswith(term) for w in field_words)), default=0.0)
-        if best == 0.0:
-            return 0.0
-        total += best
-    return total
+def _has_prefix(sorted_values: tuple[str, ...], prefix: str) -> bool:
+    i = bisect_left(sorted_values, prefix)
+    return i < len(sorted_values) and sorted_values[i].startswith(prefix)
+
+
+class FieldWords:
+    """The words of one field, looked up by prefix in logarithmic time."""
+
+    __slots__ = ("words", "stems")
+
+    def __init__(self, field_words) -> None:
+        unique = set(field_words)
+        self.words: tuple[str, ...] = tuple(sorted(unique))
+        self.stems: tuple[str, ...] = tuple(sorted({stem(w) for w in unique}))
+
+    def matches(self, term: QueryTerm) -> bool:
+        """Another form of the word ("контроля" → "контроль") or a word still being typed ("конт")."""
+        return _has_prefix(self.stems, term.stem) or _has_prefix(self.words, term.word)

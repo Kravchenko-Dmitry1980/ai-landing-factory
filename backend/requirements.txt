@@ -22,6 +22,12 @@ httpx>=0.27.0
 
 
 
+# Library search: Russian and English word stems (pure Python, no models)
+
+snowballstemmer>=2.2.0
+
+
+
 # PII Layer 2 — Natasha (optional; regex fallback if unavailable)
 
 natasha>=1.6.0

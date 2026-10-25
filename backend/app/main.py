@@ -1,4 +1,5 @@
 import logging
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -6,11 +7,22 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.config import settings
-from app.core.dependencies import get_account_repository, get_database
+from app.core.dependencies import get_account_repository, get_database, get_publication_repository
+from app.services.library.index import library_index
 from app.product_mode import log_product_mode_warnings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _warm_library_index() -> None:
+    """Build the search index in the background, so the first visitor after a restart does not wait."""
+    try:
+        repo = get_publication_repository()
+        library_index(repo.list_published(with_texts=False), repo.list_published)
+    except Exception:
+        # Not fatal: the first library request builds it instead.
+        logger.exception("Library index warm-up failed")
 
 
 @asynccontextmanager
@@ -31,6 +43,7 @@ async def lifespan(app: FastAPI):
             "No accounts yet: nobody can sign in. Create the first administrator with "
             "`python -m app.cli create-admin --login <login> --name \"<name>\"` in backend/."
         )
+    threading.Thread(target=_warm_library_index, name="library-index-warmup", daemon=True).start()
     logger.info("CORS origins: %s", settings.cors_origins)
     logger.info("Product mode: %s", settings.normalized_product_mode)
     log_product_mode_warnings(settings)
