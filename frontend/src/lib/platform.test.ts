@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { suggestLogin } from "@/components/account/AcceptInviteForm";
 import { publishButtonLabel } from "@/components/editor/PublishPanel";
 import { resultsHeading } from "@/components/library/LibraryView";
+import { cardExtra } from "@/components/library/LibraryCardView";
 import { ApiRequestError } from "./api-errors";
-import { apiDetail, formatDate, hasRole, platformErrorMessage, publicationState, safeNextPath } from "./platform";
+import { apiDetail, formatDate, formatYear, hasRole, platformErrorMessage, publicationState, safeNextPath } from "./platform";
 
 describe("safeNextPath", () => {
   it("keeps paths of this site", () => {
@@ -79,14 +80,31 @@ describe("texts", () => {
     expect(formatDate("not a date")).toBe("");
   });
 
+  it("takes the year in Moscow time as well", () => {
+    expect(formatYear("2025-12-31T22:30:00+00:00")).toBe("2026");
+    expect(formatYear("nope")).toBe("");
+  });
+
+  it("names the team size under a card, or the customer when the page has no team", () => {
+    const base = { people: [] as string[], customer: "ООО «Пример»" };
+    expect(cardExtra({ ...base, people: ["А", "Б", "В"] } as never)).toBe("3 участника");
+    expect(cardExtra({ ...base, people: Array(11).fill("А") } as never)).toBe("11 участников");
+    expect(cardExtra(base as never)).toBe("ООО «Пример»");
+  });
+
   it("suggests a Latin login from the name", () => {
     expect(suggestLogin("Мария Соколова")).toBe("mariya.sokolova");
     expect(suggestLogin("  ")).toBe("");
   });
 
   it("words search results by number", () => {
-    expect(resultsHeading("касса", 1)).toBe("По запросу «касса» нашёлся 1 лендинг");
-    expect(resultsHeading("касса", 3)).toBe("По запросу «касса» нашлось 3 лендинга");
-    expect(resultsHeading("касса", 0)).toContain("ничего не нашлось");
+    const found = (query: string, direct: number, related: number, shown = direct + related, terms = 1) =>
+      resultsHeading({ query, direct_total: direct, related_total: related, terms, hits: Array(shown).fill(null) });
+    expect(found("касса", 1, 0)).toBe("По запросу «касса» нашёлся 1 проект.");
+    expect(found("касса", 3, 2)).toBe("По запросу «касса» нашлось 3 проекта, ещё 2 на похожую тему.");
+    expect(found("видеонаблюдение", 0, 2)).toBe("Точных совпадений с «видеонаблюдение» нет. Проекты на похожую тему: 2.");
+    expect(found("касса", 0, 0)).toContain("ничего не нашлось");
+    expect(found("склад", 150, 0, 100)).toBe("По запросу «склад» нашлось 150 проектов. Показаны первые 100.");
+    expect(found("?!", 0, 0, 0, 0)).toContain("нет слов для поиска");
   });
 });

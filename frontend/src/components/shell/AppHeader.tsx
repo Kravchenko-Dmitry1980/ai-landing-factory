@@ -4,6 +4,21 @@ import { hasRole, type SessionUser } from "@/lib/platform";
 import { SignOutButton } from "./SignOutButton";
 
 export type AppSection = "library" | "studio" | "admin";
+/** paper: the studio's light sheet; night: the library, in the colours of the night landing. */
+export type HeaderTone = "paper" | "night";
+
+const TONES: Record<HeaderTone, { bar: string; link: string; name: string }> = {
+  paper: {
+    bar: "border-grid bg-white",
+    link: "text-ink hover:bg-paper aria-[current=page]:bg-scheme-soft aria-[current=page]:text-scheme",
+    name: "text-fur",
+  },
+  night: {
+    bar: "border-night-line bg-night-bg text-night-ink",
+    link: "text-night-soft hover:bg-night-panel aria-[current=page]:bg-[#3FDCFF]/10 aria-[current=page]:text-night-ink",
+    name: "text-night-muted",
+  },
+};
 
 const SECTIONS: { key: AppSection; href: string; label: string; role: "viewer" | "editor" | "admin" }[] = [
   { key: "library", href: "/", label: "Библиотека", role: "viewer" },
@@ -18,17 +33,23 @@ const SECTIONS: { key: AppSection; href: string; label: string; role: "viewer" |
 export function AppHeader({
   user,
   current,
+  tone = "paper",
   children,
 }: {
   user?: SessionUser | null;
   current?: AppSection;
+  tone?: HeaderTone;
   children?: ReactNode;
 }) {
   const sections = user ? SECTIONS.filter((s) => hasRole(user, s.role)) : [];
+  const colors = TONES[tone];
   return (
-    <header className="border-b border-grid bg-white">
-      <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-6 gap-y-3 px-6 py-3">
-        <CatLogoLink />
+    <header className={`border-b ${colors.bar}`}>
+      {/* The library is wider than the studio sheet; the header lines up with each. */}
+      <div
+        className={`mx-auto flex flex-wrap items-center gap-x-6 gap-y-3 px-6 py-3 ${tone === "night" ? "max-w-[1240px]" : "max-w-[1200px]"}`}
+      >
+        <CatLogoLink night={tone === "night"} />
         {sections.length > 1 && (
           <nav aria-label="Разделы" className="flex flex-wrap gap-1">
             {sections.map((s) => (
@@ -36,7 +57,7 @@ export function AppHeader({
                 key={s.key}
                 href={s.href}
                 aria-current={s.key === current ? "page" : undefined}
-                className="rounded-lg px-3 py-1.5 text-[15px] text-ink no-underline hover:bg-paper aria-[current=page]:bg-scheme-soft aria-[current=page]:font-semibold aria-[current=page]:text-scheme"
+                className={`rounded-lg px-3 py-1.5 text-[15px] no-underline aria-[current=page]:font-semibold ${colors.link}`}
               >
                 {s.label}
               </Link>
@@ -47,10 +68,10 @@ export function AppHeader({
           {children}
           {user && (
             <div className="flex items-center gap-3 text-[15px]">
-              <span className="max-w-[220px] truncate text-fur" title={user.login}>
+              <span className={`max-w-[220px] truncate ${colors.name}`} title={user.login}>
                 {user.name}
               </span>
-              <SignOutButton />
+              <SignOutButton night={tone === "night"} />
             </div>
           )}
         </div>
@@ -61,14 +82,16 @@ export function AppHeader({
 
 export function CatLogoLink({
   compact = false,
+  night = false,
   onClick,
 }: {
   compact?: boolean;
+  night?: boolean;
   onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   const size = compact ? 36 : 44;
   return (
-    <Link href="/" onClick={onClick} className="flex items-center gap-2.5 text-ink no-underline">
+    <Link href="/" onClick={onClick} className={`flex items-center gap-2.5 no-underline ${night ? "text-night-ink" : "text-ink"}`}>
       {/* eslint-disable-next-line @next/next/no-img-element -- статичный логотип, оптимизирован заранее */}
       <img src="/brand/cat-mark.webp" alt="" width={size} height={size} />
       <span className={`font-display font-semibold ${compact ? "text-[19px]" : "text-[22px]"}`}>

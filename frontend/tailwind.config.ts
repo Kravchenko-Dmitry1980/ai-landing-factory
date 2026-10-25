@@ -35,6 +35,19 @@ const config: Config = {
         marker: { DEFAULT: "#FFC2C8", dot: "#F37C8A", line: "#F39AA4" },
         ok: "#1B7A46",
         danger: "#B42318",
+        // Ночная тема библиотеки: те же цвета, что у ночного лендинга.
+        night: {
+          bg: "#0A0F1C",
+          card: "#0C1222",
+          panel: "#111A2D",
+          line: "#1C2841",
+          edge: "#22304A",
+          rim: "#2A3A5C",
+          ink: "#EEF2FA",
+          soft: "#B9C4D9",
+          muted: "#8A98B4",
+          chip: "#9EEBFF",
+        },
       },
       fontFamily: {
         display: ['"Geologica Variable"', "Geologica", "system-ui", "sans-serif"],

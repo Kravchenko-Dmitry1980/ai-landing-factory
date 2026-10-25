@@ -61,6 +61,11 @@ export interface PublicationInfo {
   withdrawn_at: string | null;
 }
 
+export interface TopicTag {
+  key: string;
+  label: string;
+}
+
 export interface LibraryCard {
   project_id: string;
   slug: string;
@@ -70,6 +75,8 @@ export interface LibraryCard {
   customer: string;
   lead: string;
   people: string[];
+  /** Strongest first; empty when the text matches no topic of the library. */
+  topics: TopicTag[];
   theme: string;
   version: number;
   first_published_at: string;
@@ -178,15 +185,55 @@ export function withdrawPublication(projectId: string): Promise<PublicationInfo>
   return apiRequest<PublicationInfo>(`/projects/${encodeURIComponent(projectId)}/publication`, { method: "DELETE" });
 }
 
-export interface LibraryPage {
+export interface LibraryHit {
+  card: LibraryCard;
+  /** Where the query was found: "в названии", "участник: …", "похожая тема: …". */
+  reasons: string[];
+  /** Found through a related topic, not through its own words. */
+  similar_topic: boolean;
+}
+
+export interface LibrarySearch {
   /** Everything published, whatever the query. */
   total: number;
+  query: string;
+  /** Counted before the list is cut to the limit. */
+  direct_total: number;
+  related_total: number;
+  /** Words of the query that count; 0 with a non-empty query means nothing searchable was typed. */
+  terms: number;
+  hits: LibraryHit[];
+}
+
+export interface LibraryShelf {
+  key: string;
+  label: string;
+  note: string;
   cards: LibraryCard[];
 }
 
-export function searchLibrary(query: string): Promise<LibraryPage> {
+export interface TopicCount {
+  key: string;
+  label: string;
+  count: number;
+}
+
+export interface LibraryShelves {
+  total: number;
+  fresh: LibraryCard[];
+  shelves: LibraryShelf[];
+  topics: TopicCount[];
+}
+
+export interface SimilarCard {
+  card: LibraryCard;
+  /** What the two landings share: "общая тема: …", "общий заказчик: …", "общие слова: …". */
+  reason: string;
+}
+
+export function searchLibrary(query: string): Promise<LibrarySearch> {
   const q = query.trim();
-  return apiRequest<LibraryPage>(`/library${q ? `?q=${encodeURIComponent(q)}` : ""}`);
+  return apiRequest<LibrarySearch>(`/library${q ? `?q=${encodeURIComponent(q)}` : ""}`);
 }
 
 /**
@@ -240,6 +287,14 @@ const DATE_FORMAT = new Intl.DateTimeFormat("ru-RU", {
   // Fixed zone: the server and the browser must print the same date (no hydration mismatch).
   timeZone: "Europe/Moscow",
 });
+
+const YEAR_FORMAT = new Intl.DateTimeFormat("ru-RU", { year: "numeric", timeZone: "Europe/Moscow" });
+
+/** The year in Moscow time, the same on the server and in the browser. */
+export function formatYear(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : YEAR_FORMAT.format(d).replace(/\D/g, "");
+}
 
 /** "24 октября 2026 г." → "24 октября 2026". */
 export function formatDate(iso: string): string {

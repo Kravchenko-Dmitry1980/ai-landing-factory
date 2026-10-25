@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { platformErrorMessage, signOut } from "@/lib/platform";
 
-export function SignOutButton() {
+export function SignOutButton({ night = false }: { night?: boolean }) {
   const [busy, setBusy] = useState(false);
 
   async function leave() {
@@ -25,7 +25,9 @@ export function SignOutButton() {
       type="button"
       onClick={() => void leave()}
       disabled={busy}
-      className="rounded-lg border border-field px-3 py-1.5 text-[15px] hover:bg-paper disabled:opacity-60"
+      className={`rounded-lg border px-3 py-1.5 text-[15px] disabled:opacity-60 ${
+        night ? "border-night-rim text-night-ink hover:border-[#3FDCFF]" : "border-field hover:bg-paper"
+      }`}
     >
       {busy ? "Выхожу…" : "Выйти"}
     </button>
