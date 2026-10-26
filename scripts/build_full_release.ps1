@@ -56,6 +56,9 @@ $required = @(
     "deploy/docker/gateway/http.conf",
     "deploy/docker/gateway/https.conf",
     "deploy/docker/gateway/routes.inc",
+    "deploy/docker/gateway/proxy.conf",
+    "deploy/docker/docker-compose.traefik.yml",
+    "deploy/docker/lib.sh",
     "deploy/docker/backup.sh",
     "deploy/docker/restore.sh",
     "deploy/docker/healthcheck.sh",
@@ -66,7 +69,7 @@ $required = @(
     "frontend/package-lock.json"
 )
 # Files the server runs as they are: one carriage return breaks them.
-$mustBeLf = '\.(sh|conf|inc|service)$|Dockerfile$|docker-compose\.yml$|\.env\.docker\.example$'
+$mustBeLf = '\.(sh|conf|inc|service)$|Dockerfile$|docker-compose(\.\w+)?\.yml$|\.env\.docker\.example$'
 $forbidden = '(^|/)\.env$|(^|/)\.env\.local$|(^|/)node_modules/|(^|/)\.venv/|(^|/)\.git/|^backend/data/|\.sqlite3$|dev-accounts|\.pem$'
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem

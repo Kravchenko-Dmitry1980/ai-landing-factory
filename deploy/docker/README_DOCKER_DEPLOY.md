@@ -7,7 +7,8 @@
 | Файл | Зачем |
 |---|---|
 | `docker-compose.yml` | три контейнера: `gateway` (nginx, единственный вход снаружи), `backend`, `frontend`; том данных `lend_data`. Формат 3.8 для v1; у сети явно указаны опции, которые Docker 28+ добавляет сам, иначе v1 отказывается работать с существующей сетью |
-| `gateway/http.conf`, `gateway/https.conf`, `gateway/routes.inc` | маршруты входа: `/api/v1/` в backend, остальное во frontend; HTTPS-вариант с перенаправлением и HSTS |
+| `gateway/http.conf`, `gateway/https.conf`, `gateway/proxy.conf`, `gateway/routes.inc` | маршруты входа: `/api/v1/` в backend, остальное во frontend. Режим выбирает `LEND_GATEWAY`: HTTP; HTTPS с перенаправлением и HSTS; за общим прокси сервера, который держит 80/443 (адрес посетителя и схема берутся из его заголовков) |
+| `docker-compose.traefik.yml` | дополнение для сервера с Traefik: метки с именем `LEND_DOMAIN` и подключение к сети Traefik. Включается через `COMPOSE_FILE` в `.env` |
 | `backend.Dockerfile`, `frontend.Dockerfile` | образы; собираются из корня репозитория, `.dockerignore` не пускает внутрь локальные данные и `.env` |
 | `.env.docker.example` | все настройки с пояснениями; на сервере — `/opt/ai-landing-factory/shared/lend.env` |
 | `backup.sh` | резервная копия всех данных без остановки сайта: копия базы через SQLite с `integrity_check`, архив проверяется до того, как получит своё имя |
@@ -20,9 +21,9 @@
 
 | Что | Адрес | Кому |
 |---|---|---|
-| Вход (gateway) | `LEND_BIND:LEND_HTTP_PORT` (по умолчанию `0.0.0.0:80`), `:443` для HTTPS | сотрудникам |
-| Backend | `127.0.0.1:18001` | только проверкам с самого сервера |
-| Frontend | `127.0.0.1:13000` | только проверкам с самого сервера |
+| Вход (gateway) | `LEND_BIND:LEND_HTTP_PORT` (по умолчанию `0.0.0.0:80`), `:LEND_HTTPS_PORT` для HTTPS. За общим прокси — `127.0.0.1:18080` | сотрудникам или общему прокси |
+| Backend | `127.0.0.1:18001` (`LEND_BACKEND_LOCAL_PORT`) | только проверкам с самого сервера |
+| Frontend | `127.0.0.1:13000` (`LEND_FRONTEND_LOCAL_PORT`) | только проверкам с самого сервера |
 
 HTTPS рассчитан на стандартный порт 443: перенаправление с HTTP ведёт на `https://<адрес>/` без номера порта.
 
@@ -52,7 +53,13 @@ Docker 29. Стек проверен двумя способами:
 - `up -d --renew-anon-volumes`: и после смены `.env`, и с новым образом;
 - `exec`, `run --rm --no-deps gateway nginx -t`;
 - `backup.sh`, `restore.sh`, `healthcheck.sh`;
-- режим HTTPS: перенаправление с HTTP, HSTS на сутки, cookie с флагами `Secure` и `HttpOnly`, роли, отказ входу с чужого сайта.
+- режим HTTPS: перенаправление с HTTP, HSTS на сутки, cookie с флагами `Secure` и `HttpOnly`, роли, отказ входу с чужого сайта;
+- режим за общим прокси с Traefik 3.7 (как у ai-portal), подключение через `docker-compose.traefik.yml`:
+  - маршрут по имени и проверка сертификата с Linux-клиента;
+  - перенаправление с HTTP на HTTPS;
+  - cookie `Secure` при `SESSION_COOKIE_SECURE=auto`;
+  - отказ входу с чужого сайта;
+  - шлюз видит адрес посетителя, а не адрес Traefik.
 
 **Ошибки docker-compose 1.29.2 на Docker 29, которые обходит комплект:**
 

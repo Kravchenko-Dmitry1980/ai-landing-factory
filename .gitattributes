@@ -6,7 +6,7 @@
 *.service text eol=lf
 *Dockerfile text eol=lf
 *.Dockerfile text eol=lf
-deploy/docker/docker-compose.yml text eol=lf
+deploy/docker/*.yml text eol=lf
 deploy/docker/.env.docker.example text eol=lf
 
 # Not part of the product: stays out of the release archive (git archive).

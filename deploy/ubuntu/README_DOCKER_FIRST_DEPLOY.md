@@ -12,7 +12,9 @@
 
 Учётные записи, лендинги, загрузки и библиотека лежат в томе Docker `lend_data`. Том переживает перезапуски, пересборки и новые релизы.
 
-**Сервер** (аудит `SERVER_AUDIT_UII_DEV.md`): Ubuntu 24.04, Docker 29, только `docker-compose` v1 (1.29.2, через `sudo`), порты 80 и 443 свободны. Папку `/opt/ai-portal` не трогать, Ленд живёт в `/opt/ai-landing-factory`.
+**Сервер** (аудит `SERVER_AUDIT_UII_DEV.md`, 27.07.2026): Ubuntu 24.04, Docker 29, `docker-compose` v1 (1.29.2, через `sudo`). Папку `/opt/ai-portal` не трогать, Ленд живёт в `/opt/ai-landing-factory`.
+
+**Сервер общий.** С конца июля там же работает ai-portal со своим Traefik на портах 80 и 443. Тогда Ленд не занимает эти порты, а встаёт за общий прокси на своём поддомене: раздел 3а. Если сервер свободен, Ленд сам держит 80/443: шаги 3, 4 и 6.
 
 Скрипты запускаются через `bash`: `sudo bash ./healthcheck.sh`. Так они работают, даже если при распаковке пропал признак исполняемого файла.
 
@@ -27,11 +29,16 @@
 ```bash
 sudo docker version --format 'Docker {{.Server.Version}}, API {{.Server.MinAPIVersion}}–{{.Server.APIVersion}}'
 sudo docker-compose version
-sudo ss -ltnp | grep -E ':(80|443) ' || echo "80 и 443 свободны"
+sudo ss -ltnp | grep -E ':(80|443|13000|18001|18080|18443) ' || echo "все порты Ленда свободны"
+sudo docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}'
+sudo docker network ls
+df -h / /var/lib/docker
 ```
 
 - Docker 29 принимает запросы только с версией API от 1.44, а `docker-compose` 1.29 по умолчанию шлёт 1.38. Поэтому в шаблоне настроек стоит `COMPOSE_API_VERSION=1.44`: не удаляйте эту строку.
-- Если 80 или 443 заняты, см. `LEND_HTTP_PORT` в шаге 3 и раздел о порте 443 в шаге 6.
+- **Кто на 80/443.** Если их держит Traefik (контейнер `traefik`) или nginx другого проекта, ставьте Ленд за него: раздел 3а.
+- **Остатки июльской выкладки.** Контейнеры `alf-backend` и `alf-frontend` занимают `127.0.0.1:18001` и `127.0.0.1:13000`, те же порты, что у нового Ленда. Если они ещё есть, остановите и удалите их после согласования с администратором: `sudo docker stop alf-backend alf-frontend && sudo docker rm alf-backend alf-frontend`. Их том с данными останется. Другой вариант — сдвинуть порты Ленда в `lend.env`: `LEND_BACKEND_LOCAL_PORT`, `LEND_FRONTEND_LOCAL_PORT`.
+- **Место.** Образы Ленда занимают около 2,5 ГБ, сборке нужно ещё несколько гигабайт. Нужно хотя бы 10 ГБ свободных: в августе диск на этом сервере уже заканчивался.
 
 ## 1. Архив релиза (на рабочем компьютере)
 
@@ -77,6 +84,68 @@ sudo nano /opt/ai-landing-factory/shared/lend.env
 sudo ln -sfn /opt/ai-landing-factory/shared/lend.env /opt/ai-landing-factory/current/deploy/docker/.env
 ```
 
+## 3а. Сервер общий: Ленд за прокси, который уже держит 80/443
+
+Ленд живёт только на своём имени, например `lend.neural-university.ru`. Путь внутри чужого сайта (`portal…/apps/lend`) не подходит: страницы, API и опубликованные лендинги рассчитаны на корень адреса.
+
+Общие настройки в `lend.env`:
+
+```env
+LEND_GATEWAY=proxy
+LEND_BIND=127.0.0.1
+LEND_HTTP_PORT=18080
+LEND_HTTPS_PORT=18443
+LEND_DOMAIN=lend.neural-university.ru
+BACKEND_CORS_ORIGINS=https://lend.neural-university.ru
+```
+
+- Шлюз Ленда слушает только `127.0.0.1:18080`, снаружи его не видно. `18443` не используется, но Docker всё равно его занимает, поэтому порт тоже должен быть свободен.
+- HTTPS и сертификат — забота общего прокси, шаг 6 не нужен.
+- Cookie входа сама получает `Secure`: прокси сообщает, что посетитель пришёл по HTTPS.
+- Адрес посетителя для защиты от подбора пароля берётся из `X-Forwarded-For` прокси.
+
+**Вариант A — Traefik** (как у ai-portal). Ленд подключается к сети Traefik и сообщает ему своё имя метками контейнера (`deploy/docker/docker-compose.traefik.yml`). Конфигурацию Traefik править не нужно. В `lend.env` дополнительно:
+
+```env
+COMPOSE_FILE=docker-compose.yml:docker-compose.traefik.yml
+LEND_TRAEFIK_NETWORK=<сеть Traefik>
+LEND_TRAEFIK_ENTRYPOINT=websecure
+LEND_TRAEFIK_HTTP_ENTRYPOINT=web
+LEND_TRAEFIK_CERTRESOLVER=letsencrypt
+```
+
+Узнать значения у администратора или на сервере:
+
+```bash
+sudo docker inspect traefik --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'   # сеть
+sudo docker inspect traefik --format '{{join .Args " "}}' | tr ' ' '\n' | grep -E 'entrypoints|certificatesresolvers'
+```
+
+Traefik сам получит сертификат Let's Encrypt, когда DNS-запись поддомена будет указывать на сервер.
+
+**Вариант Б — nginx на сервере.** Администратор добавляет сайт:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name lend.neural-university.ru;
+    # ssl_certificate … — как у остальных сайтов сервера
+    client_max_body_size 60m;
+    location / {
+        proxy_pass http://127.0.0.1:18080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+}
+```
+
+И перенаправление с `http://` на `https://` для этого имени.
+
+**Проверка.** `healthcheck.sh` спрашивает общий прокси по имени `LEND_DOMAIN` прямо на сервере, как спросил бы посетитель. Пока у прокси нет настоящего сертификата для имени, проверка пишет `SSL certificate problem`. Это значит, что DNS или Let's Encrypt ещё не готовы.
+
 ## 4. Сборка и запуск
 
 ```bash
@@ -120,6 +189,8 @@ sudo docker-compose exec backend python -m app.cli invite --role admin
 Команда напечатает ссылку `/invite/…`. Допишите к ней адрес сервера.
 
 ## 6. HTTPS
+
+Если Ленд стоит за общим прокси (раздел 3а), HTTPS держит прокси, этот шаг пропустите.
 
 Пока сайт работает по HTTP, пароли идут по сети открыто. Как только у адреса есть сертификат:
 
@@ -249,7 +320,11 @@ sudo docker-compose logs --tail=100 gateway
 | Страница входа открывается, но вход отвечает «Запрос пришёл с другого сайта» | Адреса, который в браузере, нет в `BACKEND_CORS_ORIGINS`. Добавить и выполнить `sudo docker-compose up -d --renew-anon-volumes` |
 | 502 Bad Gateway | Контейнер ещё запускается или упал: `healthcheck.sh`, журналы `backend` и `frontend` |
 | После входа снова страница входа | Cookie входа помечена `Secure`, а сайт открыт по HTTP: браузер её не сохраняет. Так бывает при `SESSION_COOKIE_SECURE=true` без HTTPS. Открывайте сайт по `https://` или верните `auto` |
-| Порт 80 занят | Другой `LEND_HTTP_PORT` в `lend.env`, тот же порт в `BACKEND_CORS_ORIGINS` |
+| Порт 80 занят | Если его держит общий прокси другого проекта — раздел 3а. Иначе другой `LEND_HTTP_PORT` в `lend.env` и тот же порт в `BACKEND_CORS_ORIGINS` |
+| `port is already allocated` или `address already in use` при запуске | Порт из ошибки занят другим проектом. `sudo ss -ltnp` покажет, кем именно. Сдвиньте нужный `LEND_*_PORT` в `lend.env` или уберите старые контейнеры `alf-*` (шаг 0) |
+| `network … declared as external, but could not be found` | Неверное `LEND_TRAEFIK_NETWORK`: имя сети Traefik из `sudo docker network ls` |
+| `healthcheck.sh`: `SSL certificate problem` у проверки через общий прокси | У прокси ещё нет сертификата для `LEND_DOMAIN`: DNS-запись ещё не указывает на сервер, или Let's Encrypt не выдал сертификат. Журнал прокси: `sudo docker logs traefik --tail=50` |
+| Через общий прокси 404 | Traefik не видит Ленд: проверить `COMPOSE_FILE`, `LEND_DOMAIN`, `LEND_TRAEFIK_NETWORK` и что `lend-gateway` подключён к сети Traefik: `sudo docker inspect lend-gateway` |
 | «Слишком много неудачных попыток входа» | Подождать 15 минут или выдать ссылку для нового пароля на странице «Сотрудники» |
 | `WARN the latest backup is older than 36 hours` | Ночная копия не сработала: `/var/log/lend-backup.log`, `sudo crontab -l` |
 

@@ -90,8 +90,9 @@ $COMPOSE start
 trap - ERR
 echo
 echo "Restored from ${ARCHIVE_NAME}. Waiting for Lend to start..."
+READY_URL="$(backend_local_url)/health/ready"
 for _ in $(seq 1 30); do
-  if curl -fsS --max-time 3 "http://127.0.0.1:18001/health/ready" >/dev/null 2>&1; then
+  if curl -fsS --max-time 3 "${READY_URL}" >/dev/null 2>&1; then
     echo "Lend is running. Full check: sudo bash ./healthcheck.sh"
     exit 0
   fi

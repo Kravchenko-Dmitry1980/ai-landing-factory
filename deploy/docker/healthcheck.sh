@@ -22,7 +22,7 @@ ok() { echo "OK    $*"; }
 fail() { echo "FAIL  $*"; failed=1; }
 warn() { echo "WARN  $*"; warned=1; }
 
-# check <label> <expected status> <url> [curl options]
+# check <label> <expected status, e.g. 200 or 301|308> <url> [curl options]
 check() {
   local label="$1" expected="$2" url="$3"
   shift 3
@@ -31,7 +31,7 @@ check() {
   code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "$@" "$url" 2>"$errors")"
   error="$(tr -d '\r' <"$errors" | head -n 1)"
   rm -f "$errors"
-  if [[ "$code" == "$expected" ]]; then
+  if [[ "$code" =~ ^(${expected})$ ]]; then
     ok "$label ($code)"
   elif [[ "$code" == "000" ]]; then
     fail "$label: no answer from $url (${error:-connection failed})"
@@ -52,8 +52,8 @@ for name in "${GATEWAY_CONTAINER}" "${BACKEND_CONTAINER}" "${FRONTEND_CONTAINER}
 done
 
 echo "== Database and data folder =="
-check "backend ready (database opens, data folder is writable)" 200 "http://127.0.0.1:18001/health/ready"
-check "frontend answers" 200 "http://127.0.0.1:13000/login"
+check "backend ready (database opens, data folder is writable)" 200 "$(backend_local_url)/health/ready"
+check "frontend answers" 200 "$(frontend_local_url)/login"
 
 if [[ "$GATEWAY" == "https" ]]; then
   BASE="https://${HOST}:${HTTPS_PORT}"
@@ -64,13 +64,32 @@ if [[ "$GATEWAY" == "https" ]]; then
   INSECURE=(-k)
 else
   BASE="http://${HOST}:${HTTP_PORT}"
-  echo "== Through the gateway (HTTP, ${BASE}) =="
+  echo "== Through the gateway (${GATEWAY}, ${BASE}) =="
   INSECURE=()
 fi
 check "backend health" 200 "${BASE}/health" "${INSECURE[@]}"
 check "sign-in page" 200 "${BASE}/login" "${INSECURE[@]}"
 check "pages need a session (redirect to sign-in)" 307 "${BASE}/" "${INSECURE[@]}"
 check "API needs a session" 401 "${BASE}/api/v1/auth/me" "${INSECURE[@]}"
+
+if [[ "$GATEWAY" == "proxy" ]]; then
+  # The shared proxy is asked on this server for Lend's name, as a visitor would ask it:
+  # its route to the gateway and its certificate for the name (checked, no -k).
+  DOMAIN="$(setting LEND_DOMAIN)"
+  PROXY_HTTP_PORT="$(setting LEND_PROXY_HTTP_PORT)"; PROXY_HTTP_PORT="${PROXY_HTTP_PORT:-80}"
+  PROXY_HTTPS_PORT="$(setting LEND_PROXY_HTTPS_PORT)"; PROXY_HTTPS_PORT="${PROXY_HTTPS_PORT:-443}"
+  if [[ -z "$DOMAIN" ]]; then
+    warn "LEND_DOMAIN is empty: the route through the server's shared proxy is not checked"
+  else
+    PUBLIC="https://${DOMAIN}:${PROXY_HTTPS_PORT}"
+    echo "== Through the shared proxy (${PUBLIC}, asked on this server) =="
+    TO_LOCAL=(--resolve "${DOMAIN}:${PROXY_HTTPS_PORT}:127.0.0.1")
+    check "backend health" 200 "${PUBLIC}/health" "${TO_LOCAL[@]}"
+    check "sign-in page" 200 "${PUBLIC}/login" "${TO_LOCAL[@]}"
+    check "plain HTTP goes to HTTPS" "301|302|307|308" "http://${DOMAIN}:${PROXY_HTTP_PORT}/login" \
+      --resolve "${DOMAIN}:${PROXY_HTTP_PORT}:127.0.0.1"
+  fi
+fi
 
 if [[ "$GATEWAY" == "https" ]]; then
   echo "== Certificate =="

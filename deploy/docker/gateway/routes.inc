@@ -1,6 +1,7 @@
-# Routes of the Lend gateway, shared by http.conf and https.conf.
+# Routes of the Lend gateway, shared by http.conf, https.conf and proxy.conf.
 # The browser sees one address: /api/v1/ goes to the backend, everything else to Next.js.
 # Same origin for both is what makes the HttpOnly session cookie work.
+# The including server sets $lend_proto: the scheme the visitor used (http or https).
 
 client_max_body_size 60m;
 
@@ -20,7 +21,7 @@ proxy_http_version 1.1;
 proxy_set_header Host $host;
 proxy_set_header X-Real-IP $remote_addr;
 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-proxy_set_header X-Forwarded-Proto $scheme;
+proxy_set_header X-Forwarded-Proto $lend_proto;
 proxy_set_header X-Forwarded-Host $http_host;
 
 location = /health {

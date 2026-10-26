@@ -35,6 +35,19 @@ setting() {
     | tail -n 1 | sed -E "s/[[:space:]]+\$//; s/^['\"]//; s/['\"]\$//"
 }
 
+# Loopback addresses of the backend and frontend for checks from the server itself
+# (docker-compose.yml publishes them on 127.0.0.1, the ports can be moved in .env).
+backend_local_url() {
+  local port
+  port="$(setting LEND_BACKEND_LOCAL_PORT)"
+  echo "http://127.0.0.1:${port:-18001}"
+}
+frontend_local_url() {
+  local port
+  port="$(setting LEND_FRONTEND_LOCAL_PORT)"
+  echo "http://127.0.0.1:${port:-13000}"
+}
+
 # A path the caller gave, resolved before the script changes directory. Symbolic links are
 # followed: a container gets the folder of the real file mounted, not of the link.
 absolute_path() {
