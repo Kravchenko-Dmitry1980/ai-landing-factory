@@ -75,11 +75,12 @@ export function slugifyRu(text: string, maxLength = 60): string {
   const latin = Array.from(text.toLowerCase())
     .map((ch) => TRANSLIT[ch] ?? ch)
     .join("");
-  const slug = latin
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, maxLength)
-    .replace(/-+$/g, "");
+  const full = latin.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  let slug = full.slice(0, maxLength);
+  // A long title is cut at a word boundary, not in the middle of a word.
+  const boundary = slug.lastIndexOf("-");
+  if (full.length > maxLength && full[maxLength] !== "-" && boundary >= maxLength / 2) slug = slug.slice(0, boundary);
+  slug = slug.replace(/-+$/g, "");
   return slug || "landing";
 }
 

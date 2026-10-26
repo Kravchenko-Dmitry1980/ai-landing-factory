@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { LandingPreview } from "@/components/preview/LandingPreview";
 import { StaffPreview } from "@/components/preview/StaffPreview";
 import { requireUser } from "@/lib/session.server";
+
+export const metadata: Metadata = { title: "Как увидят посетители — Ленд" };
 
 export default async function PreviewPage({
   params,

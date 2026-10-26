@@ -1,0 +1,36 @@
+# Images are built from the repository root (deploy/docker/*.Dockerfile).
+# Nothing local goes in: data, accounts, secrets, caches, other machines' builds.
+
+.git
+**/.git
+.venv
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+
+# Landings, uploads, the account database and test passwords of this machine.
+backend/data
+backend/uploads
+backend/exports
+backend/reports
+backend/tmp
+
+# Local settings: the containers get theirs from deploy/docker/.env.
+backend/.env
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+deploy/docker/.env
+deploy/docker/certs
+
+# Build output is made inside the image.
+frontend/.next
+frontend/tsconfig.tsbuildinfo
+
+logs
+.runtime
+test_corpus
+*.zip

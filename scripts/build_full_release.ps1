@@ -1,12 +1,14 @@
-# Build full-product release archive for systemd/nginx deploy.
-# Output: .runtime/release/full-product/ + ai-landing-full-product.zip
+# Packs a release archive for the server from a git commit (default HEAD).
 #
-# Excludes: .git, .venv, node_modules, .runtime, logs, backend/data, .env, caches
+# git archive takes exactly what is committed: no local data, accounts, .env files,
+# node_modules or caches can slip in, and with autocrlf off every file keeps the LF
+# line endings it has in the repository (shell scripts with CRLF fail on Ubuntu).
 #
-# Usage:
-#   .\scripts\build_full_release.ps1
+#   pwsh scripts/build_full_release.ps1            # HEAD
+#   pwsh scripts/build_full_release.ps1 -Ref v1.2  # a tag or another commit
 
 param(
+    [string]$Ref = "HEAD",
     [switch]$Help
 )
 
@@ -14,156 +16,88 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 
 if ($Help) {
-    Write-Host "build_full_release.ps1 - pack sources + deploy templates into a zip (no secrets)."
+    Write-Host "build_full_release.ps1 [-Ref <commit>] - release zip from a git commit (no local data, LF endings)."
     exit 0
 }
 
-$stamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$stage = Join-Path $Root ".runtime\release\full-product"
-$zipPath = Join-Path $Root ".runtime\release\ai-landing-full-product.zip"
-
-if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
-New-Item -ItemType Directory -Force -Path $stage | Out-Null
-
-$excludeDirNames = @(
-    ".git", ".venv", "node_modules", ".runtime", "logs", ".next", ".pytest_cache",
-    "__pycache__", "dist-wow", ".claude", ".cursor", "hallmark"
-)
-$excludeFileGlobs = @(
-    "*.pyc", "*.pyo", "*.log", ".DS_Store", "Thumbs.db",
-    ".env", ".env.local", ".env.production", ".env.docker"
-)
-
-function Should-SkipPath {
-    param([string]$FullPath, [string]$RootPath)
-    $rel = $FullPath.Substring($RootPath.Length).TrimStart("\", "/")
-    $parts = $rel -split "[\\/]"
-    foreach ($p in $parts) {
-        if ($excludeDirNames -contains $p) { return $true }
-    }
-    # backend/data (any nesting under backend/) and uploads
-    if ($rel -match '(?i)^backend([\\/].*)?[\\/]data([\\/]|$)') { return $true }
-    if ($rel -match '(?i)^backend[\\/]\.env$') { return $true }
-    if ($rel -match '(?i)^frontend[\\/]\.env') {
-        # allow tracked examples only
-        if ($rel -notmatch '(?i)\.example$') { return $true }
-    }
-    $name = Split-Path $FullPath -Leaf
-    if ($name -eq ".env" -or $name -eq ".env.local" -or $name -eq ".env.production") { return $true }
-    if ($name -match '\.log$') { return $true }
-    if ($name -eq "-files logs") { return $true }
-    return $false
+$commit = & git -C $Root rev-parse --verify --short "$Ref^{commit}" 2>$null
+if ($LASTEXITCODE -ne 0 -or -not $commit) { throw "Unknown git ref: $Ref" }
+$commit = $commit.Trim()
+$dirty = & git -C $Root status --porcelain
+if ($Ref -eq "HEAD" -and $dirty) {
+    Write-Warning "Changes not committed (and new files not added) are NOT in the release, it is built from commit ${commit}:"
+    $dirty | Select-Object -First 15 | ForEach-Object { Write-Warning "  $_" }
 }
 
-$includeRoots = @(
-    "backend",
-    "frontend",
-    "scripts",
-    "deploy",
-    "docs",
-    "demo_release_20260531_2247",
-    "requirements.txt",
-    "run.ps1",
-    "README.md",
-    "README_RUN.md",
-    ".gitignore",
-    "FINAL_GO_NO_GO.md",
-    "SERVER_DEPLOY_PREP.md",
-    "UAT_ALGOFUSION_DOCX_REPAIR_REPORT.md",
-    "UAT_FREEMODEL_REPORT.md",
-    "UAT_FRESH_CLONE_REPORT.md",
-    "UAT_RELEASE_REPORT.md",
-    "DEPLOY_PREP_REPORT.md",
-    "DEPLOY_SECURITY_AUDIT.md",
-    "DEPLOY_RELEASE_CHECKLIST.md",
-    "SERVER_AUDIT_UII_DEV.md"
-)
+# Scripts must be executable in git itself: with core.filemode=false on Windows the bit is not
+# taken from the disk (set it with: git add --chmod=+x <file>).
+$notExecutable = & git -C $Root ls-tree -r $Ref -- deploy |
+    Where-Object { $_ -match '^(\d+) blob \S+\t(.+\.sh)$' -and $Matches[1] -ne '100755' } |
+    ForEach-Object { ($_ -split "`t", 2)[1] }
+if ($LASTEXITCODE -ne 0) { throw "git ls-tree failed for $Ref" }
+if ($notExecutable) { throw "Not executable in git (git add --chmod=+x): $($notExecutable -join ', ')" }
 
-Write-Host "Staging full release into $stage" -ForegroundColor Cyan
-
-foreach ($item in $includeRoots) {
-    $src = Join-Path $Root $item
-    if (-not (Test-Path $src)) {
-        Write-Host "  skip missing: $item"
-        continue
-    }
-    $itemObj = Get-Item $src
-    if ($itemObj.PSIsContainer) {
-        Get-ChildItem -Path $src -Recurse -Force -File | ForEach-Object {
-            if (Should-SkipPath -FullPath $_.FullName -RootPath $Root) { return }
-            $rel = $_.FullName.Substring($Root.Length).TrimStart("\", "/")
-            $dest = Join-Path $stage $rel
-            $destParent = Split-Path $dest -Parent
-            if (-not (Test-Path $destParent)) {
-                New-Item -ItemType Directory -Force -Path $destParent | Out-Null
-            }
-            Copy-Item -LiteralPath $_.FullName -Destination $dest -Force
-        }
-    } else {
-        Copy-Item -LiteralPath $src -Destination (Join-Path $stage $item) -Force
-    }
-}
-
-# backend/data is created at runtime (Docker volume or first start) — not packaged
-# Sanity: secrets / junk must not be present
-$forbidden = @(
-    (Join-Path $stage "backend\.env"),
-    (Join-Path $stage "frontend\.env.local"),
-    (Join-Path $stage ".venv"),
-    (Join-Path $stage "frontend\node_modules"),
-    (Join-Path $stage ".git"),
-    (Join-Path $stage ".runtime")
-)
-foreach ($bad in $forbidden) {
-    if (Test-Path $bad) { throw "Forbidden path present in stage: $bad" }
-}
-
-# Spot-check required deploy templates
-$need = @(
-    "deploy\systemd\alf-backend.service",
-    "deploy\systemd\alf-frontend.service",
-    "deploy\nginx\ai-landing-full.conf",
-    "deploy\nginx\ai-landing-static.conf",
-    "deploy\nginx\ai-landing-docker.conf",
-    "backend\.env.production.example",
-    "frontend\.env.production.example",
-    "backend\app\main.py",
-    "frontend\package.json",
-    "frontend\package-lock.json",
-    "backend\requirements.txt"
-)
-foreach ($n in $need) {
-    $p = Join-Path $stage $n
-    if (-not (Test-Path $p)) { throw "Missing required release file: $n" }
-}
-
+$stamp = Get-Date -Format "yyyyMMdd_HHmm"
+$outDir = Join-Path $Root ".runtime\release"
+New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+$zipPath = Join-Path $outDir "lend-release-$stamp-$commit.zip"
 if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
-Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zipPath -Force
 
-# Verify zip has no .env
+& git -C $Root -c core.autocrlf=false archive --format=zip -o $zipPath $Ref
+if ($LASTEXITCODE -ne 0) { throw "git archive failed" }
+
+# --- checks of the archive itself ---------------------------------------------------
+$required = @(
+    ".dockerignore",
+    "deploy/docker/docker-compose.yml",
+    "deploy/docker/backend.Dockerfile",
+    "deploy/docker/frontend.Dockerfile",
+    "deploy/docker/.env.docker.example",
+    "deploy/docker/gateway/http.conf",
+    "deploy/docker/gateway/https.conf",
+    "deploy/docker/gateway/routes.inc",
+    "deploy/docker/backup.sh",
+    "deploy/docker/restore.sh",
+    "deploy/docker/healthcheck.sh",
+    "deploy/ubuntu/README_DOCKER_FIRST_DEPLOY.md",
+    "backend/requirements.txt",
+    "backend/app/main.py",
+    "frontend/package.json",
+    "frontend/package-lock.json"
+)
+# Files the server runs as they are: one carriage return breaks them.
+$mustBeLf = '\.(sh|conf|inc|service)$|Dockerfile$|docker-compose\.yml$|\.env\.docker\.example$'
+$forbidden = '(^|/)\.env$|(^|/)\.env\.local$|(^|/)node_modules/|(^|/)\.venv/|(^|/)\.git/|^backend/data/|\.sqlite3$|dev-accounts|\.pem$'
+
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zip = [IO.Compression.ZipFile]::OpenRead($zipPath)
 try {
-    $envEntries = $zip.Entries | Where-Object {
-        $_.FullName -match '(^|[\\/])\.env$' -or
-        $_.FullName -match '(^|[\\/])\.env\.local$' -or
-        $_.FullName -match 'node_modules' -or
-        $_.FullName -match '(^|[\\/])\.venv([\\/]|$)' -or
-        $_.FullName -match '(^|[\\/])\.git([\\/]|$)' -or
-        $_.FullName -match '(^|[\\/])backend([\\/].*)?[\\/]data([\\/]|$)'
+    $names = $zip.Entries | ForEach-Object { $_.FullName }
+    $bad = $names | Where-Object { $_ -match $forbidden }
+    if ($bad) { throw "Archive contains forbidden entries: $(($bad | Select-Object -First 10) -join ', ')" }
+
+    $missing = $required | Where-Object { $names -notcontains $_ }
+    if ($missing) { throw "Archive misses required files: $($missing -join ', ')" }
+
+    $crlf = @()
+    foreach ($entry in $zip.Entries | Where-Object { $_.FullName -match $mustBeLf }) {
+        $stream = $entry.Open()
+        try {
+            $buffer = New-Object System.IO.MemoryStream
+            $stream.CopyTo($buffer)
+            if ([Array]::IndexOf($buffer.ToArray(), [byte]13) -ge 0) { $crlf += $entry.FullName }
+        }
+        finally { $stream.Dispose() }
     }
-    if ($envEntries) {
-        $names = ($envEntries | Select-Object -First 10 | ForEach-Object { $_.FullName }) -join ", "
-        throw "Zip contains forbidden entries: $names"
-    }
+    if ($crlf) { throw "CRLF line endings in files the server runs: $($crlf -join ', ')" }
 }
 finally {
     $zip.Dispose()
 }
 
 Write-Host ""
-Write-Host "Full product release OK" -ForegroundColor Green
-Write-Host "  Folder: $stage"
+Write-Host "Release OK" -ForegroundColor Green
+Write-Host "  Commit:  $commit ($Ref)"
 Write-Host "  Archive: $zipPath"
-Write-Host ("  Size: {0:N1} MB" -f ((Get-Item $zipPath).Length / 1MB))
-Write-Host "  Stamp: $stamp"
+Write-Host ("  Size:    {0:N1} MB" -f ((Get-Item $zipPath).Length / 1MB))
+Write-Host "  Server:  deploy/ubuntu/README_DOCKER_FIRST_DEPLOY.md"

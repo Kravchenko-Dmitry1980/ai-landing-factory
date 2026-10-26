@@ -2,7 +2,7 @@ import logging
 import threading
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
@@ -70,3 +70,21 @@ app.include_router(api_router, prefix=settings.api_prefix)
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok", "service": settings.app_name}
+
+
+@app.get("/health/ready")
+def ready() -> dict[str, str]:
+    """
+    For the operator's health check: the account database answers and the data folder takes
+    writes. /health only says the process is up; a full disk or a read-only volume shows here.
+    """
+    try:
+        with get_database().read() as conn:
+            conn.execute("SELECT COUNT(*) FROM users").fetchone()
+        probe = settings.data_dir / ".ready-probe"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+    except Exception as exc:
+        logger.exception("Readiness check failed")
+        raise HTTPException(503, f"Not ready: {type(exc).__name__}: {exc}") from exc
+    return {"status": "ready"}

@@ -12,13 +12,22 @@ function detail(message: string, status: number): Response {
   return Response.json({ detail: message }, { status, headers: { "Cache-Control": "no-store" } });
 }
 
+/** The site's own addresses, the same list the backend trusts (BACKEND_CORS_ORIGINS, comma-separated). */
+const ALLOWED_ORIGINS = new Set(
+  (process.env.BACKEND_CORS_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim().replace(/\/$/, ""))
+    .filter(Boolean),
+);
+
 /**
  * Browsers send Origin with every cross-origin POST; a page of another site must not publish.
  * Host names only: nginx passes Host without the port, and cookies are shared across ports anyway.
+ * The configured list also counts, for a proxy in front that rewrites the Host header.
  */
 function fromThisSite(request: Request): boolean {
   const origin = request.headers.get("origin");
-  if (!origin) return true;
+  if (!origin || ALLOWED_ORIGINS.has(origin)) return true;
   const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "";
   try {
     if (new URL(origin).hostname === new URL(`http://${host}`).hostname) return true;

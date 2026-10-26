@@ -20,7 +20,7 @@ import {
   publishLanding,
   withdrawPublication,
 } from "@/lib/platform";
-import { profileForTheme, themeFromContract, type LandingTheme } from "@/landing/model";
+import { descriptionOf, profileForTheme, themeFromContract, type LandingTheme } from "@/landing/model";
 import {
   blockHint,
   editableBlocks,
@@ -69,7 +69,8 @@ function headerFrom(c: LandingContract): Header {
   const title = c.title ?? "";
   return {
     title,
-    quote: c.quote?.trim() || (tagline && tagline !== title.trim() ? tagline : ""),
+    // A description that only repeats the title shows as empty, with a marker and a to-do.
+    quote: descriptionOf(title, c.quote ?? "", tagline),
     client: c.client ?? "",
     timeline: c.timeline ?? "",
     lead: c.lead ?? "",
@@ -490,6 +491,9 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
   const todos = useMemo((): Todo[] => {
     const list: Todo[] = [];
     if (header && !header.title.trim()) list.push({ label: "Нет заголовка страницы", targetId: "field-title" });
+    if (header && !header.quote.trim()) {
+      list.push({ label: "Нет короткого описания под заголовком", targetId: "field-quote" });
+    }
     for (const { block } of visible) {
       if (isBlockEmpty(block)) {
         list.push({ label: `Раздел «${block.title || "Без названия"}» пустой`, targetId: `block-${block.key}-content` });
@@ -621,11 +625,12 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
                 }`}
               />
               <InlineText
+                id="field-quote"
                 label="Короткое описание под заголовком"
                 value={header.quote}
                 placeholder="Одно-два предложения: что делает проект и для кого"
                 onChange={(quote) => editHeader({ quote })}
-                className="max-w-[680px] text-[17px] leading-relaxed"
+                className={`max-w-[680px] text-[17px] leading-relaxed ${header.quote.trim() ? "" : "bg-marker"}`}
               />
               <dl className="flex flex-wrap gap-x-8 gap-y-3 text-[15px]">
                 <Fact label="Заказчик" value={header.client} onChange={(client) => editHeader({ client })} />

@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { LandingEditor } from "@/components/editor/LandingEditor";
 import { StaffEditor } from "@/components/editor/StaffEditor";
 import { AppHeader } from "@/components/shell/AppHeader";
 import { backendFetch, requireUser } from "@/lib/session.server";
 import { notFound } from "next/navigation";
+
+export const metadata: Metadata = { title: "Редактор — Ленд" };
 
 export default async function EditorPage({
   params,

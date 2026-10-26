@@ -1,5 +1,7 @@
 # Deploy Prep Report
 
+> Отчёт подготовки от июля 2026, команды в нём устарели. Актуальная инструкция выкладки: `deploy/ubuntu/README_DOCKER_FIRST_DEPLOY.md`.
+
 Дата: 2026-07-27  
 Проект: `C:\Dima\Projects\CURSOR\_uat\ai-landing-factory-fresh`  
 Ветка: `main`

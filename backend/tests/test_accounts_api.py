@@ -227,3 +227,8 @@ def test_data_dir_alone_moves_every_data_folder(tmp_path, monkeypatch) -> None:
         tmp_path / "extractions",
     )
     assert settings.database_path == tmp_path / "lend.sqlite3"
+
+
+def test_readiness_touches_the_database_and_the_data_folder(accounts) -> None:
+    response = TestClient(app).get("/health/ready")
+    assert response.status_code == 200 and response.json() == {"status": "ready"}

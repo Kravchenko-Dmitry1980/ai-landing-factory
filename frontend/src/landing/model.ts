@@ -372,6 +372,20 @@ function sectionTitle(blocks: Map<string, LandingBlock>, key: string): string {
   return own && own !== PARSER_TITLES[key] ? own : PAGE_TITLES[key]!;
 }
 
+/**
+ * Same words, ignoring case, punctuation and quotes: the parser often copies the title into the
+ * description slot, and a page that says its title twice looks broken.
+ */
+export function sameText(a: string, b: string): boolean {
+  const norm = (t: string) => t.toLowerCase().replace(/ё/g, "е").replace(/[^0-9a-zа-я]+/g, " ").trim();
+  return norm(a) !== "" && norm(a) === norm(b);
+}
+
+/** The description under the title: the tagline or the quote, never a copy of the title. */
+export function descriptionOf(title: string, tagline: string, quote: string): string {
+  return [tagline, quote].map((t) => t.trim()).find((t) => t && !sameText(t, title)) ?? "";
+}
+
 function firstSentence(text: string, max = 220): string {
   const sentence = text.split(/(?<=[.!?])\s/)[0] ?? text;
   if (sentence.length <= max) return sentence;
@@ -391,8 +405,8 @@ export function buildLandingModel(contract: LandingContract, publicTeam: TeamMem
   const essenceBullets = (blocks.get("essence")?.bullets ?? [])
     .map(clean)
     .filter((b) => b && !essence.includes(b));
-  const description =
-    (tagline && tagline !== title ? tagline : "") || (contract.quote ?? "").trim() || firstSentence(essence);
+  const opening = firstSentence(essence);
+  const description = descriptionOf(title, tagline, contract.quote ?? "") || (sameText(opening, title) ? "" : opening);
 
   const facts: Fact[] = [
     { label: "Заказчик", value: (contract.client ?? "").trim() },

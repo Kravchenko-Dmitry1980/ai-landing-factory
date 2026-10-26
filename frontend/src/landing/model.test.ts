@@ -3,6 +3,8 @@ import type { LandingContract, TeamMember } from "@/lib/types";
 import {
   blockParts,
   buildLandingModel,
+  descriptionOf,
+  sameText,
   parseResult,
   prettyTimeline,
   splitHead,
@@ -146,6 +148,26 @@ describe("helpers", () => {
 
 describe("buildLandingModel", () => {
   const model = buildLandingModel(contract(), team);
+
+  it("never repeats the title as the description under it", () => {
+    const copy = contract({
+      quote: "Контроль операций по видео",
+      blocks: contract().blocks.map((b) => (b.key === "tagline" ? { ...b, content: "«Контроль операций по видео»" } : b)),
+    });
+    const hero = buildLandingModel(copy, team);
+    expect(hero.description).not.toBe(hero.title);
+    expect(sameText(hero.description, hero.title)).toBe(false);
+    expect(descriptionOf("Эндокринология+", "", "Эндокринология+")).toBe("");
+    expect(descriptionOf("Эндокринология+", "Эндокринология+", "Помогает врачу")).toBe("Помогает врачу");
+    expect(sameText("Контроль операций!", "контроль  операций")).toBe(true);
+    expect(sameText("", "")).toBe(false);
+    // Nor through the first sentence of the essence, the last fallback.
+    const echo = contract({
+      quote: "",
+      blocks: [{ key: "essence", title: "Суть", content: "Контроль операций по видео. Камера смотрит за кассой.", bullets: [] }],
+    });
+    expect(buildLandingModel(echo, team).description).toBe("");
+  });
 
   it("builds the hero from title, tagline and facts", () => {
     expect(model.description).toBe("Камера сверяет действия с регламентом.");

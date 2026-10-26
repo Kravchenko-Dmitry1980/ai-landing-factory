@@ -5,14 +5,8 @@ from dataclasses import dataclass, field
 
 from app.schemas.landing_contract import LandingContract
 from app.services.export.public_team import publishable_team
-from app.services.library.search import words
+from app.services.library.search import transliterate, words
 
-_TRANSLIT = {
-    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e", "ж": "zh", "з": "z", "и": "i",
-    "й": "y", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t",
-    "у": "u", "ф": "f", "х": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "sch", "ъ": "", "ы": "y", "ь": "",
-    "э": "e", "ю": "yu", "я": "ya",
-}
 SLUG_MAX_LENGTH = 60
 MAX_PEOPLE = 60
 MAX_BODY_CHARS = 50_000
@@ -30,9 +24,17 @@ class PublicationMeta:
 
 
 def slugify(text: str) -> str:
-    """Latin address part, the same transliteration as the frontend file names: "Контроль кассы" → "kontrol-kassy"."""
-    latin = "".join(_TRANSLIT.get(ch, ch) for ch in text.lower())
-    slug = re.sub(r"[^a-z0-9]+", "-", latin).strip("-")[:SLUG_MAX_LENGTH].rstrip("-")
+    """
+    Latin address part, the same transliteration as the frontend file names: "Контроль кассы" →
+    "kontrol-kassy". A long title is cut at a word boundary, not in the middle of a word.
+    """
+    slug = re.sub(r"[^a-z0-9]+", "-", transliterate(text.lower())).strip("-")
+    if len(slug) > SLUG_MAX_LENGTH:
+        cut = slug[:SLUG_MAX_LENGTH]
+        boundary = cut.rfind("-")
+        if slug[SLUG_MAX_LENGTH] != "-" and boundary >= SLUG_MAX_LENGTH // 2:
+            cut = cut[:boundary]
+        slug = cut.rstrip("-")
     return slug or "lend"
 
 

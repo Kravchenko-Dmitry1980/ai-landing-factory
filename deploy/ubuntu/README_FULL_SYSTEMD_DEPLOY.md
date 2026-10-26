@@ -1,5 +1,9 @@
 # Full product deploy — systemd + nginx (Ubuntu 22.04 / 24.04)
 
+> **Основной способ выкладки — Docker:** [`README_DOCKER_FIRST_DEPLOY.md`](README_DOCKER_FIRST_DEPLOY.md). Он проверен целиком и не требует nginx на сервере.
+> Если всё же ставить через systemd, учесть три вещи. `DATA_DIR` в `shared/backend.env` должен указывать вне папки релиза, иначе учётные записи и библиотека пропадут с новым релизом. У фронтенда нужен `INTERNAL_API_URL=http://127.0.0.1:8001/api/v1`. nginx должен пропускать `/api/v1/` без изменения пути (`deploy/nginx/ai-landing-full.conf`). Подробности — `docs/ACCOUNTS_AND_LIBRARY.md`.
+
+
 **Status:** template / ready when server params provided.  
 **Do not run against production until SSH/IP/domain are known.**
 

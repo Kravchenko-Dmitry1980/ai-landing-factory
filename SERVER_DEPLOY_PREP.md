@@ -1,5 +1,7 @@
 # Server Deploy Preparation
 
+> Отчёт подготовки от июля 2026, команды в нём устарели. Актуальная инструкция выкладки: `deploy/ubuntu/README_DOCKER_FIRST_DEPLOY.md`.
+
 ## 1. Current Local Status
 
 | Поле | Значение |

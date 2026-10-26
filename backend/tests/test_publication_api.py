@@ -231,6 +231,9 @@ def test_short_words_and_surnames_do_not_match_everything(editor, reader) -> Non
     # "Петровой" → Петрова, never Пётр; "Иванову" → Иванов.
     assert found("Петровой") == ["Помощник ИИ для врача"]
     assert found("Иванову") == ["Учёт склада"]
+    # Latin brand names are found by their Russian spelling.
+    publish(editor, save_contract("Дайджест новостей", essence="Собирает посты из Telegram-каналов"))
+    assert found("телеграм") == ["Дайджест новостей"]
     # Prepositions and look-alike words point at no topic.
     page = reader.get("/api/v1/library", params={"q": "про статус"}).json()
     assert page["hits"] == []
@@ -300,6 +303,9 @@ def test_meta_takes_only_names_that_the_page_shows(monkeypatch) -> None:
 def test_slug_and_search_helpers() -> None:
     assert slugify("Контроль кассы: v2.0!") == "kontrol-kassy-v2-0"
     assert slugify("!!!") == "lend"
+    assert slugify("Нейро-ассистент для фильтрации и аналитики новостных потоков") == (
+        "neyro-assistent-dlya-filtratsii-i-analitiki-novostnyh"
+    )
     assert words("Ёлка, YOLO-v8") == ["елка", "yolo", "v8"]
     # Other forms of a word share a stem; one-letter words carry no meaning; short words stay whole.
     assert [t.word for t in query_terms("Контроля и контроль ИИ")] == ["контроля", "контроль", "ии"]

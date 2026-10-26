@@ -42,6 +42,10 @@ describe("file helpers", () => {
   it("makes a Latin file slug", () => {
     expect(slugifyRu("Контроль валютно-обменных операций")).toBe("kontrol-valyutno-obmennyh-operatsiy");
     expect(slugifyRu("!!!")).toBe("landing");
+    // A long title is cut between words, not in the middle of one.
+    expect(slugifyRu("Нейро-ассистент для фильтрации и аналитики новостных потоков")).toBe(
+      "neyro-assistent-dlya-filtratsii-i-analitiki-novostnyh",
+    );
   });
 
   it("validates format and total size", () => {

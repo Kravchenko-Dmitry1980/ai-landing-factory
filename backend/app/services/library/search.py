@@ -19,8 +19,19 @@ _ENGLISH = snowballstemmer.stemmer("english")
 _STEM_LOCK = threading.Lock()
 SHORT_WORD = 3
 MAX_QUERY_TERMS = 12
+_TRANSLIT = {
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e", "ж": "zh", "з": "z", "и": "i",
+    "й": "y", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t",
+    "у": "u", "ф": "f", "х": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "sch", "ъ": "", "ы": "y", "ь": "",
+    "э": "e", "ю": "yu", "я": "ya",
+}
 # Case endings of Russian surnames: "Петровой" → "петров", "Кусу" → "кус".
 _NAME_ENDINGS = ("ой", "ым", "ом", "ою", "ую", "ая", "ых", "их", "а", "у", "е", "ы")
+
+
+def transliterate(text: str) -> str:
+    """Russian letters in Latin, the same way as landing addresses: "телеграм" → "telegram"."""
+    return "".join(_TRANSLIT.get(ch, ch) for ch in text)
 
 
 def words(text: str) -> list[str]:
@@ -58,6 +69,9 @@ class QueryTerm:
     word: str
     stem: str
     name_forms: tuple[str, ...]
+    # The word in Latin letters, for brands written in Latin: "телеграм" finds "Telegram".
+    latin: str | None = None
+    latin_stem: str | None = None
 
 
 def query_terms(query: str) -> list[QueryTerm]:
@@ -65,7 +79,8 @@ def query_terms(query: str) -> list[QueryTerm]:
     found: dict[str, QueryTerm] = {}
     for word in words(query):
         if (len(word) >= 2 or word.isdigit()) and word not in found:
-            found[word] = QueryTerm(word, stem(word), name_forms(word))
+            latin = transliterate(word) if not word.isascii() and len(word) >= 4 else None
+            found[word] = QueryTerm(word, stem(word), name_forms(word), latin, stem(latin) if latin else None)
     return list(found.values())[:MAX_QUERY_TERMS]
 
 
@@ -86,4 +101,6 @@ class FieldWords:
 
     def matches(self, term: QueryTerm) -> bool:
         """Another form of the word ("контроля" → "контроль") or a word still being typed ("конт")."""
-        return _has_prefix(self.stems, term.stem) or _has_prefix(self.words, term.word)
+        if _has_prefix(self.stems, term.stem) or _has_prefix(self.words, term.word):
+            return True
+        return bool(term.latin) and (_has_prefix(self.stems, term.latin_stem) or _has_prefix(self.words, term.latin))
