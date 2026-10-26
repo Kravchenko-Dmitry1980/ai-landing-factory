@@ -12,9 +12,13 @@
 
 Учётные записи, лендинги, загрузки и библиотека лежат в томе Docker `lend_data`. Том переживает перезапуски, пересборки и новые релизы.
 
-**Сервер** (аудит `SERVER_AUDIT_UII_DEV.md`, 27.07.2026): Ubuntu 24.04, Docker 29, `docker-compose` v1 (1.29.2, через `sudo`). Папку `/opt/ai-portal` не трогать, Ленд живёт в `/opt/ai-landing-factory`.
+**Сервер** (решение от 26.10.2026): `195.209.218.235`, адрес Ленда `landing-factory.neural-university.ru`. A-записи заводят администраторы.
 
-**Сервер общий.** С конца июля там же работает ai-portal со своим Traefik на портах 80 и 443. Тогда Ленд не занимает эти порты, а встаёт за общий прокси на своём поддомене: раздел 3а. Если сервер свободен, Ленд сам держит 80/443: шаги 3, 4 и 6.
+- Сервер общий с проектом Романа. Порты 80 и 443 держит nginx самого сервера и раздаёт имена проектам. Ленд встаёт за него: раздел 3а, вариант A.
+- Traefik не используется. Он был только на старом сервере `195.209.213.170` у ai-portal.
+- Ленд живёт в `/opt/ai-landing-factory`. Чужие папки и контейнеры не трогать.
+- Что Ленд занимает на сервере, собрано в разделе 11 — это для администраторов и соседей.
+- Если сервер достанется Ленду целиком, Ленд сам держит 80/443: шаги 3, 4 и 6 без раздела 3а.
 
 Скрипты запускаются через `bash`: `sudo bash ./healthcheck.sh`. Так они работают, даже если при распаковке пропал признак исполняемого файла.
 
@@ -28,16 +32,17 @@
 
 ```bash
 sudo docker version --format 'Docker {{.Server.Version}}, API {{.Server.MinAPIVersion}}–{{.Server.APIVersion}}'
-sudo docker-compose version
+sudo docker-compose version || sudo docker compose version
 sudo ss -ltnp | grep -E ':(80|443|13000|18001|18080|18443) ' || echo "все порты Ленда свободны"
 sudo docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}'
 sudo docker network ls
 df -h / /var/lib/docker
 ```
 
-- Docker 29 принимает запросы только с версией API от 1.44, а `docker-compose` 1.29 по умолчанию шлёт 1.38. Поэтому в шаблоне настроек стоит `COMPOSE_API_VERSION=1.44`: не удаляйте эту строку.
-- **Кто на 80/443.** Если их держит Traefik (контейнер `traefik`) или nginx другого проекта, ставьте Ленд за него: раздел 3а.
-- **Остатки июльской выкладки.** Контейнеры `alf-backend` и `alf-frontend` занимают `127.0.0.1:18001` и `127.0.0.1:13000`, те же порты, что у нового Ленда. Если они ещё есть, остановите и удалите их после согласования с администратором: `sudo docker stop alf-backend alf-frontend && sudo docker rm alf-backend alf-frontend`. Их том с данными останется. Другой вариант — сдвинуть порты Ленда в `lend.env`: `LEND_BACKEND_LOCAL_PORT`, `LEND_FRONTEND_LOCAL_PORT`.
+- **Какой compose.** Команды в инструкции написаны для `docker-compose` (v1). Если на сервере только плагин v2, пишите `docker compose` через пробел, остальное то же. Скрипты Ленда сами находят, какой есть.
+- Docker 29 принимает запросы только с версией API от 1.44, а `docker-compose` 1.29 по умолчанию шлёт 1.38. Поэтому в шаблоне настроек стоит `COMPOSE_API_VERSION=1.44`: не удаляйте эту строку (compose v2 её не замечает).
+- **Кто на 80/443.** Если их держит nginx сервера или Traefik другого проекта, ставьте Ленд за него: раздел 3а.
+- **Остатки июльской выкладки** (на старом сервере). Контейнеры `alf-backend` и `alf-frontend` занимают `127.0.0.1:18001` и `127.0.0.1:13000`, те же порты, что у нового Ленда. Если они ещё есть, остановите и удалите их после согласования с администратором: `sudo docker stop alf-backend alf-frontend && sudo docker rm alf-backend alf-frontend`. Их том с данными останется. Другой вариант — сдвинуть порты Ленда в `lend.env`: `LEND_BACKEND_LOCAL_PORT`, `LEND_FRONTEND_LOCAL_PORT`.
 - **Место.** Образы Ленда занимают около 2,5 ГБ, сборке нужно ещё несколько гигабайт. Нужно хотя бы 10 ГБ свободных: в августе диск на этом сервере уже заканчивался.
 
 ## 1. Архив релиза (на рабочем компьютере)
@@ -51,7 +56,7 @@ pwsh scripts/build_full_release.ps1
 Скрипт сам проверяет архив и пишет путь: `.runtime/release/lend-release-<дата>-<коммит>.zip`.
 
 ```bash
-scp .runtime/release/lend-release-<дата>-<коммит>.zip dkravchenko@195.209.213.170:/tmp/
+scp .runtime/release/lend-release-<дата>-<коммит>.zip <пользователь>@195.209.218.235:/tmp/
 ```
 
 ## 2. Распаковка
@@ -75,7 +80,7 @@ sudo nano /opt/ai-landing-factory/shared/lend.env
 
 Обязательно поправить:
 
-- `BACKEND_CORS_ORIGINS` — адрес, который откроют сотрудники, со схемой и портом, если он не 80/443: `http://195.209.213.170` или `https://lend.example.ru`. Изменения с других адресов сервер отклоняет (защита от подделки запросов), поэтому перечислите через запятую все адреса, которыми пользуются.
+- `BACKEND_CORS_ORIGINS` — адрес, который откроют сотрудники, со схемой и портом, если он не 80/443: `https://landing-factory.neural-university.ru`. Изменения с других адресов сервер отклоняет (защита от подделки запросов), поэтому перечислите через запятую все адреса, которыми пользуются.
 - `LEND_HTTP_PORT` — если 80 занят, например `8080`, и тот же порт в адресе выше.
 
 Остальное по умолчанию: без внешнего ИИ и без GPU. `COMPOSE_PROJECT_NAME=lend` и `COMPOSE_API_VERSION=1.44` не меняйте.
@@ -86,25 +91,43 @@ sudo ln -sfn /opt/ai-landing-factory/shared/lend.env /opt/ai-landing-factory/cur
 
 ## 3а. Сервер общий: Ленд за прокси, который уже держит 80/443
 
-Ленд живёт только на своём имени, например `lend.neural-university.ru`. Путь внутри чужого сайта (`portal…/apps/lend`) не подходит: страницы, API и опубликованные лендинги рассчитаны на корень адреса.
+Ленд живёт только на своём имени: `landing-factory.neural-university.ru`. Путь внутри чужого сайта (`…/apps/lend`) не подходит: страницы, API и опубликованные лендинги рассчитаны на корень адреса.
 
-Общие настройки в `lend.env`:
+Настройки в `lend.env`:
 
 ```env
 LEND_GATEWAY=proxy
 LEND_BIND=127.0.0.1
 LEND_HTTP_PORT=18080
 LEND_HTTPS_PORT=18443
-LEND_DOMAIN=lend.neural-university.ru
-BACKEND_CORS_ORIGINS=https://lend.neural-university.ru
+LEND_DOMAIN=landing-factory.neural-university.ru
+BACKEND_CORS_ORIGINS=https://landing-factory.neural-university.ru
 ```
 
 - Шлюз Ленда слушает только `127.0.0.1:18080`, снаружи его не видно. `18443` не используется, но Docker всё равно его занимает, поэтому порт тоже должен быть свободен.
 - HTTPS и сертификат — забота общего прокси, шаг 6 не нужен.
 - Cookie входа сама получает `Secure`: прокси сообщает, что посетитель пришёл по HTTPS.
-- Адрес посетителя для защиты от подбора пароля берётся из `X-Forwarded-For` прокси.
+- Адрес посетителя для защиты от подбора пароля Ленд берёт из `X-Forwarded-For`. Это последний адрес в заголовке, его добавил сам прокси; подставить чужой адрес посетитель не может.
 
-**Вариант A — Traefik** (как у ai-portal). Ленд подключается к сети Traefik и сообщает ему своё имя метками контейнера (`deploy/docker/docker-compose.traefik.yml`). Конфигурацию Traefik править не нужно. В `lend.env` дополнительно:
+### Вариант A — nginx сервера (решение для 195.209.218.235)
+
+Готовый сайт для nginx сервера: `deploy/nginx/ai-landing-docker.conf`. Он отправляет всё на `127.0.0.1:18080`, принимает файлы до 60 МБ и ждёт ответа до 300 с. Установка (делает тот, кто ведёт nginx сервера):
+
+```bash
+sudo apt install -y nginx certbot python3-certbot-nginx     # если nginx и certbot ещё нет
+sudo cp /opt/ai-landing-factory/current/deploy/nginx/ai-landing-docker.conf /etc/nginx/sites-available/landing-factory.conf
+sudo ln -s /etc/nginx/sites-available/landing-factory.conf /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d landing-factory.neural-university.ru
+```
+
+`certbot` сам добавит HTTPS в этот сайт и перенаправление с `http://` на `https://`, а потом сам будет продлевать сертификат. Сайт проекта Романа живёт рядом своим файлом в `sites-available`: у каждого проекта своё имя и свой порт на `127.0.0.1`.
+
+До выпуска сертификата сайт работает по `http://`, вход тоже работает, но пароли идут открыто. Раздавать адрес сотрудникам — только после `certbot`.
+
+### Вариант Б — Traefik
+
+Для сервера, где 80/443 держит Traefik, как у ai-portal на старом сервере. Ленд подключается к сети Traefik и сообщает ему своё имя метками контейнера (`deploy/docker/docker-compose.traefik.yml`). Конфигурацию Traefik править не нужно. В `lend.env` дополнительно:
 
 ```env
 COMPOSE_FILE=docker-compose.yml:docker-compose.traefik.yml
@@ -114,37 +137,21 @@ LEND_TRAEFIK_HTTP_ENTRYPOINT=web
 LEND_TRAEFIK_CERTRESOLVER=letsencrypt
 ```
 
-Узнать значения у администратора или на сервере:
+Значения — у администратора или на сервере:
 
 ```bash
 sudo docker inspect traefik --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'   # сеть
-sudo docker inspect traefik --format '{{join .Args " "}}' | tr ' ' '\n' | grep -E 'entrypoints|certificatesresolvers'
+sudo docker inspect traefik --format '{{join .Args "\n"}}' | grep -E 'entrypoints|certificatesresolvers'
 ```
 
-Traefik сам получит сертификат Let's Encrypt, когда DNS-запись поддомена будет указывать на сервер.
+### Проверка
 
-**Вариант Б — nginx на сервере.** Администратор добавляет сайт:
+`healthcheck.sh` спрашивает общий прокси по имени `LEND_DOMAIN` прямо на сервере, как спросил бы посетитель.
 
-```nginx
-server {
-    listen 443 ssl;
-    server_name lend.neural-university.ru;
-    # ssl_certificate … — как у остальных сайтов сервера
-    client_max_body_size 60m;
-    location / {
-        proxy_pass http://127.0.0.1:18080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 300s;
-        proxy_send_timeout 300s;
-    }
-}
-```
+- Пока у прокси нет сертификата для имени, проверка пишет `SSL certificate problem`.
+- Пока нет перенаправления на HTTPS, строка `plain HTTP goes to HTTPS` получает 200 вместо 301.
 
-И перенаправление с `http://` на `https://` для этого имени.
-
-**Проверка.** `healthcheck.sh` спрашивает общий прокси по имени `LEND_DOMAIN` прямо на сервере, как спросил бы посетитель. Пока у прокси нет настоящего сертификата для имени, проверка пишет `SSL certificate problem`. Это значит, что DNS или Let's Encrypt ещё не готовы.
+Обе ошибки уходят после `certbot`.
 
 ## 4. Сборка и запуск
 
@@ -329,3 +336,19 @@ sudo docker-compose logs --tail=100 gateway
 | `WARN the latest backup is older than 36 hours` | Ночная копия не сработала: `/var/log/lend-backup.log`, `sudo crontab -l` |
 
 Подробнее об учётных записях, публикации и поиске — `docs/ACCOUNTS_AND_LIBRARY.md`. Инструкция для сотрудников — `docs/USER_QUICKSTART.md`.
+
+## 11. Что Ленд занимает на сервере
+
+Для администраторов и соседних проектов: всё, что создаёт Ленд, и ничего сверх этого.
+
+| Что | Значение |
+|---|---|
+| Папка | `/opt/ai-landing-factory`: релизы, `shared/lend.env`, `backups/` |
+| Контейнеры | `lend-gateway`, `lend-backend`, `lend-frontend` (проект compose `lend`) |
+| Образы | `lend_backend`, `lend_frontend` (или `lend-backend`, `lend-frontend` при compose v2), около 2,5 ГБ; `nginx:1.27-alpine` |
+| Том с данными | `lend_data` |
+| Сеть Docker | `lend_lend_net` |
+| Порты | только `127.0.0.1`: `18080` (вход для nginx сервера), `18443` (занят, не используется), `18001` (backend), `13000` (frontend). На 80/443 не претендует |
+| Сайт nginx | `/etc/nginx/sites-available/landing-factory.conf` → `landing-factory.neural-university.ru` |
+| Задание cron (root) | `30 3 * * *` — ночной бэкап, журнал `/var/log/lend-backup.log`, копии старше 14 дней удаляются |
+

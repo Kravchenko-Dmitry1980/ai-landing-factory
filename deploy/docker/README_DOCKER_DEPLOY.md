@@ -59,7 +59,13 @@ Docker 29. Стек проверен двумя способами:
   - перенаправление с HTTP на HTTPS;
   - cookie `Secure` при `SESSION_COOKIE_SECURE=auto`;
   - отказ входу с чужого сайта;
-  - шлюз видит адрес посетителя, а не адрес Traefik.
+  - шлюз видит адрес посетителя, а не адрес Traefik;
+- режим за nginx сервера с сайтом `deploy/nginx/ai-landing-docker.conf` (nginx в роли nginx сервера, HTTPS как после `certbot`):
+  - `/health` и вход через имя `landing-factory.neural-university.ru`;
+  - cookie `Secure` по HTTPS и без него по HTTP до выпуска сертификата;
+  - отказ входу с чужого сайта;
+  - подставленный посетителем `X-Forwarded-For` не проходит;
+- скрипты на сервере, где есть только `docker compose` v2: сами находят его, `backup.sh` проходит.
 
 **Ошибки docker-compose 1.29.2 на Docker 29, которые обходит комплект:**
 

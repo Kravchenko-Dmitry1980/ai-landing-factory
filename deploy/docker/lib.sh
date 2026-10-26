@@ -11,11 +11,19 @@ FRONTEND_CONTAINER=lend-frontend
 DATA_IN_CONTAINER=/app/backend/data
 DEFAULT_BACKUP_DIR=/opt/ai-landing-factory/backups
 
-# docker-compose v1 is what the server has; LEND_COMPOSE="docker compose" for Compose v2.
-COMPOSE="${LEND_COMPOSE:-docker-compose}"
+# docker-compose v1 where it is installed (the old UII server), otherwise the Compose v2 plugin
+# of a fresh Docker install ("docker compose"). LEND_COMPOSE overrides both.
+if [[ -n "${LEND_COMPOSE:-}" ]]; then
+  COMPOSE="${LEND_COMPOSE}"
+elif command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE=docker-compose
+else
+  COMPOSE="docker compose"
+fi
 require_compose() {
-  command -v "${COMPOSE%% *}" >/dev/null 2>&1 && return 0
-  echo "Command ${COMPOSE%% *} not found (PATH=${PATH}). Install docker-compose or set LEND_COMPOSE." >&2
+  $COMPOSE version >/dev/null 2>&1 && return 0
+  echo "Neither docker-compose nor the docker compose plugin works here (PATH=${PATH})." >&2
+  echo "Install one of them or set LEND_COMPOSE." >&2
   exit 1
 }
 
