@@ -72,6 +72,12 @@ describe("publication state", () => {
     expect(publishButtonLabel("outdated")).toBe("Обновить в библиотеке");
     expect(publishButtonLabel("published")).toBeNull();
   });
+
+  it("requires an explicit publication action to share an older private page", () => {
+    expect(publishButtonLabel("published", true)).toBe("Создать ссылку для стажёра");
+    expect(publishButtonLabel("published", false)).toBeNull();
+    expect(publishButtonLabel("outdated", true)).toBe("Обновить в библиотеке");
+  });
 });
 
 describe("texts", () => {

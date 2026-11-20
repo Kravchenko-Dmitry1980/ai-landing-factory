@@ -8,6 +8,7 @@ from app.api.v1 import (
     library,
     privacy,
     projects,
+    public_landings,
     publications,
     showcase,
     showcases,
@@ -15,9 +16,10 @@ from app.api.v1 import (
 )
 from app.core.auth import check_same_origin, current_user, require_admin, require_editor
 
-# Everything except signing in needs a session: the library and its landings are for staff only.
+# Public links return a single rendered snapshot; the library and studio still need a session.
 api_router = APIRouter(dependencies=[Depends(check_same_origin)])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(public_landings.router, prefix="/public/landings", tags=["public landings"])
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 api_router.include_router(library.router, prefix="/library", tags=["library"], dependencies=[Depends(current_user)])
 

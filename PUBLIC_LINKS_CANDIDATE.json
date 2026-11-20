@@ -1,0 +1,114 @@
+{
+  "base_commit": "5bf08c4aaa3d31294ec5ad52cec80a5f40e7c845",
+  "kind": "reviewed working-tree candidate; not a Git commit or deployed release",
+  "changed_files": [
+    {
+      "path": "backend/app/api/router.py",
+      "sha256": "dfce8ab2de5ed5426e5c72b2c1c97033cf2032bd70e51a5508fe03954dd25474"
+    },
+    {
+      "path": "backend/app/api/v1/public_landings.py",
+      "sha256": "27fe407f03a8a6fcbeaec013af874a9eece092aa197833ec6ac80f98fb5a022b"
+    },
+    {
+      "path": "backend/app/repositories/database.py",
+      "sha256": "e8d3c53c578359e92c02b541a549c6fafbae73d4e13b5f30478e5769eb6964df"
+    },
+    {
+      "path": "backend/app/repositories/publication_repository.py",
+      "sha256": "8ef6b91b9f0a25dc4d37cd26a03a1f474c5de6d50091ce66c79470f104246c4f"
+    },
+    {
+      "path": "backend/app/schemas/publication.py",
+      "sha256": "e26110ca37c519de21ba623a02c10ec31f29904f2b26eb2c72a09e033d905fb2"
+    },
+    {
+      "path": "backend/tests/test_publication_api.py",
+      "sha256": "46e332d292db1c26a8dd839ea938952866424825f9a183eb0ebdd9ecf57247e9"
+    },
+    {
+      "path": "deploy/docker/gateway/routes.inc",
+      "sha256": "787c04c121c02dc4a6c7549547491eb1be52085dc231b6f2b24343bb67d93e7e"
+    },
+    {
+      "path": "docs/ACCOUNTS_AND_LIBRARY.md",
+      "sha256": "423408c516024e32fcc4c436578ed24981f787f203a16304696b2e3431a4d520"
+    },
+    {
+      "path": "docs/PUBLIC_LINKS.md",
+      "sha256": "218f0a9d41d997e0500921bb53ba2d3b2869dafaf66894770c5ec97fd0dfa04a"
+    },
+    {
+      "path": "docs/USER_QUICKSTART.md",
+      "sha256": "ee2553062a92dad7b89953e05744a769043999125cc87b51fb959ebb9d77a00b"
+    },
+    {
+      "path": "frontend/src/app/s/[token]/route.test.ts",
+      "sha256": "4e6a497db51b1c3a1fc248d95a23b3c68a5abd94fded13de14aa6f9ae59deee7"
+    },
+    {
+      "path": "frontend/src/app/s/[token]/route.ts",
+      "sha256": "6f15d1c950cc19141d0f436ca29403268cd3983549583f8754391451e022064f"
+    },
+    {
+      "path": "frontend/src/components/editor/ProjectSourceStatusPanel.test.tsx",
+      "sha256": "0af034ae0d390ae8ecee370df7df2a046bc24121989824e7525fa20fc7498a22"
+    },
+    {
+      "path": "frontend/src/components/editor/PublishPanel.tsx",
+      "sha256": "8efb351f0e7387ce03426828a2eb43fabf0f078283aa8a48ed730097f0930198"
+    },
+    {
+      "path": "frontend/src/components/editor/StaffEditor.tsx",
+      "sha256": "50859d34cd733b9673193ce03880657eef63c8774ed36640216d5d4d8ad167e5"
+    },
+    {
+      "path": "frontend/src/components/editor/TeamReviewPanel.test.tsx",
+      "sha256": "57c274c679309587745b1dd3a5d1c94e8b311eebb2057853fafcbdb33bb8d076"
+    },
+    {
+      "path": "frontend/src/lib/platform.test.ts",
+      "sha256": "2de05508726184dccf9b7cb7ff5ee1a433eadb1ae9d69526402eac95ede11b02"
+    },
+    {
+      "path": "frontend/src/lib/platform.ts",
+      "sha256": "9710990a9142fc5d9460c059e46dc2d2e0c0083082fc3a2ac500c89b409668d7"
+    },
+    {
+      "path": "frontend/src/lib/public-link.test.ts",
+      "sha256": "923196918ddb48630085ee654cb1eafb83c89df1d794ef496265aa14c7de3d6d"
+    },
+    {
+      "path": "frontend/src/lib/public-link.ts",
+      "sha256": "eaa265c94ccdcf6185dedf4f5a94aa4ba0b1e809fba19c323efcf63871295460"
+    },
+    {
+      "path": "frontend/src/lib/resolveStyleConfig.test.ts",
+      "sha256": "6467c283b5697821dd7b30f71009a813adc4b18b3d320c6719b109612193289c"
+    },
+    {
+      "path": "frontend/src/rendering/contract_adapter_style_parity.test.ts",
+      "sha256": "d382256ae0d78cb5017d14aefec80d52e24c2a1fc14a5571b3b106c661351a51"
+    },
+    {
+      "path": "frontend/src/rendering/interactive_renderer.test.ts",
+      "sha256": "a67f1b44e414ede9590a7adc15cef8cea87834586254ca6b19c9d0ab912417b7"
+    },
+    {
+      "path": "frontend/src/rendering/style_profiles.test.ts",
+      "sha256": "94e94ebed5d8fe694556bfead89e9c85e4d8cf7b1fa342f6c008874fe383b3a5"
+    },
+    {
+      "path": "frontend/src/rendering/style_renderer.test.ts",
+      "sha256": "40f4163742ce0edae9576163cfe84d8fbe0fecbaab7044c99617394ebed4854d"
+    }
+  ],
+  "validation": {
+    "backend_tests": 51,
+    "frontend_tests": 67,
+    "browser_checks": 45,
+    "next_production_build": "PASS",
+    "typecheck": "PASS"
+  },
+  "excluded": "unrelated untracked files, local data, local env, node_modules, Git metadata"
+}

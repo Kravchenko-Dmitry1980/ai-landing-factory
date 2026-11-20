@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from app.api.v1 import auth as auth_api
 from app.core.auth import LoginThrottle
 from app.core.dependencies import get_account_repository, get_contract_repository, get_database
+from app.core.dependencies import get_publication_repository
 from app.core.security import hash_password
 from app.main import app
 from app.schemas.fidelity import TeamMember
@@ -339,3 +340,144 @@ def test_topics_need_two_words_or_one_in_the_title() -> None:
 def test_customer_names_ignore_the_legal_form() -> None:
     assert customer_key("ООО «Пример»") == customer_key("Пример") != ""
     assert customer_key('ООО "ИНДЛАБ"') == customer_key("ООО «Индлаб»")
+
+
+def public_api_path(info: dict) -> str:
+    assert info["public_path"].startswith("/s/")
+    return "/api/v1/public/landings/" + info["public_path"].removeprefix("/s/")
+
+
+def assert_public_headers(response) -> None:
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["content-security-policy"].startswith("sandbox;")
+    assert "default-src 'none'" in response.headers["content-security-policy"]
+    assert response.headers["x-robots-tag"] == "noindex, nofollow, noarchive"
+    assert response.headers["referrer-policy"] == "no-referrer"
+    assert response.headers["x-content-type-options"] == "nosniff"
+
+
+def test_public_link_opens_only_the_published_html_without_login(editor, reader) -> None:
+    contract = save_contract("Лендинг для стажёра", lead="Внутренний руководитель")
+    info = publish(editor, contract).json()
+    token = info["public_path"].removeprefix("/s/")
+    assert len(token) == 43 and token != info["slug"]
+    guest = TestClient(app)
+    response = guest.get(public_api_path(info))
+    assert response.status_code == 200 and response.text == PAGE
+    assert_public_headers(response)
+    assert "set-cookie" not in response.headers
+    assert "Внутренний руководитель" not in response.text
+
+    # Knowledge of one public link does not unlock library metadata or studio endpoints.
+    for path in (
+        "/api/v1/library", "/api/v1/library/_shelves", f"/api/v1/library/{info['slug']}",
+        f"/api/v1/library/{info['slug']}/html", f"/api/v1/library/{info['slug']}/similar",
+        "/api/v1/projects", f"/api/v1/projects/{contract.project_id}/contract",
+        f"/api/v1/projects/{contract.project_id}/publication", "/api/v1/admin/users",
+    ):
+        assert guest.get(path).status_code == 401, path
+    for path in ("/api/v1/public/landings", "/api/v1/public/landings/", public_api_path(info) + "/similar"):
+        absent = guest.get(path)
+        assert absent.status_code == 404
+        assert_public_headers(absent)
+    assert token not in reader.get("/api/v1/library").text
+    assert "public_path" not in reader.get(f"/api/v1/library/{info['slug']}").json()
+    assert reader.get(f"/api/v1/projects/{contract.project_id}/publication").status_code == 403
+    assert publish(reader, contract).status_code == 403
+    assert reader.delete(f"/api/v1/projects/{contract.project_id}/publication").status_code == 403
+    assert guest.get(public_api_path(info)).text == PAGE
+
+
+def test_public_link_stays_on_snapshot_until_publish_and_survives_update(editor) -> None:
+    contract = save_contract("Публичный снимок")
+    first = publish(editor, contract).json()
+    guest = TestClient(app)
+    contract.title = "Ещё не опубликованная правка"
+    contract.version += 1
+    asyncio.run(get_contract_repository().save_contract(contract))
+    assert guest.get(public_api_path(first)).text == PAGE
+    newer_html = PAGE.replace("Страница", "Обновлённая страница")
+    second = publish(editor, contract, newer_html).json()
+    assert second["public_path"] == first["public_path"]
+    assert guest.get(public_api_path(first)).text == newer_html
+    assert_public_headers(guest.get(public_api_path(first)))
+
+
+def test_withdraw_revokes_public_link_and_republish_creates_a_different_link(editor) -> None:
+    contract = save_contract("Отзыв ссылки")
+    first = publish(editor, contract).json()
+    guest = TestClient(app)
+    withdrawn = editor.delete(f"/api/v1/projects/{contract.project_id}/publication")
+    assert withdrawn.status_code == 200 and withdrawn.json()["public_path"] is None
+    response = guest.get(public_api_path(first))
+    assert response.status_code == 404
+    assert_public_headers(response)
+    again = publish(editor, contract).json()
+    assert again["public_path"] != first["public_path"]
+    assert guest.get(public_api_path(first)).status_code == 404
+    assert guest.get(public_api_path(again)).text == PAGE
+
+
+@pytest.mark.parametrize("token", ["missing", "a" * 42, "a" * 44, "a" * 43, "_shelves", "неверный", "a" * 42 + "."])
+def test_invalid_public_tokens_answer_generic_uncached_404(editor, token) -> None:
+    response = TestClient(app).get(f"/api/v1/public/landings/{token}")
+    assert response.status_code == 404
+    assert "Страница недоступна" in response.text
+    assert_public_headers(response)
+
+
+def test_missing_public_snapshot_returns_generic_404_without_file_or_project_data(editor) -> None:
+    contract = save_contract("Исчезнувший файл")
+    info = publish(editor, contract).json()
+    repo = get_publication_repository()
+    publication = repo.get_for_project(str(contract.project_id))
+    repo._html_path(publication.project_id, publication.version).unlink()
+    response = TestClient(app).get(public_api_path(info))
+    assert response.status_code == 404
+    assert_public_headers(response)
+    assert str(contract.project_id) not in response.text and info["slug"] not in response.text
+
+
+def test_public_link_does_not_weaken_same_origin_protection(editor) -> None:
+    contract = save_contract("Защита публикации")
+    info = publish(editor, contract).json()
+    path = f"/api/v1/projects/{contract.project_id}/publication"
+    hostile = {"Origin": "https://other-site.invalid"}
+    assert editor.post(path, headers=hostile, json={
+        "html": PAGE, "theme": "night", "contract_version": contract.version,
+    }).status_code == 403
+    assert editor.delete(path, headers=hostile).status_code == 403
+    assert TestClient(app).get(public_api_path(info)).text == PAGE
+
+
+def test_migration_keeps_old_publications_private_until_an_editor_publishes_again(tmp_path) -> None:
+    from app.repositories.database import Database, _MIGRATIONS
+    from app.repositories.publication_repository import PublicationRepository
+    from app.schemas.publication import PublicationInfo
+
+    db = Database(tmp_path / "legacy.sqlite3")
+    with db.write() as conn:
+        for statement in _MIGRATIONS[0]:
+            conn.execute(statement)
+        conn.execute("PRAGMA user_version = 1")
+        for project_id in ("legacy-one", "legacy-two"):
+            conn.execute(
+                "INSERT INTO publications (project_id,slug,status,version,contract_version,theme,title,"
+                "first_published_at,published_at) VALUES (?,?, 'published',1,1,'night',?, ?, ?)",
+                (project_id, project_id, "Старый закрытый лендинг", "2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00"),
+            )
+    assert db.migrate() == 2
+    assert db.migrate() == 2
+    repo = PublicationRepository(db, tmp_path / "published")
+    assert len(repo.list_published(with_texts=False)) == 2
+    for publication in repo.list_published():
+        assert publication.public_token is None
+        assert PublicationInfo.of(publication).public_path is None
+        assert publication.version == 1 and publication.title == "Старый закрытый лендинг"
+
+    contract = LandingContract(project_id=uuid4(), title="Теперь можно отправлять", updated_at=datetime.now(timezone.utc))
+    published = repo.publish("legacy-one", html=PAGE, theme="night", contract_version=1,
+                             meta=publication_meta(contract, ""), user_id=None)
+    assert published.public_token and published.version == 2
+    assert repo.get_public(published.public_token).project_id == "legacy-one"
+    assert repo.get_for_project("legacy-two").public_token is None

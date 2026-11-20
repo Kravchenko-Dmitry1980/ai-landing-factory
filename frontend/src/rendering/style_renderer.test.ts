@@ -27,6 +27,7 @@ const contract: LandingContract = {
   client: null,
   goals: [],
   presentation_style: null,
+  visual_assets: [],
   blocks: [],
   updated_at: landing.generated_at,
   version: 1,

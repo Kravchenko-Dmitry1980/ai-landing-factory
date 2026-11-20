@@ -28,6 +28,35 @@ location = /health {
     proxy_pass $lend_backend;
 }
 
+# Shared pages must keep their public-response policy through the gateway. A
+# location's add_header overrides the global defaults; hide matching upstream
+# headers so the browser receives one unambiguous value.
+location ^~ /s/ {
+    proxy_read_timeout 120s;
+    proxy_hide_header Referrer-Policy;
+    proxy_hide_header Cache-Control;
+    proxy_hide_header X-Robots-Tag;
+    proxy_hide_header X-Content-Type-Options;
+    add_header Referrer-Policy no-referrer always;
+    add_header Cache-Control no-store always;
+    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    add_header X-Content-Type-Options nosniff always;
+    proxy_pass $lend_frontend;
+}
+
+location ^~ /api/v1/public/landings/ {
+    proxy_read_timeout 120s;
+    proxy_hide_header Referrer-Policy;
+    proxy_hide_header Cache-Control;
+    proxy_hide_header X-Robots-Tag;
+    proxy_hide_header X-Content-Type-Options;
+    add_header Referrer-Policy no-referrer always;
+    add_header Cache-Control no-store always;
+    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    add_header X-Content-Type-Options nosniff always;
+    proxy_pass $lend_backend;
+}
+
 location /api/v1/ {
     # Building a landing from large files can take minutes.
     proxy_read_timeout 300s;

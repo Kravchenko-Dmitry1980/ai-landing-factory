@@ -368,7 +368,7 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
   async function withdraw() {
     if (publishBusy) return;
     const sure = window.confirm(
-      "Снять лендинг с публикации? Он пропадёт из библиотеки, а ссылка перестанет открываться. Опубликовать снова можно в любой момент.",
+      "Снять лендинг с публикации? Он пропадёт из библиотеки, а ссылка для стажёров перестанет открываться. При повторной публикации появится новая ссылка.",
     );
     if (!sure) return;
     setPublishBusy("withdraw");
@@ -548,7 +548,7 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
 
   const publicationInfo = publication.status === "ok" ? publication.info : null;
   const pubState = publicationState(publicationInfo?.status, publicationInfo?.contract_version, contract.version);
-  const publishLabel = publishButtonLabel(pubState);
+  const publishLabel = publishButtonLabel(pubState, Boolean(publicationInfo && !publicationInfo.public_path));
 
   return (
     <div className="min-h-screen bg-[#EEF1F7]">
@@ -661,6 +661,7 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
               busy={publishBusy}
               error={publishError}
               justPublished={justPublished}
+              onPublish={() => void publish()}
               onWithdraw={() => void withdraw()}
               onRetry={() => void loadPublication()}
             />

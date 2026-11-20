@@ -75,6 +75,11 @@ _MIGRATIONS: list[tuple[str, ...]] = [
         """,
         "CREATE INDEX publications_status ON publications (status, published_at)",
     ),
+    (
+        # Old publications stay private until an editor publishes them again.
+        "ALTER TABLE publications ADD COLUMN public_token TEXT",
+        "CREATE UNIQUE INDEX publications_public_token ON publications (public_token) WHERE public_token IS NOT NULL",
+    ),
 ]
 
 

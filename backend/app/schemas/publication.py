@@ -29,6 +29,7 @@ class PublicationInfo(BaseModel):
 
     slug: str
     path: str
+    public_path: str | None = None
     status: PublicationStatus
     version: int
     contract_version: int
@@ -44,6 +45,11 @@ class PublicationInfo(BaseModel):
         return cls(
             slug=publication.slug,
             path=publication_path(publication.slug),
+            public_path=(
+                f"/s/{publication.public_token}"
+                if publication.status == "published" and publication.public_token
+                else None
+            ),
             status=publication.status,
             version=publication.version,
             contract_version=publication.contract_version,

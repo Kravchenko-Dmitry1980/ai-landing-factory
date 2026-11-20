@@ -18,7 +18,9 @@ const baseContract: LandingContract = {
   fidelity: {
     parser_mode: "multi_source_assembly",
     source_count: 2,
+    modules: [],
     team_structured: [],
+    tech_stack_grouped: {},
     missing_fields: ["team"],
   },
 };

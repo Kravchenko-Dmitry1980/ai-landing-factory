@@ -5,6 +5,7 @@ the title changes or the landing is withdrawn and published again.
 """
 
 import json
+import secrets
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -37,6 +38,7 @@ class Publication:
     published_by_name: str | None
     withdrawn_at: datetime | None
     body_text: str = field(default="", repr=False)
+    public_token: str | None = field(default=None, repr=False)
 
 
 _SELECT = """
@@ -47,7 +49,7 @@ _SELECT = """
 _LIGHT_COLUMNS = (
     "p.project_id, p.slug, p.status, p.version, p.contract_version, p.theme, p.title, p.summary, "
     "p.customer, p.lead, p.people, p.first_published_at, p.published_at, p.published_by, "
-    "p.withdrawn_at, '' AS body_text"
+    "p.withdrawn_at, p.public_token, '' AS body_text"
 )
 
 
@@ -69,6 +71,7 @@ def _publication(row: sqlite3.Row) -> Publication:
         published_by_name=row["published_by_name"],
         withdrawn_at=datetime.fromisoformat(row["withdrawn_at"]) if row["withdrawn_at"] else None,
         body_text=row["body_text"],
+        public_token=row["public_token"],
     )
 
 
@@ -88,6 +91,14 @@ class PublicationRepository:
     def get_published(self, slug: str) -> Publication | None:
         with self._db.read() as conn:
             row = conn.execute(f"{_SELECT} WHERE p.slug = ? AND p.status = 'published'", (slug,)).fetchone()
+        return _publication(row) if row else None
+
+    def get_public(self, token: str) -> Publication | None:
+        """Exactly one published snapshot; this never grants access to the library or drafts."""
+        with self._db.read() as conn:
+            row = conn.execute(
+                f"{_SELECT} WHERE p.public_token = ? AND p.status = 'published'", (token,)
+            ).fetchone()
         return _publication(row) if row else None
 
     def list_all(self) -> list[Publication]:
@@ -123,10 +134,16 @@ class PublicationRepository:
         now = iso(utc_now())
         with self._db.write() as conn:
             existing = conn.execute(
-                "SELECT slug, version FROM publications WHERE project_id = ?", (project_id,)
+                "SELECT slug, version, status, public_token FROM publications WHERE project_id = ?", (project_id,)
             ).fetchone()
             version = existing["version"] + 1 if existing else 1
             slug = existing["slug"] if existing else _free_slug(conn, slugify(meta.title))
+            # Updates keep the sent link. A new/legacy/withdrawn publication gets a fresh one.
+            public_token = (
+                existing["public_token"]
+                if existing and existing["status"] == "published" and existing["public_token"]
+                else secrets.token_urlsafe(32)
+            )
             # Written inside the transaction: if the file cannot be saved, the row does not change.
             write_text_atomic(self._html_path(project_id, version), html)
             values = {
@@ -143,6 +160,7 @@ class PublicationRepository:
                 "published_at": now,
                 "published_by": user_id,
                 "withdrawn_at": None,
+                "public_token": public_token,
             }
             if existing:
                 assignments = ", ".join(f"{column} = :{column}" for column in values)
@@ -163,7 +181,8 @@ class PublicationRepository:
         """Hides the landing from the library and its address; the files stay for a later re-publication."""
         with self._db.write() as conn:
             conn.execute(
-                "UPDATE publications SET status = 'withdrawn', withdrawn_at = ? WHERE project_id = ? AND status = 'published'",
+                "UPDATE publications SET status = 'withdrawn', withdrawn_at = ?, public_token = NULL "
+                "WHERE project_id = ? AND status = 'published'",
                 (iso(utc_now()), project_id),
             )
             row = conn.execute(f"{_SELECT} WHERE p.project_id = ?", (project_id,)).fetchone()

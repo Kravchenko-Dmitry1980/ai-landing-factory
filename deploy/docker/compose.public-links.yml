@@ -1,0 +1,7 @@
+services:
+  backend:
+    image: lend-backend:public-links-20261028
+  frontend:
+    image: lend-frontend:public-links-20261028
+  gateway:
+    image: lend-gateway:before-public-links-20261028

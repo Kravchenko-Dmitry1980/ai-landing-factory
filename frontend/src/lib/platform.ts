@@ -50,6 +50,8 @@ export interface InviteCreated {
 export interface PublicationInfo {
   slug: string;
   path: string;
+  /** Anonymous view of the published snapshot; absent until an older publication is explicitly updated. */
+  public_path: string | null;
   status: "published" | "withdrawn";
   version: number;
   contract_version: number;
