@@ -69,9 +69,10 @@ export function LibraryCardView({ card, size = "regular" }: { card: LibraryCard;
       <Cover card={card} size={size} />
       {/* The cover is decoration for screen readers: what it shows is said here in words. */}
       <span className="sr-only">
-        {[card.title, card.customer, formatYear(card.published_at)].filter(Boolean).join(", ")}
+        {[card.title, card.customer, formatYear(card.published_at), card.has_demo ? "есть демо" : ""].filter(Boolean).join(", ")}
       </span>
       <span className="flex flex-wrap items-center gap-2.5">
+        {card.has_demo && <span className="rounded-full border border-scheme px-2.5 py-1 text-[13px] text-scheme">Демо</span>}
         {topic && <span className="rounded-full border border-night-rim px-2.5 py-1 text-[13px] text-night-soft">{topic}</span>}
         {extra && <span className="text-[13px] text-night-muted">{extra}</span>}
       </span>

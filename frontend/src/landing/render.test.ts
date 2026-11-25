@@ -59,26 +59,48 @@ describe("renderLandingHtml", () => {
     expect(html).toContain('content="&quot; onmouseover=&quot;x"');
   });
 
-  it("sets the theme, embeds fonts, and embeds the large cat once", () => {
+  it("sets the theme, embeds fonts, and places the cat in the header, on the card and in the footer", () => {
     const html = renderLandingHtml(model(), { theme: "light", assets });
     expect(html).toContain('<html lang="ru" data-theme="light">');
     expect(html).toContain("@font-face{font-family:x}");
+    expect(html).toContain('alt="Маскот проекта"');
     expect(html).toContain('src="data:image/webp;base64,MARK"');
-    expect(html.split("base64,HERO")).toHaveLength(2);
+    expect(html).toContain('alt="Котик УИИ с ноутбуком"');
+    expect(html).toContain('alt="Маскот УИИ"');
+    expect(html.split("base64,HERO")).toHaveLength(3);
+    expect(html).toContain("<!--demo-->");
+    expect(html).not.toMatch(/<script/i);
   });
 
-  it("animates the screen for at most eight steps but lists every step", () => {
+  it("draws at most five steps on the hero card but lists every step", () => {
     const steps = Array.from({ length: 10 }, (_, i) => ({ title: `Шаг ${i + 1}`, text: "" }));
     const html = renderLandingHtml(model({ steps }), { theme: "night", assets });
-    expect(html.match(/class="run__step run__step--\d"/g)).toHaveLength(8);
+    expect(html.match(/class="step"/g)).toHaveLength(5);
     expect(html).toContain("<h3>Шаг 10</h3>");
-    expect(html).toContain('aria-label="Схема проекта: 8 этапов"');
   });
 
-  it("names the screen with the right word form and shows the best metric", () => {
+  it("shows the metric as a result card", () => {
     const html = renderLandingHtml(model(), { theme: "night", assets });
-    expect(html).toContain('aria-label="Схема проекта: 3 этапа"');
-    expect(html).toContain('<div class="toast"><b>95,12%</b>');
+    expect(html).toContain("<strong>95,12%</strong>");
+    expect(html).toContain("Классификация сцены");
+  });
+
+  it("puts what the customer gets level with the solution heading", () => {
+    const html = renderLandingHtml(
+      model({
+        essence: "Система принимает почту и выбирает маршрут.",
+        outputs: ["Категория письма"],
+        inputs: ["Входящая почта"],
+        titles: { ...model().titles, about: "Разработанное решение", outputs: "Что получает заказчик", inputs: "Что на входе" },
+      }),
+      { theme: "night", assets },
+    );
+    const solution = html.slice(html.indexOf('id="solution"'), html.indexOf('id="work"'));
+    expect(solution).toContain('<div class="solution"><h2>Разработанное решение</h2>');
+    expect(solution.indexOf("<h2>Разработанное решение</h2>")).toBeLessThan(solution.indexOf("Что получает заказчик"));
+    expect(solution).toContain("<h3>Что получает заказчик</h3>");
+    expect(solution).toContain("<h3 class=\"sub\">Что на входе</h3>");
+    expect(solution).not.toContain('class="grid2"');
   });
 
   it("uses the section titles from the model", () => {
@@ -90,7 +112,7 @@ describe("renderLandingHtml", () => {
   it("drops sections that have no content", () => {
     const html = renderLandingHtml(model({ metrics: [], steps: [] }), { theme: "night", assets });
     expect(html).not.toContain('id="results"');
-    expect(html).not.toContain('class="screen"');
+    expect(html).not.toContain('class="workflow"');
     expect(html).not.toContain('id="team"');
     expect(html).not.toContain('href="#results"');
   });

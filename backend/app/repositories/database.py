@@ -80,6 +80,26 @@ _MIGRATIONS: list[tuple[str, ...]] = [
         "ALTER TABLE publications ADD COLUMN public_token TEXT",
         "CREATE UNIQUE INDEX publications_public_token ON publications (public_token) WHERE public_token IS NOT NULL",
     ),
+    (
+        # One current demo per project. The draft is what the editor last added;
+        # the published copy is what the intern link shows until the next update.
+        """
+        CREATE TABLE demos (
+            project_id TEXT PRIMARY KEY,
+            draft_sha256 TEXT,
+            draft_poster_ext TEXT,
+            draft_updated_at TEXT,
+            published_sha256 TEXT,
+            published_poster_ext TEXT,
+            published_version INTEGER
+        )
+        """,
+    ),
+    (
+        # Changes when the draft video or its cover changes, so a new cover also waits for publication.
+        "ALTER TABLE demos ADD COLUMN draft_mark TEXT",
+        "ALTER TABLE demos ADD COLUMN published_mark TEXT",
+    ),
 ]
 
 

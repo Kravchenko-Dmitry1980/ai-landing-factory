@@ -46,7 +46,7 @@ class PublicationInfo(BaseModel):
             slug=publication.slug,
             path=publication_path(publication.slug),
             public_path=(
-                f"/s/{publication.public_token}"
+                f"/s/{publication.slug}"
                 if publication.status == "published" and publication.public_token
                 else None
             ),
@@ -82,12 +82,13 @@ class LibraryCard(BaseModel):
     topics: list[TopicTag]
     theme: str
     version: int
+    has_demo: bool = False
     first_published_at: datetime
     published_at: datetime
     published_by_name: str | None = None
 
     @classmethod
-    def of(cls, publication: Publication, topics: tuple[str, ...] = ()) -> LibraryCard:
+    def of(cls, publication: Publication, topics: tuple[str, ...] = (), *, has_demo: bool = False) -> LibraryCard:
         return cls(
             project_id=publication.project_id,
             slug=publication.slug,
@@ -100,6 +101,7 @@ class LibraryCard(BaseModel):
             topics=[TopicTag(key=key, label=TOPICS_BY_KEY[key].label) for key in topics],
             theme=publication.theme,
             version=publication.version,
+            has_demo=has_demo,
             first_published_at=publication.first_published_at,
             published_at=publication.published_at,
             published_by_name=publication.published_by_name,

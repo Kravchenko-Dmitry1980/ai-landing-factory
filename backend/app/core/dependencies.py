@@ -6,6 +6,7 @@ from app.config import Settings, settings
 from app.repositories.account_repository import AccountRepository
 from app.repositories.contract_repository import ContractRepository
 from app.repositories.database import Database
+from app.repositories.demo_repository import DemoRepository
 from app.repositories.domain_repository import DomainRepository
 from app.repositories.file_store import FileStore
 from app.repositories.publication_repository import PublicationRepository
@@ -129,3 +130,7 @@ def get_account_repository() -> AccountRepository:
 
 def get_publication_repository() -> PublicationRepository:
     return PublicationRepository(get_database(), get_settings().published_dir)
+
+
+def get_demo_repository() -> DemoRepository:
+    return DemoRepository(get_database(), get_settings().demos_dir)

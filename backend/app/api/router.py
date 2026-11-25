@@ -4,6 +4,7 @@ from app.api.v1 import (
     admin,
     auth,
     contracts,
+    demos,
     domain,
     library,
     privacy,
@@ -30,5 +31,6 @@ api_router.include_router(uploads.router, prefix="/projects", tags=["uploads"], 
 api_router.include_router(contracts.router, prefix="/projects", tags=["contracts"], dependencies=_studio)
 api_router.include_router(domain.router, prefix="/projects", tags=["domain"], dependencies=_studio)
 api_router.include_router(publications.router, prefix="/projects", tags=["publications"], dependencies=_studio)
+api_router.include_router(demos.router, prefix="/projects", tags=["demos"], dependencies=_studio)
 api_router.include_router(showcase.router, prefix="/showcase", tags=["showcase"], dependencies=_studio)
 api_router.include_router(showcases.router, prefix="/showcases", tags=["showcases"], dependencies=_studio)

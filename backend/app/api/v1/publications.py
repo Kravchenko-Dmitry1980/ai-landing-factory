@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.auth import require_editor
-from app.core.dependencies import get_contract_repository, get_publication_repository
+from app.core.dependencies import get_contract_repository, get_demo_repository, get_publication_repository
 from app.core.locks import project_lock
 from app.repositories.account_repository import User
 from app.schemas.publication import PublicationInfo, PublishRequest
@@ -56,6 +56,14 @@ async def publish(project_id: UUID, body: PublishRequest, user: User = Depends(r
             meta=publication_meta(contract, body.summary),
             user_id=user.id,
         )
+    try:
+        await asyncio.to_thread(get_demo_repository().snapshot, str(project_id), publication.version)
+    except Exception:
+        logger.exception("Demo was not attached to %s v%d", project_id, publication.version)
+        raise HTTPException(
+            500,
+            "Страница опубликована, но демо не удалось приложить. Нажмите «Обновить в библиотеке» ещё раз.",
+        ) from None
     logger.info("Published %s as /p/%s v%d by %s", project_id, publication.slug, publication.version, user.login)
     return PublicationInfo.of(publication)
 

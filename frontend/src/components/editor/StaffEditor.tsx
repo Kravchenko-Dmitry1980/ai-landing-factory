@@ -11,6 +11,15 @@ import {
   updateContract,
 } from "@/lib/api";
 import { getApiErrorStatus } from "@/lib/api-errors";
+import {
+  getDemo,
+  MAX_DEMO_BYTES,
+  MAX_POSTER_BYTES,
+  removeDemo,
+  uploadDemo,
+  uploadPoster,
+  type DemoLoad,
+} from "@/lib/demo";
 import { fetchLandingFile, landingErrorMessage } from "@/lib/landingFile";
 import {
   apiDetail,
@@ -115,6 +124,9 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
   const [themeBusy, setThemeBusy] = useState(false);
   const [themeError, setThemeError] = useState<string | null>(null);
   const [publication, setPublication] = useState<PublicationLoad>({ status: "loading" });
+  const [demo, setDemo] = useState<DemoLoad>({ status: "loading" });
+  const [demoBusy, setDemoBusy] = useState(false);
+  const [demoError, setDemoError] = useState<string | null>(null);
   const [publishBusy, setPublishBusy] = useState<"publish" | "withdraw" | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [justPublished, setJustPublished] = useState(false);
@@ -147,6 +159,15 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
     } catch (err) {
       console.error("Publication status failed to load", projectId, err);
       setPublication({ status: "error", message: platformErrorMessage(err, "Не удалось узнать, опубликован ли лендинг") });
+    }
+  }, [projectId]);
+
+  const loadDemo = useCallback(async () => {
+    try {
+      setDemo({ status: "ok", info: await getDemo(projectId) });
+    } catch (err) {
+      console.error("Demo status failed to load", projectId, err);
+      setDemo({ status: "error", message: platformErrorMessage(err, "Не удалось проверить демо") });
     }
   }, [projectId]);
 
@@ -185,7 +206,8 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
     }
     void loadTeam();
     void loadPublication();
-  }, [projectId, projectName, loadTeam, loadPublication]);
+    void loadDemo();
+  }, [projectId, projectName, loadTeam, loadPublication, loadDemo]);
 
   useEffect(() => {
     void load();
@@ -355,6 +377,7 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
       }
       setPublication({ status: "ok", info: await publishLanding(projectId, version.current) });
       setJustPublished(true);
+      await loadDemo();
     } catch (err) {
       console.error("Publish failed", projectId, err);
       setPublishError(platformErrorMessage(err, "Не удалось опубликовать лендинг"));
@@ -362,6 +385,62 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
       void loadPublication();
     } finally {
       setPublishBusy(null);
+    }
+  }
+
+  async function changeDemo(video: File) {
+    if (demoBusy) return;
+    if (video.size > MAX_DEMO_BYTES) {
+      setDemoError("Ролик больше 50 МБ. Сожмите его и добавьте снова.");
+      return;
+    }
+    if (!video.name.toLowerCase().endsWith(".mp4") && video.type !== "video/mp4") {
+      setDemoError("Нужен ролик в формате MP4.");
+      return;
+    }
+    setDemoBusy(true);
+    setDemoError(null);
+    try {
+      setDemo({ status: "ok", info: await uploadDemo(projectId, video, null) });
+    } catch (err) {
+      console.error("Demo upload failed", projectId, err);
+      setDemoError(platformErrorMessage(err, "Не удалось добавить демо"));
+    } finally {
+      setDemoBusy(false);
+    }
+  }
+
+  async function changePoster(poster: File) {
+    if (demoBusy) return;
+    if (poster.size > MAX_POSTER_BYTES) {
+      setDemoError("Обложка больше 2 МБ. Выберите картинку поменьше.");
+      return;
+    }
+    setDemoBusy(true);
+    setDemoError(null);
+    try {
+      setDemo({ status: "ok", info: await uploadPoster(projectId, poster) });
+    } catch (err) {
+      console.error("Demo poster failed", projectId, err);
+      setDemoError(platformErrorMessage(err, "Не удалось добавить обложку"));
+    } finally {
+      setDemoBusy(false);
+    }
+  }
+
+  async function clearDemo() {
+    if (demoBusy) return;
+    const sure = window.confirm("Убрать демо из студии? По уже отправленной ссылке оно пропадёт только после обновления публикации.");
+    if (!sure) return;
+    setDemoBusy(true);
+    setDemoError(null);
+    try {
+      setDemo({ status: "ok", info: await removeDemo(projectId) });
+    } catch (err) {
+      console.error("Demo remove failed", projectId, err);
+      setDemoError(platformErrorMessage(err, "Не удалось убрать демо"));
+    } finally {
+      setDemoBusy(false);
     }
   }
 
@@ -376,6 +455,7 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
     setJustPublished(false);
     try {
       setPublication({ status: "ok", info: await withdrawPublication(projectId) });
+      await loadDemo();
     } catch (err) {
       console.error("Withdraw failed", projectId, err);
       setPublishError(platformErrorMessage(err, "Не удалось снять лендинг с публикации"));
@@ -664,6 +744,13 @@ export function StaffEditor({ projectId, projectName = "" }: { projectId: string
               onPublish={() => void publish()}
               onWithdraw={() => void withdraw()}
               onRetry={() => void loadPublication()}
+              projectId={projectId}
+              demo={demo}
+              demoBusy={demoBusy}
+              demoError={demoError}
+              onUploadDemo={(video) => void changeDemo(video)}
+              onUploadPoster={(poster) => void changePoster(poster)}
+              onRemoveDemo={() => void clearDemo()}
             />
             <ThemePicker value={theme} busy={themeBusy} error={themeError} onChange={(t) => void chooseTheme(t)} />
             <section className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-5">

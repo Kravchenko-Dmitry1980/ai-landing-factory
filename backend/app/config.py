@@ -145,6 +145,10 @@ class Settings(BaseSettings):
     def published_dir(self) -> Path:
         return self.data_dir / "published"
 
+    @property
+    def demos_dir(self) -> Path:
+        return self.data_dir / "demos"
+
     # OCR layer (Stage H.8)
     ocr_enabled: bool = False
     ocr_engine: str = "paddleocr"

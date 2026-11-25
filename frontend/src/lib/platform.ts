@@ -81,6 +81,7 @@ export interface LibraryCard {
   topics: TopicTag[];
   theme: string;
   version: number;
+  has_demo: boolean;
   first_published_at: string;
   published_at: string;
   published_by_name: string | null;

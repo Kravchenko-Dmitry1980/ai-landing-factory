@@ -102,13 +102,13 @@ const PARSER_TITLES: Record<string, string> = {
 };
 
 const PAGE_TITLES: Record<string, string> = {
-  essence: "О проекте",
-  tasks: "Что сделали",
+  essence: "Разработанное решение",
+  tasks: "Что сделала команда",
   purpose: "Зачем это нужно",
-  inputs: "Что получает",
-  outputs: "Что выдаёт",
+  inputs: "Что на входе",
+  outputs: "Что получает заказчик",
   results: "Результаты",
-  outlook: "Что дальше",
+  outlook: "Статус и развитие проекта",
   tech_stack: "Технологии",
 };
 
@@ -419,7 +419,8 @@ export function buildLandingModel(contract: LandingContract, publicTeam: TeamMem
     const [head, tail] = splitHead(item);
     if (head) return { title: head, text: tail };
     const words = item.split(" ");
-    return { title: words.slice(0, 5).join(" "), text: words.slice(5).join(" ") };
+    const title = words.slice(0, 5).join(" ").replace(/[,;:.]$/, "");
+    return { title, text: words.slice(5).join(" ") };
   });
 
   const results = blockParts(blocks.get("results"));

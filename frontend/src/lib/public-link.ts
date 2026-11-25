@@ -1,6 +1,9 @@
 /** Resolve only the public paths issued by our API, on the browser's current site. */
 export function publicLandingUrl(path: string | null | undefined, origin: string): string | null {
-  if (!path || !/^\/s\/[A-Za-z0-9_-]{43}$/.test(path)) return null;
+  if (!path) return null;
+  const key = path.startsWith("/s/") ? path.slice(3) : "";
+  const readable = key.length <= 80 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(key);
+  if (!path || path !== `/s/${key}` || !(/^[A-Za-z0-9_-]{43}$/.test(key) || readable)) return null;
   try {
     const base = new URL(origin);
     if (base.protocol !== "https:" && base.protocol !== "http:") return null;

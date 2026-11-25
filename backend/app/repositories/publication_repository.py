@@ -5,6 +5,7 @@ the title changes or the landing is withdrawn and published again.
 """
 
 import json
+import re
 import secrets
 import sqlite3
 from dataclasses import dataclass, field
@@ -41,6 +42,7 @@ class Publication:
     public_token: str | None = field(default=None, repr=False)
 
 
+_READABLE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 _SELECT = """
     SELECT p.*, u.name AS published_by_name
     FROM publications p LEFT JOIN users u ON u.id = p.published_by
@@ -93,12 +95,17 @@ class PublicationRepository:
             row = conn.execute(f"{_SELECT} WHERE p.slug = ? AND p.status = 'published'", (slug,)).fetchone()
         return _publication(row) if row else None
 
-    def get_public(self, token: str) -> Publication | None:
-        """Exactly one published snapshot; this never grants access to the library or drafts."""
+    def get_public(self, key: str) -> Publication | None:
+        """One published snapshot by its secret token or by the readable project address."""
         with self._db.read() as conn:
             row = conn.execute(
-                f"{_SELECT} WHERE p.public_token = ? AND p.status = 'published'", (token,)
+                f"{_SELECT} WHERE p.public_token = ? AND p.status = 'published'", (key,)
             ).fetchone()
+            if row is None and len(key) <= 80 and _READABLE.fullmatch(key):
+                row = conn.execute(
+                    f"{_SELECT} WHERE p.slug = ? AND p.status = 'published' AND p.public_token IS NOT NULL",
+                    (key,),
+                ).fetchone()
         return _publication(row) if row else None
 
     def list_all(self) -> list[Publication]:

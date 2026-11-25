@@ -183,7 +183,7 @@ describe("buildLandingModel", () => {
   it("uses section titles the editor changed and short page titles otherwise", () => {
     expect(model.titles.results).toBe("Чего добились");
     expect(model.titles.stack).toBe("Технологии");
-    expect(model.titles.about).toBe("О проекте");
+    expect(model.titles.about).toBe("Разработанное решение");
   });
 
   it("keeps steps, essence bullets, intros and numbered lines readable", () => {

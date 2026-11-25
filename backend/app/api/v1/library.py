@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query, Response
 
-from app.core.dependencies import get_publication_repository
+from app.core.dependencies import get_demo_repository, get_publication_repository
 from app.repositories.publication_repository import Publication
 from app.schemas.publication import (
     LibraryCard,
@@ -31,7 +31,11 @@ NOT_IN_LIBRARY = "Такого лендинга в библиотеке нет: 
 MAX_QUERY_CHARS = 200
 
 
-def _library() -> tuple[dict[str, Publication], LibraryIndex]:
+def _demo_ids() -> set[str]:
+    return get_demo_repository().project_ids_on_link()
+
+
+def _library() -> tuple[dict[str, Publication], LibraryIndex, set[str]]:
     """
     Fresh rows for the cards (names, dates) and the index for ranking. The rows come without
     texts; the texts are read only when the index has to be rebuilt.
@@ -39,11 +43,15 @@ def _library() -> tuple[dict[str, Publication], LibraryIndex]:
     repo = get_publication_repository()
     current = repo.list_published(with_texts=False)
     index = library_index(current, lambda: repo.list_published())
-    return {p.slug: p for p in current}, index
+    return {p.slug: p for p in current}, index, _demo_ids()
 
 
-def _card(index: LibraryIndex, publication: Publication) -> LibraryCard:
-    return LibraryCard.of(publication, index.topics_of(publication.slug))
+def _card(index: LibraryIndex, publication: Publication, demo_ids: set[str]) -> LibraryCard:
+    return LibraryCard.of(
+        publication,
+        index.topics_of(publication.slug),
+        has_demo=publication.project_id in demo_ids,
+    )
 
 
 @router.get("", response_model=LibrarySearch)
@@ -57,7 +65,7 @@ def search_library(
     A query longer than the field allows is cut, not refused: a shared link must still open.
     """
     query = q.strip()[:MAX_QUERY_CHARS]
-    fresh, index = _library()
+    fresh, index, demo_ids = _library()
     result = index.search(query)
     hits = [hit for hit in result.hits if hit.publication.slug in fresh][:limit]
     return LibrarySearch(
@@ -68,7 +76,7 @@ def search_library(
         terms=result.terms,
         hits=[
             LibraryHit(
-                card=_card(index, fresh[hit.publication.slug]),
+                card=_card(index, fresh[hit.publication.slug], demo_ids),
                 reasons=list(hit.reasons),
                 similar_topic=hit.similar_topic,
             )
@@ -81,10 +89,10 @@ def search_library(
 @router.get("/_shelves", response_model=LibraryShelves)
 def library_shelves() -> LibraryShelves:
     """The front page of the library: the newest landings and one carousel per topic."""
-    fresh, index = _library()
+    fresh, index, demo_ids = _library()
 
     def cards(publications) -> list[LibraryCard]:
-        return [_card(index, fresh[p.slug]) for p in publications if p.slug in fresh]
+        return [_card(index, fresh[p.slug], demo_ids) for p in publications if p.slug in fresh]
 
     return LibraryShelves(
         total=len(fresh),
@@ -102,17 +110,21 @@ def get_card(slug: str) -> LibraryCard:
     publication = get_publication_repository().get_published(slug)
     if publication is None:
         raise HTTPException(404, NOT_IN_LIBRARY)
-    return LibraryCard.of(publication, publication_topics(publication))
+    return LibraryCard.of(
+        publication,
+        publication_topics(publication),
+        has_demo=get_demo_repository().has_published(publication.project_id, publication.version),
+    )
 
 
 @router.get("/{slug}/similar", response_model=list[SimilarCard])
 def similar_landings(slug: str) -> list[SimilarCard]:
     """Landings to show under this one, each with what it shares with it."""
-    fresh, index = _library()
+    fresh, index, demo_ids = _library()
     if slug not in fresh:
         raise HTTPException(404, NOT_IN_LIBRARY)
     return [
-        SimilarCard(card=_card(index, fresh[s.publication.slug]), reason=s.reason)
+        SimilarCard(card=_card(index, fresh[s.publication.slug], demo_ids), reason=s.reason)
         for s in index.similar(slug)
         if s.publication.slug in fresh
     ]

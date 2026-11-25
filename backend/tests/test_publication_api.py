@@ -359,8 +359,10 @@ def assert_public_headers(response) -> None:
 def test_public_link_opens_only_the_published_html_without_login(editor, reader) -> None:
     contract = save_contract("Лендинг для стажёра", lead="Внутренний руководитель")
     info = publish(editor, contract).json()
-    token = info["public_path"].removeprefix("/s/")
-    assert len(token) == 43 and token != info["slug"]
+    address = info["public_path"].removeprefix("/s/")
+    assert address == info["slug"]
+    secret = get_publication_repository().get_for_project(str(contract.project_id)).public_token
+    assert secret and len(secret) == 43 and secret != address
     guest = TestClient(app)
     response = guest.get(public_api_path(info))
     assert response.status_code == 200 and response.text == PAGE
@@ -380,7 +382,8 @@ def test_public_link_opens_only_the_published_html_without_login(editor, reader)
         absent = guest.get(path)
         assert absent.status_code == 404
         assert_public_headers(absent)
-    assert token not in reader.get("/api/v1/library").text
+    assert secret not in reader.get("/api/v1/library").text
+    assert guest.get(f"/api/v1/public/landings/{secret}").text == PAGE
     assert "public_path" not in reader.get(f"/api/v1/library/{info['slug']}").json()
     assert reader.get(f"/api/v1/projects/{contract.project_id}/publication").status_code == 403
     assert publish(reader, contract).status_code == 403
@@ -403,9 +406,22 @@ def test_public_link_stays_on_snapshot_until_publish_and_survives_update(editor)
     assert_public_headers(guest.get(public_api_path(first)))
 
 
-def test_withdraw_revokes_public_link_and_republish_creates_a_different_link(editor) -> None:
+def test_readable_name_stays_closed_until_an_intern_link_exists(editor) -> None:
+    contract = save_contract("Закрытое имя")
+    info = publish(editor, contract).json()
+    guest = TestClient(app)
+    assert guest.get(public_api_path(info)).status_code == 200
+    with get_database().write() as conn:
+        conn.execute("UPDATE publications SET public_token = NULL WHERE slug = ?", (info["slug"],))
+    closed = guest.get(public_api_path(info))
+    assert closed.status_code == 404
+    assert_public_headers(closed)
+
+
+def test_withdraw_hides_the_name_and_republish_restores_the_same_name(editor) -> None:
     contract = save_contract("Отзыв ссылки")
     first = publish(editor, contract).json()
+    secret = get_publication_repository().get_for_project(str(contract.project_id)).public_token
     guest = TestClient(app)
     withdrawn = editor.delete(f"/api/v1/projects/{contract.project_id}/publication")
     assert withdrawn.status_code == 200 and withdrawn.json()["public_path"] is None
@@ -413,9 +429,9 @@ def test_withdraw_revokes_public_link_and_republish_creates_a_different_link(edi
     assert response.status_code == 404
     assert_public_headers(response)
     again = publish(editor, contract).json()
-    assert again["public_path"] != first["public_path"]
-    assert guest.get(public_api_path(first)).status_code == 404
+    assert again["public_path"] == first["public_path"]
     assert guest.get(public_api_path(again)).text == PAGE
+    assert guest.get(f"/api/v1/public/landings/{secret}").status_code == 404
 
 
 @pytest.mark.parametrize("token", ["missing", "a" * 42, "a" * 44, "a" * 43, "_shelves", "неверный", "a" * 42 + "."])
@@ -466,8 +482,9 @@ def test_migration_keeps_old_publications_private_until_an_editor_publishes_agai
                 "first_published_at,published_at) VALUES (?,?, 'published',1,1,'night',?, ?, ?)",
                 (project_id, project_id, "Старый закрытый лендинг", "2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00"),
             )
-    assert db.migrate() == 2
-    assert db.migrate() == 2
+    latest = len(_MIGRATIONS)
+    assert db.migrate() == latest
+    assert db.migrate() == latest
     repo = PublicationRepository(db, tmp_path / "published")
     assert len(repo.list_published(with_texts=False)) == 2
     for publication in repo.list_published():

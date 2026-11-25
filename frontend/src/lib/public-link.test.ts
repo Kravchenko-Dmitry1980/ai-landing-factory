@@ -8,6 +8,9 @@ afterEach(() => vi.unstubAllGlobals());
 describe("publicLandingUrl", () => {
   it("uses the domain of the editor instead of an internal backend or build-time host", () => {
     expect(publicLandingUrl(path, "https://lend.example.org")).toBe(`https://lend.example.org${path}`);
+    expect(publicLandingUrl("/s/prognoz-defolta", "https://lend.example.org")).toBe(
+      "https://lend.example.org/s/prognoz-defolta",
+    );
     expect(publicLandingUrl(path, "http://127.0.0.1:18088")).toBe(`http://127.0.0.1:18088${path}`);
   });
 
